@@ -12,8 +12,12 @@ const router = express.Router();
 router.route("/login")
 .post(async (req,res) => {
     let user = await hrModel.findOne({email: req.body.email});
-    // user |= await instructorModel.findOne({email: req.body.email});
-    // user |= await taModel.findOne({email: req.body.email});
+    if (!user) {
+        user = await instructorModel.findOne({email: req.body.email});
+    }
+    if (!user) {
+        user = await taModel.findOne({email: req.body.email});
+    }
     if (user) {
         const passwordCorrect = await bcrypt.compare(req.body.password, user.password);
         if (passwordCorrect) {
@@ -38,12 +42,12 @@ router.route("/login")
 
 router.use((req, res, next) => {
     const token = req.headers.token;
-    if(token) {
+    if (token) {
         try {
             const verified = jwt.verify(token, process.env.TOKEN_SECRET);
             next();
         }
-        catch(error) {
+        catch (error) {
             console.log(error.message);
             res.status(401).send("Invalid credentials.");
         }

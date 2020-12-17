@@ -14,15 +14,19 @@ router.use((req, res, next) => {
         next();
     }
     else {
-        res.status(403).send("Anauthorized access.");
+        res.status(403).send("Unauthorized access.");
     }
 });
 
 router.route("/add-hr-member")
 .post(async (req,res) => {
     let user = await hrModel.findOne({email: req.body.email});
-    // user |= await instructorModel.findOne({email: req.body.email});
-    // user |= await taModel.findOne({email: req.body.email});
+    if (!user) {
+        user = await instructorModel.findOne({email: req.body.email});
+    }
+    if (!user) {
+        user = await taModel.findOne({email: req.body.email});
+    }
     if (!user) {
         const salt = await bcrypt.genSalt(10);
         const newPassword = await bcrypt.hash("123456", salt);
