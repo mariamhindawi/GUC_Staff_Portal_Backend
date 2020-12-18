@@ -19,6 +19,55 @@ router.use((req, res, next) => {
     }
 });
 
+router.route("/update-room")
+.post(async (req,res) => {
+    let room = await roomModel.findOne({name: req.body.name});
+    if(!room) {
+        res.send("No office with such name");
+        return;
+    }
+    let persons = room.capacity-room.remainingCapacity;
+    if (persons>req.body.capacity) {
+        res.send("Cannot update capacity");
+        return;
+    }
+    if (req.body.name1) {
+        room.name = req.body.name1;
+    }
+    if (req.body.capacity) {
+        room.capacity = req.body.capacity;
+    } 
+    if (req.body.type) {
+        room.type = req.body.type;
+    }
+    room.remainingCapacity = req.body.capacity - persons;
+    try {
+        await room.save();
+        res.send("Updated room: "+room);
+    }
+    catch(error) {
+        res.send(error);
+    }
+
+})
+router.route("/delete-room")
+.post (async(req,res) => {
+    let room = await roomModel.findOne({name: req.body.name})
+    if (!room) {
+        res.send("No room to delete");
+        return;
+    }
+    try {
+        await roomModel.findOneAndDelete({name: req.body.name});
+        res.send("Deleted room: "+room);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+}) 
+
+
 router.route("/add-hr-member")
 .post(async (req,res) => {
     let user = await hrMemberModel.findOne({email: req.body.email});
