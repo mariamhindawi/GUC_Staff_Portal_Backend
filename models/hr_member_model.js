@@ -30,8 +30,6 @@ const hrMemberSchema = new mongoose.Schema({
     office: {
         type: String,
         required: true
-        // TODO: find office from rooms schema
-        // enum
     },
     salary: {
         type: Number,

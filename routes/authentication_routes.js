@@ -10,7 +10,7 @@ const roomModel = require("../models/room_model");
 const router = express.Router();
 
 router.route("/reset")
-.post(async (req,res) =>{
+.post(async (req,res) => {
     if (!req.body.reset) {
         res.send("Did not reset");
     }
