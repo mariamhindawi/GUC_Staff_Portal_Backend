@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
+const {MongooseAutoIncrementID} = require('mongoose-auto-increment-reworked');
 
-const taSchema = new mongoose.Schema({
+const hrMemberSchema = new mongoose.Schema({
     id: {
         type: String,
         required: true,
@@ -18,28 +19,13 @@ const taSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true
+        required: true,
         // TODO: password requirments
     },
     gender: {
         type: String,
         required: true,
         enum : ["Male", "Female"]
-    },
-    faculty: {
-        type: String
-        // TODO: find faculties from faculty schema
-        // enum:
-    },
-    department: {
-        type: String
-        // TODO: find department from department schema
-        // enum:
-    },
-    role: {
-        type: String,
-        default: "TA",
-        enum : ["TA", "Course Coordinator"]
     },
     office: {
         type: String,
@@ -53,7 +39,8 @@ const taSchema = new mongoose.Schema({
     },
     dayOff: {
         type: String,
-        enum : ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
+        default: "Saturday",
+        enum : ["Saturday"]
     },
     leaveBalance: {
         type: Number,
@@ -68,4 +55,14 @@ const taSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model("ta", taSchema);
+hrMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
+    modelName: "hr_member",
+    field: "idCount",
+    incrementBy: 1,
+    nextCount: "nextCount",
+    resetCount: "resetCount",
+    startAt: 1,
+    unique: true
+  });
+
+module.exports = mongoose.model("hr_member", hrMemberSchema);

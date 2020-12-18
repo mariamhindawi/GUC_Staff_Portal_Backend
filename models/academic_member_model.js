@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
+const {MongooseAutoIncrementID} = require('mongoose-auto-increment-reworked');
 
-const instructorSchema = new mongoose.Schema({
+const academicMemberSchema = new mongoose.Schema({
     id: {
         type: String,
         required: true,
@@ -26,6 +27,11 @@ const instructorSchema = new mongoose.Schema({
         required: true,
         enum : ["Male", "Female"]
     },
+    role: {
+        type: String,
+        required: true,
+        enum : ["Instructor", "Head of Department", "TA", "Course Coordinator"]
+    },
     faculty: {
         type: String
         // TODO: find faculties from faculty schema
@@ -35,11 +41,6 @@ const instructorSchema = new mongoose.Schema({
         type: String
         // TODO: find department from department schema
         // enum:
-    },
-    role: {
-        type: String,
-        default: "Instructor",
-        enum : ["Instructor", "Head of Department"]
     },
     office: {
         type: String,
@@ -68,4 +69,14 @@ const instructorSchema = new mongoose.Schema({
     }
 });
 
-module.exports = mongoose.model("instructor", instructorSchema);
+academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
+    modelName: "academic_member",
+    field: "idCount",
+    incrementBy: 1,
+    nextCount: "nextCount",
+    resetCount: "resetCount",
+    startAt: 1,
+    unique: true
+  });
+
+module.exports = mongoose.model("academic_member", academicMemberSchema);
