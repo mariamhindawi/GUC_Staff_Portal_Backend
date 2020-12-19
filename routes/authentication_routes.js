@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
+const { getMaxListeners } = require("../models/hr_member_model");
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.route("/reset")
         newUserCount = count;
     });
 
-    const newUser = new hrMemberModel({
+    let newUser = new hrMemberModel({
         id: "hr-" + newUserCount,
         name: "Marwan",
         email: "mm@gmail.com",
@@ -45,6 +46,24 @@ router.route("/reset")
         office: "C7.201",
         salary: 7000,
         dayOff: "Saturday"
+    })
+
+    
+    await newUser.save();
+
+    await academicMemberModel.nextCount().then(count => {
+        newUserCount = count;
+    });
+
+    newUser = new academicMemberModel({
+        id: 'a-'+newUserCount,
+        name: 'Youssef',
+        email: 'ys@gmail.com',
+        password: newPassword,
+        gender: "Male",
+        role: 'Head of Department',
+        office: 'c7.201',
+        salary: 20000
     })
 
     await newRoom.save();
