@@ -7,6 +7,9 @@ const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
+const departmentModel = require("../models/department_model");
+const facultyModel = require("../models/faculty_model");
+
 const router = express.Router();
 
 router.use((req, res, next) => {
@@ -153,13 +156,8 @@ router.route("/add-room")
 router.route("/update-room")
 .post(async (req,res) => {
     let room = await roomModel.findOne({name: req.body.name});
-    let room1 = await roomModel.findOne({name: req.body.name1});
     if(!room) {
-        res.send("No office with such name");
-        return;
-    }
-    if (room1) {
-        res.send("Name Used.. Change it");
+        res.send("No room with such name");
         return;
     }
     let persons = room.capacity-room.remainingCapacity;
@@ -206,6 +204,12 @@ router.route("/delete-room")
 
 router.route("/add-course")
 .post(async (req,res) => {
+    let dep = await departmentModel.findOne({name: req.body.department});
+    if (!dep) {
+        res.send("Invalid Department Name");
+        return;
+    }
+    //check for TAS and Doctors like departments???? 
     const newCourse = new courseModel({
         id: req.body.id,
         name: req.body.name,
@@ -221,7 +225,7 @@ router.route("/add-course")
        res.send("Course Added: "+newCourse);   
     }
     catch (error) {
-        console.log(error.message);
+        
         res.send(error);
     }
 })
@@ -229,13 +233,8 @@ router.route("/add-course")
 router.route("/update-course")
 .post(async (req,res) => {
     let course = await courseModel.findOne({id: req.body.id});
-    let course1 = await courseModel.findOne({id: req.body.id1});
     if (!course) {
         res.send("No course with such ID");
-        return;
-    }
-    if (course1) {
-        res.send("ID Used.. Change it");
         return;
     }
     if (req.body.id1) {
@@ -284,8 +283,90 @@ router.route("/delete-course")
     {
         res.send(error);
     }
-}) 
+})
 
 
+router.route("/add-department")
+.post(async (req,res) => {
+    let faculty = await facultyModel.findOne({name: req.body.faculty});
+    if (!faculty) {
+        res.send("Cannot add department.. No faculty with such name");
+        return;
+    }
+    const newdepartment = new departmentModel({
+        name: req.body.name,
+        courses: req.body.courses,
+        faculty: req.body.faculty,
+        headOfDepartment: req.body.headOfDepartment
+    })
+    try {
+       await newdepartment.save();
+       res.send("Department Added: "+newdepartment);   
+    }
+    catch (error) {
+        res.send(error);
+    }
+})
+router.route("/update-department")
+.post(async (req,res) => {
+    let department = await departmentModel.findOne({name: req.body.name});
+    if(!room) {
+        res.send("No department with such name");
+        return;
+    }
+    if (req.body.name1) {
+        department.name = req.body.name1;
+    }
+    if (req.body.courses) {
+        department.courses = req.body.courses;
+    } 
+    if (req.body.faculty) {
+        department.faculty = req.body.faculty;
+    }
+    if (req.body.headOfDepartment) {
+        department.headOfDepartment = req.body.headOfDepartment;
+    }
+    try {
+        await department.save();
+        res.send("Updated department: "+department);
+    }
+    catch(error) {
+        res.send(error);
+    }
+
+})
+
+router.route("/delete-department")
+.post (async(req,res) => {
+    let deletedDepartment = await departmentModel.findOne({name: req.body.name})
+    if (!deletedDepartment) {
+        res.send("No department to delete");
+        return;
+    }
+    try {
+        await departmentModel.findOneAndDelete({name: req.body.name});
+        res.send("Deleted department: "+deletedDepartment);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+})
+
+router.route("/add-faculty")
+.post(async (req,res) => {
+    
+    const newFaculty = new facultyModel({
+        name: req.body.name,
+        departments: req.body.departments
+    })
+    try {
+       await newFaculty.save();
+       res.send("Faculty Added: "+newFaculty);   
+    }
+    catch (error) {
+        res.send(error);
+    }
+})
 
 module.exports = router;
