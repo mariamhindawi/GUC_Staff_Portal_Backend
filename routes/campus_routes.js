@@ -16,7 +16,7 @@ router.route("/signIn")
         user = await academicMemberModel.findOne({id: req.body.staffId});
     }
 
-    const date=new Date(Date.now()).toLocaleString("en-AU");
+    const date=new Date(Date.now());
     const newRecord = new attendanceRecordModel({
         staffId: req.body.staffId,
         signInTime: date,
@@ -36,7 +36,7 @@ router.route("/signIn")
 router.route("/signOut")
 .post(async (req,res) => {
     let record = await attendanceRecordModel.findOne({staffId: req.body.staffId});
-    const date=new Date(Date.now()).toLocaleString("en-AU");
+    const date=new Date(Date.now());
     let signInDay="";
     let signOutDay="";
     for(var i=0;i<(record.signInTime).length;i++){
