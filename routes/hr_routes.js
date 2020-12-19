@@ -6,6 +6,9 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
+const courseModel = require("../models/course_model");
+const departmentModel = require("../models/department_model");
+const facultyModel = require("../models/faculty_model");
 
 const router = express.Router();
 
@@ -18,6 +21,8 @@ router.use((req, res, next) => {
         res.status(403).send("Unauthorized access.");
     }
 });
+
+
 
 router.route("/add-hr-member")
 .post(async (req,res) => {
@@ -323,6 +328,221 @@ router.route("/add-room")
     }
     catch (error) {
         console.log(error.message);
+        res.send(error);
+    }
+})
+router.route("/update-room")
+.post(async (req,res) => {
+    let room = await roomModel.findOne({name: req.body.name});
+    if(!room) {
+        res.send("No room with such name");
+        return;
+    }
+    let persons = room.capacity-room.remainingCapacity;
+    if (persons>req.body.capacity) {
+        res.send("Cannot update capacity");
+        return;
+    }
+    if (req.body.name1) {
+        room.name = req.body.name1;
+    }
+    if (req.body.capacity) {
+        room.capacity = req.body.capacity;
+    } 
+    if (req.body.type) {
+        room.type = req.body.type;
+    }
+    room.remainingCapacity = req.body.capacity - persons;
+    try {
+        await room.save();
+        res.send("Updated room: "+room);
+    }
+    catch(error) {
+        res.send(error);
+    }
+
+})
+router.route("/delete-room")
+.post (async(req,res) => {
+    let room = await roomModel.findOne({name: req.body.name})
+    if (!room) {
+        res.send("No room to delete");
+        return;
+    }
+    try {
+        await roomModel.findOneAndDelete({name: req.body.name});
+        res.send("Deleted room: "+room);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+}) 
+
+
+router.route("/add-course")
+.post(async (req,res) => {
+    let dep = await departmentModel.findOne({name: req.body.department});
+    if (!dep) {
+        res.send("Invalid Department Name");
+        return;
+    }
+    //check for TAS and Doctors like departments???? 
+    const newCourse = new courseModel({
+        id: req.body.id,
+        name: req.body.name,
+        department: req.body.department,
+        instructors: req.body.instructors,
+        TAs: req.body.tas,
+        totalSlotsNumber: req.body.slots,
+        courseCoordinator: req.body.coordinator
+
+    })
+    try {
+       await newCourse.save();
+       res.send("Course Added: "+newCourse);   
+    }
+    catch (error) {
+        
+        res.send(error);
+    }
+})
+
+router.route("/update-course")
+.post(async (req,res) => {
+    let course = await courseModel.findOne({id: req.body.id});
+    if (!course) {
+        res.send("No course with such ID");
+        return;
+    }
+    if (req.body.id1) {
+        course.id = req.body.id1;
+    }
+    if (req.body.name) {
+        course.name = req.body.name;
+    }
+    if (req.body.department) {
+        course.department = req.body.department;
+    }
+    if (req.body.instructors) {
+        course.instructors = req.body.instructors;
+    }
+    if (req.body.tas) {
+        course.TAs = req.body.tas;
+    }
+    if (req.body.slots) {
+        course.totalSlotsNumber = req.body.slots;
+    }
+    if (req.body.coordinator) {
+        course.courseCoordinator = req.body.coordinator;
+    }
+    try {
+        await course.save();
+        res.send("Updated Course: "+course);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+})
+
+router.route("/delete-course")
+.post (async(req,res) => {
+    let deletedCourse = await courseModel.findOne({id: req.body.id})
+    if (!deletedCourse) {
+        res.send("No course to delete");
+        return;
+    }
+    try {
+        await courseModel.findOneAndDelete({id: req.body.id});
+        res.send("Deleted course: "+deletedCourse);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+})
+
+
+router.route("/add-department")
+.post(async (req,res) => {
+    let faculty = await facultyModel.findOne({name: req.body.faculty});
+    if (!faculty) {
+        res.send("Cannot add department.. No faculty with such name");
+        return;
+    }
+    const newdepartment = new departmentModel({
+        name: req.body.name,
+        courses: req.body.courses,
+        faculty: req.body.faculty,
+        headOfDepartment: req.body.headOfDepartment
+    })
+    try {
+       await newdepartment.save();
+       res.send("Department Added: "+newdepartment);   
+    }
+    catch (error) {
+        res.send(error);
+    }
+})
+router.route("/update-department")
+.post(async (req,res) => {
+    let department = await departmentModel.findOne({name: req.body.name});
+    if(!room) {
+        res.send("No department with such name");
+        return;
+    }
+    if (req.body.name1) {
+        department.name = req.body.name1;
+    }
+    if (req.body.courses) {
+        department.courses = req.body.courses;
+    } 
+    if (req.body.faculty) {
+        department.faculty = req.body.faculty;
+    }
+    if (req.body.headOfDepartment) {
+        department.headOfDepartment = req.body.headOfDepartment;
+    }
+    try {
+        await department.save();
+        res.send("Updated department: "+department);
+    }
+    catch(error) {
+        res.send(error);
+    }
+
+})
+
+router.route("/delete-department")
+.post (async(req,res) => {
+    let deletedDepartment = await departmentModel.findOne({name: req.body.name})
+    if (!deletedDepartment) {
+        res.send("No department to delete");
+        return;
+    }
+    try {
+        await departmentModel.findOneAndDelete({name: req.body.name});
+        res.send("Deleted department: "+deletedDepartment);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+})
+
+router.route("/add-faculty")
+.post(async (req,res) => {
+    
+    const newFaculty = new facultyModel({
+        name: req.body.name,
+        departments: req.body.departments
+    })
+    try {
+       await newFaculty.save();
+       res.send("Faculty Added: "+newFaculty);   
+    }
+    catch (error) {
         res.send(error);
     }
 })
