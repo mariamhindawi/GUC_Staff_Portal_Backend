@@ -60,6 +60,7 @@ router.route("/update-profile")
 
 router.route("/reset-password")
 .post(async (req,res) => {
+    try{
     const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id:token.id});
    const passwordCorrect = await bcrypt.compare(req.body.password, user.password);
@@ -73,6 +74,10 @@ router.route("/reset-password")
     user = await hrMemberModel.findOneAndUpdate({id:token.id},{password:newPassword});
     console.log(user.password);
     res.send("Success")
+    }
+}
+    catch(error){
+        res.send("Cannot reset password")
     }
 })
 

@@ -71,9 +71,9 @@ router.route("/assign-course-coordinator")
     let course=await courseModel.findOne({name:req.body.course})
     let instructors=course.instructors
     console.log(instructors)
-    let inst=req.body.instructor
+    let ta=req.body.ta
     if(user.department===course.department){
-        let course=await courseModel.findOneAndUpdate({name:req.body.course}, { courseCoordinator: inst })
+        let course=await courseModel.findOneAndUpdate({name:req.body.course}, { courseCoordinator: ta })
     }
     try{
         res.send("Course coordinator assigned to course")
