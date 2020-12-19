@@ -6,20 +6,23 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
-const courseModel = require("../models/course_model")
+const courseModel = require("../models/course_model");
+const departmentModel = require("../models/department_model");
+const facultyModel = require("../models/faculty_model");
 
 const router = express.Router();
 
-
 router.use((req, res, next) => {
     const token = jwt.decode(req.headers.token);
-    if (token.role === "Head of Department") {
+    if (token.role === "Course Coordinator") {
         next();
     }
     else {
         res.status(403).send("Unauthorized access.");
     }
 });
+
+
 
 router.route("/view-all-staff")
 .get(async (req,res) => {
@@ -61,33 +64,7 @@ router.route("/view-all-staff-per-course")
 })
 
 
-router.route("/view-all-staff-dayoff")
-.get(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
-    let output= await academicMemberModel.find({department:user.department},{dayoff:1,_id:0})
-    try{
-        res.send(output)
-        }
-        catch(error){
-            res.send("error")
-        }
-})
-
-router.route("/view-one-staff-dayoff")
-.post(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
-    let output= await academicMemberModel.findOne({department:user.department,id:req.body.id},{dayoff:1,_id:0})
-    try{
-    res.send(output)
-    }
-    catch(error){
-        res.send("error")
-    }
-})
-
-router.route("/assign-course-instructor")
+router.route("/assign-course-coordinator")
 .post(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
@@ -96,56 +73,47 @@ router.route("/assign-course-instructor")
     console.log(instructors)
     let inst=req.body.instructor
     if(user.department===course.department){
-        let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$push": { instructors: inst }})
+        let course=await courseModel.findOneAndUpdate({name:req.body.course}, { courseCoordinator: inst })
     }
     try{
-    res.send("Instructor assigned to course")
-    }
-    catch(error){
-        res.send("Cannot assign instructor")
-    }
+        res.send("Course coordinator assigned to course")
+        }
+        catch(error){
+            res.send("Cannot assign course coordinator")
+        }
 })
 
-router.route("/delete-course-instructor")
+router.route("/delete-academic-member")
 .post(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
     let course=await courseModel.findOne({name:req.body.course})
     let instructors=course.instructors
-    console.log(instructors)
+    
     let inst=req.body.instructor
+    if(inst){
     if(user.department===course.department){
         let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { instructors: inst }})
     }
     try{
-        res.send("Instructor deleted")
+        res.send("Academic member deleted")
         }
         catch(error){
-            res.send("Cannot delete instructor")
+            res.send("Cannot delete academic member")
         }
-})
-
-router.route("/update-course-instructor")
-.post(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
-    let course=await courseModel.findOne({name:req.body.course})
-    let instructors=course.instructors
-    console.log(instructors)
-    let inst=req.body.instructordelete
-    let instupdate=req.body.instructorupdate
-    if(user.department===course.department){
-        let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { instructors: inst }})
-        let courseupdated=await courseModel.findOneAndUpdate({name:req.body.course},{"$push": { instructors: instupdate }})
     }
-    try{
-        res.send("Instructor updated")
+    let ta=req.body.ta
+    if(ta){
+        if(user.department===course.department){
+            let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { TAs: ta }})
         }
-        catch(error){
-            res.send("Cannot update instructor")
+        try{
+            res.send("Academic member deleted")
+            }
+            catch(error){
+               res.send("Cannot delete academic member")
+            }
         }
 })
-
-
 
 module.exports = router;
