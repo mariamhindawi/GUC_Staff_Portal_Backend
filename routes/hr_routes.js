@@ -6,7 +6,6 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
-const { off } = require("../models/hr_member_model");
 
 const router = express.Router();
 
