@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -14,7 +13,7 @@ const router = express.Router();
 
 router.use((req, res, next) => {
     const token = jwt.decode(req.headers.token);
-    if (token.role === "hr") {
+    if (token.role === "HR") {
         next();
     }
     else {
@@ -22,15 +21,12 @@ router.use((req, res, next) => {
     }
 });
 
-
-
 router.route("/add-hr-member")
 .post(async (req,res) => {
     let user = await hrMemberModel.findOne({email: req.body.email});
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
     }
-    
     if (user) {
         res.send("Email already exists");
         return;
@@ -68,7 +64,7 @@ router.route("/add-hr-member")
         office: req.body.office,
         salary: req.body.salary,
         dayOff: req.body.dayOff
-    })
+    });
     try {
         await newUser.save();
         await office.save();
@@ -86,7 +82,6 @@ router.route("/add-academic-member")
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
     }
-
     if (user) {
         res.send("Email already exists");
         return;
@@ -124,7 +119,7 @@ router.route("/add-academic-member")
         role: req.body.role,
         office: req.body.office,
         salary: req.body.salary
-    })
+    });
     // TODO: 
     // TODO: faculty, department
 
@@ -151,8 +146,11 @@ router.route("/update-hr-member")
         user.name = req.body.name;
     }
     if (req.body.email) {
-        const ac = await academicMemberModel.findOne({email: req.body.email});
-        if (ac) {
+        let otherUser = await hrMemberModel.findOne({email: req.body.email});
+        if (!otherUser) {
+            otherUser = await academicMemberModel.findOne({email: req.body.email});
+        }
+        if (otherUser) {
             res.send("Email already exists");
             return;
         }
@@ -216,8 +214,11 @@ router.route("/update-academic-member")
         user.name = req.body.name;
     }
     if (req.body.email) {
-        const hr = await hrMemberModel.findOne({email: req.body.email});
-        if (hr) {
+        let otherUser = await hrMemberModel.findOne({email: req.body.email});
+        if (!otherUser) {
+            otherUser = await academicMemberModel.findOne({email: req.body.email});
+        }
+        if (otherUser) {
             res.send("Email already exists");
             return;
         }
@@ -321,7 +322,7 @@ router.route("/add-room")
         capacity: req.body.capacity,
         remainingCapacity: req.body.capacity,
         type: req.body.type
-    })
+    });
     try {
        await newRoom.save();
        res.send(newRoom);   
@@ -331,6 +332,7 @@ router.route("/add-room")
         res.send(error);
     }
 })
+
 router.route("/update-room")
 .post(async (req,res) => {
     let room = await roomModel.findOne({name: req.body.name});
@@ -362,6 +364,7 @@ router.route("/update-room")
     }
 
 })
+
 router.route("/delete-room")
 .post (async(req,res) => {
     let room = await roomModel.findOne({name: req.body.name})
@@ -378,7 +381,6 @@ router.route("/delete-room")
         res.send(error);
     }
 }) 
-
 
 router.route("/add-course")
 .post(async (req,res) => {
@@ -397,7 +399,7 @@ router.route("/add-course")
         totalSlotsNumber: req.body.slots,
         courseCoordinator: req.body.coordinator
 
-    })
+    });
     try {
        await newCourse.save();
        res.send("Course Added: "+newCourse);   
@@ -463,7 +465,6 @@ router.route("/delete-course")
     }
 })
 
-
 router.route("/add-department")
 .post(async (req,res) => {
     let faculty = await facultyModel.findOne({name: req.body.faculty});
@@ -485,6 +486,7 @@ router.route("/add-department")
         res.send(error);
     }
 })
+
 router.route("/update-department")
 .post(async (req,res) => {
     let department = await departmentModel.findOne({name: req.body.name});
@@ -537,7 +539,7 @@ router.route("/add-faculty")
     const newFaculty = new facultyModel({
         name: req.body.name,
         departments: req.body.departments
-    })
+    });
     try {
        await newFaculty.save();
        res.send("Faculty Added: "+newFaculty);   

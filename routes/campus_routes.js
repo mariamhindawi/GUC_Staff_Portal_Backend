@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -9,23 +8,33 @@ const attendanceRecordModel = require("../models/attendance_record_model");
 
 const router = express.Router();
 
-router.route("/signIn")
+function compareDates(date1, date2) {
+    return date1.getDate() === date2.getDate()
+    && date1.getMonth() === date2.getMonth()
+    && date1.getFullYear() === date2.getFullYear();
+}
+
+router.route("/sign-in")
 .post(async (req,res) => {
     let user = await hrMemberModel.findOne({id: req.body.staffId});
     if (!user) {
         user = await academicMemberModel.findOne({id: req.body.staffId});
     }
+    if (!user) {
+        res.send("Invalid user id.");
+        return;
+    }
 
-    const date=new Date(Date.now());
-    const newRecord = new attendanceRecordModel({
+    const date = new Date();
+    const newAttendanceRecord = new attendanceRecordModel({
         staffId: req.body.staffId,
         signInTime: date,
         signOutTime: null
+    });
 
-    })
     try {
-        await newRecord.save();
-        res.send(newRecord);
+        await newAttendanceRecord.save();
+        res.send(newAttendanceRecord);
     }
     catch (error) {
         console.log(error.message)
@@ -33,32 +42,45 @@ router.route("/signIn")
     }
 });
 
-router.route("/signOut")
+router.route("/sign-out")
 .post(async (req,res) => {
-    let record = await attendanceRecordModel.findOne({staffId: req.body.staffId});
-    const date=new Date(Date.now());
-    let signInDay="";
-    let signOutDay="";
-    for(var i=0;i<(record.signInTime).length;i++){
-   if(record.signInTime.charAt(i)!==","){
-    signInDay=signInDay+(record.signInTime).charAt(i);
-    signOutDay=signOutDay+date.charAt(i);
-   }
-   else{
-       break;
-   }
+    let user = await hrMemberModel.findOne({id: req.body.staffId});
+    if (!user) {
+        user = await academicMemberModel.findOne({id: req.body.staffId});
     }
-    if(!record || record.signOutTime!==null || signInDay!==signOutDay){
-        res.send("This sign out was not proceeded by a sign in");
+    if (!user) {
+        res.send("Invalid user id.");
         return;
     }
-   
-   
-    record.signOutTime=date;
+    
+    let signOutTime = new Date();
+    let attendanceRecords = await attendanceRecordModel.find({staffId: req.body.staffId}).sort({signInTime: 1});
+    let attendanceRecord = attendanceRecords.pop();
+    let signInTime = attendanceRecords.length === 0 ? null : new Date(attendanceRecord.signInTime);
+
+    if (attendanceRecords.length === 0 || attendanceRecord.signOutTime !== null 
+            || !compareDates(signOutTime, signInTime)) {
+        let newAttendanceRecord = new attendanceRecordModel({
+            staffId: req.body.staffId,
+            signInTime: null,
+            signOutTime: signOutTime
+        });
+
+        try {
+            await newAttendanceRecord.save();
+            res.send(newAttendanceRecord);
+        }
+        catch (error) {
+            console.log(error.message)
+            res.send(error);
+        }
+        return;
+    }
+    
+    attendanceRecord.signOutTime = signOutTime;
     try {
-        await record.save();
-        
-        res.send(record);
+        await attendanceRecord.save();
+        res.send(attendanceRecord);
     }
     catch (error) {
         console.log(error.message)

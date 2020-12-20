@@ -30,22 +30,23 @@ const academicMemberSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true,
-        enum : ["Instructor", "Head of Department", "TA", "Course Coordinator"]
+        enum : ["Course Instructor", "Head of Department", "Teaching Assistant", "Course Coordinator"]
     },
     faculty: {
         type: String
         // TODO: find faculties from faculty schema
         // check foreign key
+        // required?
     },
     department: {
         type: String
         // TODO: find department from department schema
         // check foreign key
+        // required?
     },
     office: {
         type: String,
         required: true
-        // check foreign key
     },
     salary: {
         type: Number,
@@ -53,19 +54,20 @@ const academicMemberSchema = new mongoose.Schema({
     },
     dayOff: {
         type: String,
+        required: true,
+        default: "Saturday",
         enum : ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
     },
-    leaveBalance: {
+    annualLeaveBalance: {
         type: Number,
+        required: true,
         default: 0
     },
     accidentalLeaveBalance: {
         type: Number,
+        required: true,
         default: 6
     },
-    remainingHours: {
-        type: Number
-    }
 });
 
 academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
