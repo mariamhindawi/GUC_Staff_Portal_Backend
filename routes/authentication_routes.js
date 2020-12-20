@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
-
 const router = express.Router();
 
 router.route("/login")
