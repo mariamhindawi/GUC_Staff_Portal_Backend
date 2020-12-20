@@ -5,11 +5,6 @@ const jwt = require("jsonwebtoken");
 const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
-const roomModel = require("../models/room_model");
-const {annualLeaveModel} = require('../models/request_model')
-const { getMaxListeners } = require("../models/hr_member_model");
-const fs = require('fs')
-const path=require('path')
 
 const router = express.Router();
 

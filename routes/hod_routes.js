@@ -2,13 +2,9 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
-const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model")
-const { annualLeaveModel, accidentalLeaveModel,
-    maternityLeaveModel, dayOffChangeModel,
-    slotLinkingModel, compensationLeaveModel, sickLeaveModel } = require("../models/request_model");
+const { annualLeaveModel } = require("../models/request_model");
 
 const router = express.Router();
 
