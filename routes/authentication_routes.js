@@ -6,7 +6,10 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
+const {annualLeaveModel} = require('../models/request_model')
 const { getMaxListeners } = require("../models/hr_member_model");
+const fs = require('fs')
+const path=require('path')
 
 const router = express.Router();
 
@@ -18,9 +21,10 @@ router.route("/reset")
 
     await hrMemberModel.deleteMany({});
     await hrMemberModel.resetCount();
-    await academicMemberModel.deleteMany({});
-    await academicMemberModel.resetCount();
+    //await academicMemberModel.deleteMany({});
+    //await academicMemberModel.resetCount();
     await roomModel.deleteMany({});
+    resetRequests()
 
     const newRoom = new roomModel({
         name: "C7.201",
@@ -46,24 +50,6 @@ router.route("/reset")
         office: "C7.201",
         salary: 7000,
         dayOff: "Saturday"
-    })
-
-    
-    await newUser.save();
-
-    await academicMemberModel.nextCount().then(count => {
-        newUserCount = count;
-    });
-
-    newUser = new academicMemberModel({
-        id: 'a-'+newUserCount,
-        name: 'Youssef',
-        email: 'ys@gmail.com',
-        password: newPassword,
-        gender: "Male",
-        role: 'Head of Department',
-        office: 'c7.201',
-        salary: 20000
     })
 
     await newRoom.save();
@@ -127,4 +113,12 @@ router.use(async (req, res, next) => {
     next();
 });
 
+const resetRequests= async()=>{  
+    await annualLeaveModel.deleteMany({})
+    let config=JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),'config.json')));
+    let id = "0";
+    config.requestCounter=id;
+    fs.writeFileSync(path.join(path.dirname(__dirname),'config.json'),JSON.stringify(config))
+
+}
 module.exports = router;
