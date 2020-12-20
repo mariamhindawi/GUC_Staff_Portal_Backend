@@ -7,7 +7,7 @@ const authenticationRoutes = require("./routes/authentication_routes");
 const generalStaffRoutes = require("./routes/general_staff_routes");
 const hrRoutes = require("./routes/hr_routes");
 const hodRoutes = require("./routes/hod_routes.js");
-const taRoutes = require('./routes/ta_routes')
+const academicMemberRoutes = require('./routes/academicMember_routes')
 
 const app = express();
 
@@ -17,6 +17,6 @@ app.use(authenticationRoutes);
 app.use("/staff", generalStaffRoutes);
 app.use("/hr", hrRoutes);
 app.use("/hod", hodRoutes);
-app.use('/ta',taRoutes);
+app.use('/academicMember',academicMemberRoutes);
 
 module.exports.app = app;

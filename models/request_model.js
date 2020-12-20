@@ -118,6 +118,10 @@ const maternityLeaveSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    duration:{
+        type:Number,
+        max:90
+    },
     day:{
         type:String,
         required:true
