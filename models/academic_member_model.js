@@ -35,18 +35,17 @@ const academicMemberSchema = new mongoose.Schema({
     faculty: {
         type: String
         // TODO: find faculties from faculty schema
-        // enum:
+        // check foreign key
     },
     department: {
         type: String
         // TODO: find department from department schema
-        // enum:
+        // check foreign key
     },
     office: {
         type: String,
         required: true
-        // TODO: find office from rooms schema
-        // enum
+        // check foreign key
     },
     salary: {
         type: Number,

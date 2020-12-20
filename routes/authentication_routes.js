@@ -12,7 +12,7 @@ const courseModel = require("../models/course_model");
 const router = express.Router();
 
 router.route("/reset")
-.post(async (req,res) =>{
+.post(async (req,res) => {
     if (!req.body.reset) {
         res.send("Did not reset");
     }
@@ -87,21 +87,30 @@ router.route("/login")
     res.header("token", token).send("Logged in successfully.");
 });
 
-router.use((req, res, next) => {
-    const token = req.headers.token;
-    if (token) {
-        try {
-            const verified = jwt.verify(token, process.env.TOKEN_SECRET);
-            next();
-        }
-        catch (error) {
-            console.log(error.message);
-            res.status(401).send("Invalid credentials.");
-        }
-    }
-    else {
+router.use(async (req, res, next) => {
+    let token = req.headers.token;
+    if (!token) {
         res.status(401).send("No credentials.");
+        return;
     }
+    try {
+        const verified = jwt.verify(token, process.env.TOKEN_SECRET);
+    }
+    catch (error) {
+        console.log(error.message);
+        res.status(401).send("Invalid token.");
+    }
+
+    token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({id: token.id});
+    if (!user) {
+        user = await academicMemberModel.findOne({id: token.id});
+    }
+    if (!user) {
+        res.status(401).send("Invalid credentials.");
+        return;
+    }
+    next();
 });
 
 module.exports = router;
