@@ -6,7 +6,9 @@ const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
-
+const departmentModel = require("../models/department_model");
+const facultyModel = require("../models/faculty_model");
+const courseModel = require("../models/course_model");
 const router = express.Router();
 
 router.route("/reset")
@@ -20,6 +22,9 @@ router.route("/reset")
     await academicMemberModel.deleteMany({});
     await academicMemberModel.resetCount();
     await roomModel.deleteMany({});
+    await departmentModel.deleteMany({});
+    await facultyModel.deleteMany({});
+    await courseModel.deleteMany({});
 
     const newRoom = new roomModel({
         name: "C7.201",

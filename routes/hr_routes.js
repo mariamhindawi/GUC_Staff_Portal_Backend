@@ -161,6 +161,15 @@ router.route("/update-room")
         return;
     }
     let persons = room.capacity-room.remainingCapacity;
+    if (room.type==="Office") {
+        if (req.body.type!=="Office") {
+            if (persons > 0) {
+                res.send("Cannot update type.. Reassign people in Office frist");
+                return;
+            }
+        }
+    }
+    
     if (persons>req.body.capacity) {
         res.send("Cannot update capacity");
         return;
@@ -189,6 +198,10 @@ router.route("/delete-room")
     let room = await roomModel.findOne({name: req.body.name})
     if (!room) {
         res.send("No room to delete");
+        return;
+    }
+    if (room.type==="Office") {
+        res.send("Cannot delete room.. Reassign people in it first");
         return;
     }
     try {
@@ -220,6 +233,7 @@ router.route("/add-course")
         courseCoordinator: req.body.coordinator
 
     })
+    dep.courses.push(req.body.name);
     try {
        await newCourse.save();
        res.send("Course Added: "+newCourse);   
@@ -275,6 +289,7 @@ router.route("/delete-course")
         res.send("No course to delete");
         return;
     }
+    
     try {
         await courseModel.findOneAndDelete({id: req.body.id});
         res.send("Deleted course: "+deletedCourse);
@@ -293,12 +308,36 @@ router.route("/add-department")
         res.send("Cannot add department.. No faculty with such name");
         return;
     }
+    let headOfDepartment = await academicMemberModel.findOne({name: req.body.headOfDepartment});
+    if (!headOfDepartment) {
+        res.send("No academic member with such name to be head of this department");
+        return;
+    }
+    console.log(headOfDepartment);
+    if (headOfDepartment.role!=="Head of Department") {
+        headOfDepartment.role = "Head of Department";
+        try {
+            await headOfDepartment.save();
+        }
+        catch(errpr) {
+            res.send(error);
+        }
+    }
     const newdepartment = new departmentModel({
         name: req.body.name,
         courses: req.body.courses,
         faculty: req.body.faculty,
         headOfDepartment: req.body.headOfDepartment
     })
+    faculty.departments.push(req.body.name);
+    console.log(faculty.departments); 
+    try {
+        await faculty.save();
+    }
+    catch(error) {
+        res.send("error");
+    }
+
     try {
        await newdepartment.save();
        res.send("Department Added: "+newdepartment);   
@@ -326,6 +365,11 @@ router.route("/update-department")
     if (req.body.headOfDepartment) {
         department.headOfDepartment = req.body.headOfDepartment;
     }
+    let courses = await courseModel.find({department: req.body.name});
+    for (i = 0; i < courses.length; i++) {
+        let crs =  courses[i];
+        crs.department = req.body.name1;
+    }
     try {
         await department.save();
         res.send("Updated department: "+department);
@@ -342,6 +386,11 @@ router.route("/delete-department")
     if (!deletedDepartment) {
         res.send("No department to delete");
         return;
+    }
+    let courses = await courseModel.find({department: req.body.name});
+    for (i = 0; i < courses.length; i++) {
+        let crs =  courses[i];
+        await departmentModel.findOneAndDelete({name: crs.name});
     }
     try {
         await departmentModel.findOneAndDelete({name: req.body.name});
@@ -368,5 +417,50 @@ router.route("/add-faculty")
         res.send(error);
     }
 })
+router.route("/update-faculty")
+.post(async (req,res) => {
+    let faculty = await facultyModel.findOne({name: req.body.name});
+    if(!faculty) {
+        res.send("No department with such name");
+        return;
+    }
+    if (req.body.name1) {
+        faculty.name = req.body.name1;
+    }
+    if (req.body.departments) {
+        faculty.departments = req.body.departments;
+    }
+    try {
+        await faculty.save();
+        res.send("Updated faculty: "+faculty);
+    }
+    catch(error) {
+        res.send(error);
+    }
+
+})
+router.route("/delete-faculty")
+.post (async(req,res) => {
+    let deletedFaculty = await facultyModel.findOne({name: req.body.name})
+    if (!deletedFaculty) {
+        res.send("No department to delete");
+        return;
+    }
+    let departments = await departmentModel.find({faculty: req.body.name});
+    for (i = 0; i < departments.length; i++) {
+        let dep =  departments[i];
+        dep.faculty="UNASSIGNED";
+        dep.save();
+    }
+    try {
+        await facultyModel.findOneAndDelete({name: req.body.name});
+        res.send("Deleted faculty: "+deletedFaculty);
+    }
+    catch(error)
+    {
+        res.send(error);
+    }
+})
+
 
 module.exports = router;
