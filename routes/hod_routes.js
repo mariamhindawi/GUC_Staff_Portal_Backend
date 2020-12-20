@@ -6,6 +6,9 @@ const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model")
+const { annualLeaveModel, accidentalLeaveModel,
+    maternityLeaveModel, dayOffChangeModel,
+    slotLinkingModel, compensationLeaveModel, sickLeaveModel } = require("../models/request_model");
 
 const router = express.Router();
 
@@ -25,15 +28,13 @@ router.route("/view-all-staff")
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
     let output= await academicMemberModel.find({department:user.department},{name:1,_id:0,email:1,role:1,faculty:1,department:1,office:1,salary:1})
-    try{
+    try {
         res.send(output)
-        }
-        catch(error){
-            res.send("error")
-        }
-})
-
-
+    }
+    catch(error){
+        res.send("error")
+    }
+});
 
 router.route("/view-all-staff-per-course")
 .post(async (req,res) => {
@@ -57,21 +58,15 @@ router.route("/view-all-staff-per-course")
         catch(error){
             res.send("error")
         }
-})
-
+});
 
 router.route("/view-all-staff-dayoff")
-.get(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
-    let output= await academicMemberModel.find({department:user.department},{dayoff:1,_id:0})
-    try{
+    .get(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let output = await academicMemberModel.find({ department: user.department }, { dayoff: 1, _id: 0 })
         res.send(output)
-        }
-        catch(error){
-            res.send("error")
-        }
-})
+});
 
 router.route("/view-one-staff-dayoff")
 .post(async (req,res) => {
@@ -84,7 +79,7 @@ router.route("/view-one-staff-dayoff")
     catch(error){
         res.send("error")
     }
-})
+});
 
 router.route("/assign-course-instructor")
 .post(async (req,res) => {
@@ -145,6 +140,54 @@ router.route("/update-course-instructor")
         }
 })
 
+router.get('/staff-requests/:reqId/accept', async (req, res) => {
+    let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+    let requester = await academicMemberModel.findOne({ id: request.requestedBy })
+    if (request.type === 'annualLeave') {
+        if (requester.leaveBalance > 1) {
+            requester.leaveBalance -= 1;
+            request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
+        }
+        else {
+            request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave balance" }, { new: true })
+        }
+    }
+    if (request.type === 'accidentalLeave') {
+        if (requester.leaveBalance > 1 && requester.accidentalLeaveBalance>1) {
+            requester.leaveBalance -= 1
+            requester.accidentalLeaveBalance-=1
+            request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
+        }
+        else {
+            request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave/accidental leave balance" }, { new: true })
+        }
+    }
+    if (request.type === 'sickLeave' || request.type === 'maternityLeave' || request.type === 'compensationRequest') {
+        request= await annualLeaveModel.findOneAndUpdate({id:req.params.reqId},{status:"Accepted"},{new:true})
+    }
+    if (request.type === 'dayOffChangeRequest') {
+        requester.dayOff = request.dayOff
+        requester.save()
+    }
+    if (request.type === 'slotLinkingRequest') {
 
+    }
+    res.send(request)
+})
+
+router.get('/staff-requests', async (req, res) => {
+    const token = jwt.decode(req.headers.token);
+    let hod = await academicMemberModel.findOne({ id: token.id });
+    let requests = await annualLeaveModel.find({ $and: [{ $nor: [{ type: 'slotLinkingRequest' }] }, { status: 'Under review' }] })
+    for (let i = 0; i < requests.length; i++) {
+        let request = requests[i]
+        let staffMember = await academicMemberModel.findOne({ id: request.requestedBy })
+        if (staffMember.department !== hod.department) {
+            requests.splice(i)
+            i--
+        }
+    }
+    res.send(requests)
+});
 
 module.exports = router;
