@@ -89,8 +89,6 @@ router.route("/add-academic-member")
         return;
     }
 
-    // TODO: remove faculty from academic member
-
     let user = await hrMemberModel.findOne({email: req.body.email});
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
@@ -105,24 +103,10 @@ router.route("/add-academic-member")
         return;
     }
 
-    if (req.body.faculty) {
-        const faculty  = facultyModel.findOne({name: req.body.faculty});
-        if (!faculty) {
-            res.send("Invalid faculty name.");
-            return;
-        }
-        user.faculty = req.body.faculty;
-    }
-
     if (req.body.department) {
         const department  = departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
-            return;
-        }
-        if (!req.body.faculty && department.faculty !== "UNASSIGNED" || 
-            req.body.faculty !== department.faculty) {
-            res.send("This department is not in this faculty.");
             return;
         }
         user.department = req.body.department;
@@ -158,7 +142,6 @@ router.route("/add-academic-member")
         password: newPassword,
         gender: req.body.gender,
         role: req.body.role,
-        faculty: req.body.faculty,
         department: req.body.department,
         office: req.body.office,
         salary: req.body.salary,
@@ -258,8 +241,6 @@ router.route("/update-academic-member")
         return;
     }
 
-    // TODO: remove faculty from academic member
-
     if (req.body.name) {
         user.name = req.body.name;
     }
@@ -296,23 +277,10 @@ router.route("/update-academic-member")
         }
         user.role = req.body.role;
     }
-    if (req.body.faculty) {
-        const faculty  = facultyModel.findOne({name: req.body.faculty});
-        if (!faculty) {
-            res.send("Invalid faculty name.");
-            return;
-        }
-        user.faculty = req.body.faculty;
-    }
     if (req.body.department) {
         const department  = departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
-            return;
-        }
-        if (!req.body.faculty && department.faculty !== "UNASSIGNED" || 
-            req.body.faculty !== department.faculty) {
-            res.send("This department is not in this faculty.");
             return;
         }
         user.department = req.body.department;
@@ -713,7 +681,7 @@ router.route("/delete-faculty")
         department.faculty = "UNASSIGNED";
         department.save();
     }
-    
+
     res.send("Deleted faculty: " + faculty);
 });
 
