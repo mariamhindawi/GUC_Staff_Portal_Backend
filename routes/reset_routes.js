@@ -1,5 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const fs = require("fs");
+const path = require("path");
 
 const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
@@ -9,6 +11,7 @@ const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
 const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
+const {annualLeaveModel} = require('../models/request_model')
 
 const router = express.Router();
 
@@ -17,7 +20,6 @@ router.route("")
     if (!req.body.reset) {
         res.send("Did not reset.");
     }
-
     await jwtBlacklistModel.deleteMany({});
     await hrMemberModel.deleteMany({});
     await hrMemberModel.resetCount();
@@ -59,6 +61,15 @@ router.route("")
     await newUser.save();
 
     res.send("Done.");
+    resetRequests();
 });
+
+const resetRequests = async() => {  
+    await annualLeaveModel.deleteMany({});
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),'config.json')));
+    let id = "0";
+    config.requestCounter = id;
+    fs.writeFileSync(path.join(path.dirname(__dirname),'config.json'), JSON.stringify(config));
+}
 
 module.exports = router;
