@@ -77,7 +77,8 @@ router.route("/sign-out")
         return;
     }
     
-    attendanceRecord.signOutTime = signOutTime;
+
+   attendanceRecord.signOutTime = signOutTime;
     try {
         await attendanceRecord.save();
         res.send(attendanceRecord);
