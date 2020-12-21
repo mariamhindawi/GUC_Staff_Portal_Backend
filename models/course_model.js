@@ -12,13 +12,14 @@ const courseSchema = new mongoose.Schema({
     },
     department: {
         type: String,
-        required: true
+        required: true,
+        default: "UNASSIGNED"
     },
-    instructors: {
+    courseInstructors: {
         type: [String],
         required: true
     },
-    TAs: {
+    teachingAssistants: {
         type: [String],
         required: true
     },

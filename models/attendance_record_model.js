@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const attendanceRecordSchema = new mongoose.Schema({
-    staffId: {
+    user: {
         type: String,
         required: true
     },

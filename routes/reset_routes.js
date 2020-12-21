@@ -11,6 +11,8 @@ const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
 const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
+const slotModel = require("../models/slot_model");
+const notificationModel = require("../models/notification_model");
 const {annualLeaveModel} = require('../models/request_model')
 
 const router = express.Router();
@@ -30,6 +32,8 @@ router.route("")
     await facultyModel.deleteMany({});
     await courseModel.deleteMany({});
     await attendanceRecordModel.deleteMany({});
+    await slotModel.deleteMany({});
+    await notificationModel.deleteMany({});
 
     const newRoom = new roomModel({
         name: "C7.201",
@@ -60,8 +64,9 @@ router.route("")
     await newRoom.save();
     await newUser.save();
 
-    res.send("Done.");
     resetRequests();
+    
+    res.send("Done.");
 });
 
 const resetRequests = async() => {  

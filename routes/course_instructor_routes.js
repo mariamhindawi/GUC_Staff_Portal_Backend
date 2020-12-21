@@ -14,15 +14,13 @@ const router = express.Router();
 
 router.use((req, res, next) => {
     const token = jwt.decode(req.headers.token);
-    if (token.role === "Course Coordinator") {
+    if (token.role === "Course Instructor" || token.role === "Head of Department") {
         next();
     }
     else {
         res.status(403).send("Unauthorized access.");
     }
 });
-
-
 
 router.route("/view-all-staff")
 .get(async (req,res) => {

@@ -8,11 +8,13 @@ const departmentSchema = new mongoose.Schema({
     },
     faculty: {
         type: String,
-        required: true
+        required: true,
+        default: "UNASSIGNED"
     },
     headOfDepartment: {
         type: String,
-        required: true
+        required: true,
+        default: "UNASSIGNED"
     }
 });
 

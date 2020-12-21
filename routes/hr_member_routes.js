@@ -8,6 +8,9 @@ const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
 const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
+const attendanceRecordModel = require("../models/attendance_record_model");
+const slotModel = require("../models/slot_model");
+const notificationModel = require("../models/notification_model");
 
 const router = express.Router();
 
@@ -22,7 +25,7 @@ router.use((req, res, next) => {
 });
 
 router.route("/add-hr-member")
-.post(async (req,res) => {
+.post(async (req, res) => {
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     if (!req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
@@ -67,7 +70,7 @@ router.route("/add-hr-member")
         email: req.body.email,
         password: newPassword,
         gender: req.body.gender,
-        office: req.body.office,
+        office: office._id,
         salary: req.body.salary
     });
     try {
@@ -82,7 +85,7 @@ router.route("/add-hr-member")
 });
 
 router.route("/add-academic-member")
-.post(async (req,res) => {
+.post(async (req, res) => {
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     if (!req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
@@ -97,19 +100,18 @@ router.route("/add-academic-member")
         res.send("Email already exists.");
         return;
     }
-    
+
     if (req.body.role === "Course Coordinator") {
         res.status(403).send("You cannot assign an academic member to be a course coordinator");
         return;
     }
 
     if (req.body.department) {
-        const department  = departmentModel.findOne({name: req.body.department});
+        var department  = await departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
             return;
         }
-        user.department = req.body.department;
     }
 
     const office = await roomModel.findOne({name: req.body.office});
@@ -142,8 +144,8 @@ router.route("/add-academic-member")
         password: newPassword,
         gender: req.body.gender,
         role: req.body.role,
-        department: req.body.department,
-        office: req.body.office,
+        department: department? department._id: "UNASSIGNED",
+        office: office._id,
         salary: req.body.salary,
         dayOff: req.body.dayOff
     });
@@ -160,7 +162,7 @@ router.route("/add-academic-member")
 })
 
 router.route("/update-hr-member")
-.put(async (req,res) => {
+.put(async (req, res) => {
     const user = await hrMemberModel.findOne({id: req.body.id});
     if (!user) {
         res.send("Invalid hr member id.");
@@ -196,24 +198,26 @@ router.route("/update-hr-member")
     if (req.body.gender) {
         user.gender = req.body.gender;
     }
-    if (req.body.office && req.body.office !== user.office) {
-        var office = await roomModel.findOne({name: req.body.office});
-        if (!office) {
+    if (req.body.office) {
+        var newOffice = await roomModel.findOne({name: req.body.office});
+        if (!newOffice) {
             res.send("Invalid office name.");
             return;
         }
-        if (office.type !== "Office") {
+        if (newOffice.type !== "Office") {
             res.send("Room is not an office.");
             return;
         }
-        if (office.remainingCapacity === 0) {
+        if (newOffice.remainingCapacity === 0) {
             res.send("Office has full capacity.");
             return;
         }
-        var oldOffice = await roomModel.findOne({name: user.office});
-        oldOffice.remainingCapacity++;
-        office.remainingCapacity--;
-        user.office = req.body.office;
+        var oldOffice = await roomModel.findOne({_id: user.office});
+        if (oldOffice !== newOffice) {
+            oldOffice.remainingCapacity++;
+            newOffice.remainingCapacity--;
+            user.office = newOffice._id;
+        }
     }
     if (req.body.salary) {
         user.salary = req.body.salary;
@@ -221,8 +225,8 @@ router.route("/update-hr-member")
 
     try {
         await user.save();
-        if (req.body.office && oldOffice) {
-            await office.save();
+        if (req.body.office && oldOffice !== newOffice) {
+            await newOffice.save();
             await oldOffice.save();
         }
         res.send(user);
@@ -278,31 +282,33 @@ router.route("/update-academic-member")
         user.role = req.body.role;
     }
     if (req.body.department) {
-        const department  = departmentModel.findOne({name: req.body.department});
+        const department  = await departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
             return;
         }
-        user.department = req.body.department;
+        user.department = department._id;
     }
-    if (req.body.office && req.body.office !== user.office) {
-        var office = await roomModel.findOne({name: req.body.office});
-        if (!office) {
+    if (req.body.office) {
+        var newOffice = await roomModel.findOne({name: req.body.office});
+        if (!newOffice) {
             res.send("Invalid office name.");
             return;
         }
-        if (office.type !== "Office") {
+        if (newOffice.type !== "Office") {
             res.send("Room is not an office.");
             return;
         }
-        if (office.remainingCapacity === 0) {
+        if (newOffice.remainingCapacity === 0) {
             res.send("Office has full capacity.");
             return;
         }
-        var oldOffice = await roomModel.findOne({name: user.office});
-        oldOffice.remainingCapacity++;
-        office.remainingCapacity--;
-        user.office = req.body.office;
+        var oldOffice = await roomModel.findOne({_id: user.office});
+        if (oldOffice !== newOffice) {
+            oldOffice.remainingCapacity++;
+            newOffice.remainingCapacity--;
+            user.office = newOffice._id;
+        }
     }
     if (req.body.salary) {
         user.salary = req.body.salary;
@@ -313,8 +319,8 @@ router.route("/update-academic-member")
     
     try {
         await user.save();
-        if (req.body.office && oldOffice) {
-            await office.save();
+        if (req.body.office && oldOffice !== newOffice) {
+            await newOffice.save();
             await oldOffice.save();
         }
         res.send(user);
@@ -333,7 +339,7 @@ router.route("/delete-hr-member")
         return;
     }
     
-    const office = await roomModel.findOne({name: user.office});
+    const office = await roomModel.findOne({_id: user.office});
     office.remainingCapacity++;
     await office.save();
 
@@ -342,20 +348,71 @@ router.route("/delete-hr-member")
 
 router.route("/delete-academic-member")
 .delete(async (req,res) => {
-    const user = await academicMemberModel.findOneAndDelete({id: req.body.id});
+    const user = await academicMemberModel.findOne({id: req.body.id});
     if (!user) {
         res.send("Invalid user id.");
         return;
     }
     
-    const office = await roomModel.findOne({name: user.office});
+    // TODO: check that academic member doesn't have assigned slots
+    const slots = await slotModel.find({staffMember: user.id});
+    if (slots.length !== 0) {
+        res.send("Cannot delete academic member. Must reassign his slots first.");
+        return;
+    }
+
+    // delete academic member
+    await academicMemberModel.findOneAndDelete({id: req.body.id});
+
+    // TODO: update office
+    const office = await roomModel.findOne({_id: user.office});
     office.remainingCapacity++;
     await office.save();
 
-    // TODO: delete in other tables associated
-    // TODO: update courses, attendance records, requests, slots
-    // TODO: update department and course if HOD or CC
+    // TODO: update courses
+    if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
+        let courses = await courseModel.find({teachingAssistants: user.id});
+        for (let i = 0; i < courses.length; i++) {
+            let course = courses[i];
+            let userIndex = course.teachingAssistants.indexOf(user.id);
+            course.teachingAssistants.splice(userIndex, 1);
+            await course.save();
+        }
+    }
+    else {
+        let courses = await courseModel.find({courseInstructors: user.id});
+        for (let i = 0; i < courses.length; i++) {
+            let course = courses[i];
+            let userIndex = course.courseInstructors.indexOf(user.id);
+            course.courseInstructors.splice(userIndex, 1);
+            await course.save();
+        }
+    }
+
+    // TODO: update department and courses if HOD or CC
+    if (user.role === "Course Coordinator") {
+        let courses = await courseModel.find({courseCoordinator: user.id});
+        for (let i = 0; i < courses.length; i++) {
+            let course = courses[i];
+            course.courseCoordinator = "UNASSIGNED";
+            await course.save();
+        }
+    }
+    else if (user.role === "Head of Department") {
+        let department = await departmentModel.findOne({headOfDepartment: user.id});
+        department.headOfDepartment = "UNASSIGNED";
+        await department.save();
+    }
     
+    // TODO: delete entries in attendance record collection
+    await attendanceRecordModel.deleteMany({user: user.id});
+
+    // TODO: delete entries in notification collection
+    await notificationModel.deleteMany({user: user.id});
+
+    // TODO: delete entries in requests collection
+
+
     res.send(user);
 });
 
@@ -385,34 +442,37 @@ router.route("/update-room")
         res.send("No room with such name.");
         return;
     }
-    
-    // TODO: update academic members
-    // TODO: update slots table
-    // TODO: check conditions related with slots
 
-    let persons = room.capacity - room.remainingCapacity;
     if (req.body.newName) {
         room.name = req.body.newName;
     }
+    let personsAssigned = room.capacity - room.remainingCapacity;
     if (req.body.capacity) {
-        if (persons > req.body.capacity) {
+        if (personsAssigned > req.body.capacity) {
             res.send("Cannot update capacity. Reassign people in office first.");
             return;
         }
         room.capacity = req.body.capacity;
-        room.remainingCapacity = req.body.capacity - persons;
+        room.remainingCapacity = req.body.capacity - personsAssigned;
     }
     if (req.body.type) {
-        if (room.type === "Office" && req.body.type !== "Office" && persons > 0) {
+        if (room.type === "Office" && req.body.type !== "Office" && personsAssigned > 0) {
             res.send("Cannot update type. Reassign people in office first.");
             return;
         }
+        
+        const slot = await slotModel.findOne({room: room._id});
+        if (slot && room.type !== req.body.type) {
+            res.send("Cannot update type. Reassign slots first.");
+            return;
+        }
+
         room.type = req.body.type;
     }
     
     try {
         await room.save();
-        res.send("Updated room: " + room);
+        res.send(room);
     }
     catch (error) {
         console.log(error.message);
@@ -422,42 +482,48 @@ router.route("/update-room")
 
 router.route("/delete-room")
 .delete(async(req,res) => {
-    let room = await roomModel.findOneAndDelete({name: req.body.name});
+    let room = await roomModel.findOne({name: req.body.name});
     if (!room) {
         res.send("No room to delete.");
         return;
     }
 
-    // TODO: check conditions related with slots
+    const slot = await slotModel.findOne({room: room._id});
+    if (slot) {
+        res.send("Cannot delete room. Reassign slots first.");
+        return;
+    }
 
     if (room.type === "Office" && room.capacity !== room.remainingCapacity) {
         res.send("Cannot delete room. Reassign people in it first.");
         return;
     }
+    
+    await roomModel.findOneAndDelete({name: req.body.name});
 
-    res.send("Deleted room: " + room);
+    res.send(room);
 });
 
 router.route("/add-course")
 .post(async (req,res) => {
-    let department = await departmentModel.findOne({name: req.body.department});
-    if (!department) {
-        res.send("Invalid department name.");
-        return;
+    if (req.body.department) {
+        var department = await departmentModel.findOne({name: req.body.department});
+        if (!department) {
+            res.send("Invalid department name.");
+            return;
+        }
     }
     
     const newCourse = new courseModel({
         id: req.body.id,
         name: req.body.name,
-        department: req.body.department,
-        instructors: [],
-        TAs: [],
+        department: department? department._id: "UNASSIGNED",
         totalSlotsNumber: req.body.totalSlotsNumber
     });
 
     try {
        await newCourse.save();
-       res.send("Course Added: " + newCourse);   
+       res.send(newCourse);   
     }
     catch (error) {
         console.log(error.message);
@@ -475,18 +541,17 @@ router.route("/update-course")
 
     if (req.body.newId) {
         course.id = req.body.newId;
-        // TODO: update references
     }
     if (req.body.name) {
         course.name = req.body.name;
     }
     if (req.body.department) {
-        const department = departmentModel.findOne({name: req.body.department});
+        const department = await departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
             return;
         }
-        course.department = req.body.department;
+        course.department = department._id;
     }
     if (req.body.totalSlotsNumber) {
         course.totalSlotsNumber = req.body.totalSlotsNumber;
@@ -494,7 +559,7 @@ router.route("/update-course")
 
     try {
         await course.save();
-        res.send("Updated Course: " + course);
+        res.send(course);
     }
     catch (error) {
         console.log(error.message);
@@ -510,41 +575,55 @@ router.route("/delete-course")
         return;
     }
     
-    // TODO: update course coordinator role
-    // TODO: delete slots
+    let otherCourse = await courseModel.findOne({courseCoordinator: course.courseCoordinator});
+    if (!otherCourse) {
+        let courseCoordinator = await academicMemberModel.findOne({id: course.courseCoordinator});
+        courseCoordinator.role = "Teaching Assistant";
+        await courseCoordinator.save();
+    }
 
-    res.send("Deleted course: " + course);
+    await slotModel.deleteMany({course: course._id});
+
+    // TODO: delete requests
+
+    res.send(course);
 });
 
 router.route("/add-department")
 .post(async (req,res) => {
-    let faculty = await facultyModel.findOne({name: req.body.faculty});
-    if (!faculty) {
-        res.send("Cannot add department. No faculty with such name.");
-        return;
+    if (req.body.faculty) {
+        var faculty = await facultyModel.findOne({name: req.body.faculty});
+        if (!faculty) {
+            res.send("Cannot add department. No faculty with such name.");
+            return;
+        }
     }
 
-    let headOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
-    if (!headOfDepartment) {
-        res.send("No academic member with such id to be head of this department.");
-        return;
+    if (req.body.headOfDepartment) {
+        var headOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
+        if (!headOfDepartment) {
+            res.send("No academic member with such id to be head of this department.");
+            return;
+        }
+        if (headOfDepartment.role === "Head of Department") {
+            res.send("Cannot add this instructor as a head of department as he is already a head of another department.");
+            return;
+        }
+        headOfDepartment.role = "Head of Department";
     }
-    if (headOfDepartment.role === "Head of Department") {
-        res.send("Cannot add this instructor as a head of department as he is already a head of another department.");
-        return;
-    }
-    headOfDepartment.role = "Head of Department";
 
     const newdepartment = new departmentModel({
         name: req.body.name,
-        faculty: req.body.faculty,
-        headOfDepartment: req.body.headOfDepartment
+        faculty: faculty? faculty._id: "UNASSIGNED",
+        headOfDepartment: headOfDepartment? headOfDepartment.id: "UNASSIGNED"
     });
     
     try {
         await newdepartment.save();
-        await headOfDepartment.save();
-        res.send("Department Added: " + newdepartment);
+        if (headOfDepartment) {
+            await headOfDepartment.save();
+        }
+        res.send(newdepartment);
     }
     catch (error) {
         console.log(error.message);
@@ -562,15 +641,14 @@ router.route("/update-department")
 
     if (req.body.newName) {
         department.name = req.body.newName;
-        // TODO: update references courses, academic members
     }
     if (req.body.faculty) {
-        const faculty = facultyModel.findOne({name: req.body.faculty});
+        const faculty = await facultyModel.findOne({name: req.body.faculty});
         if (!faculty) {
             res.send("Invalid faculty name.");
             return;
         }
-        department.faculty = req.body.faculty;
+        department.faculty = faculty._id;
     }
     if (req.body.headOfDepartment && req.body.headOfDepartment !== department.headOfDepartment) {
         var newHeadOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
@@ -590,15 +668,7 @@ router.route("/update-department")
             await newHeadOfDepartment.save();
             await oldHeadOfDepartment.save();
         }
-        if (req.body.newName) {
-            let courses = await courseModel.find({department: req.body.name});
-            for (i = 0; i < courses.length; i++) {
-                let course =  courses[i];
-                course.department = req.body.newName;
-                course.save();
-            }
-        }
-        res.send("Updated department: " + department);
+        res.send(department);
     }
     catch (error) {
         console.log(error.message);
@@ -614,18 +684,26 @@ router.route("/delete-department")
         res.send("No department to delete.");
         return;
     }
-    
-    // TODO: update references courses, academic members
-    // TODO: update HOD
 
-    let courses = await courseModel.find({department: department.name});
+    let courses = await courseModel.find({department: department._id});
     for (i = 0; i < courses.length; i++) {
         let course =  courses[i];
         course.department = "UNASSIGNED";
         await course.save();
     }
 
-    res.send("Deleted department: " + department);
+    let academicMembers = await academicMemberModel.find({department: department._id});
+    for (i = 0; i < academicMembers.length; i++) {
+        let academicMember =  academicMembers[i];
+        academicMember.department = "UNASSIGNED";
+        await academicMember.save();
+    }
+
+    let headOfDepartment = academicMemberModel.findOne({id: department.headOfDepartment});
+    headOfDepartment.role = "Course Instructor";
+    await headOfDepartment.save();
+
+    res.send(department);
 });
 
 router.route("/add-faculty")
@@ -636,7 +714,7 @@ router.route("/add-faculty")
 
     try {
        await newFaculty.save();
-       res.send("Faculty Added: " + newFaculty);
+       res.send(newFaculty);
     }
     catch (error) {
         console.log(error.message);
@@ -654,12 +732,11 @@ router.route("/update-faculty")
 
     if (req.body.newName) {
         faculty.name = req.body.newName;
-        // TODO: update department
     }
 
     try {
         await faculty.save();
-        res.send("Updated faculty: " + faculty);
+        res.send(faculty);
     }
     catch (error) {
         console.log(error.message);
@@ -675,14 +752,14 @@ router.route("/delete-faculty")
         return;
     }
 
-    let departments = await departmentModel.find({faculty: req.body.name});
+    let departments = await departmentModel.find({faculty: faculty._id});
     for (i = 0; i < departments.length; i++) {
         let department =  departments[i];
         department.faculty = "UNASSIGNED";
         department.save();
     }
 
-    res.send("Deleted faculty: " + faculty);
+    res.send(faculty);
 });
 
 module.exports = router;

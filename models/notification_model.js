@@ -10,8 +10,8 @@ const notificationSchema = new mongoose.Schema({
         required: true
     },
     seen:{
-        type:Boolean,
-        default:false
+        type: Boolean,
+        default: false
     }
 })
 

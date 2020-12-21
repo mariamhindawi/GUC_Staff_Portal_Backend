@@ -9,7 +9,7 @@ const academicMemberModel = require("../models/academic_member_model");
 const router = express.Router();
 
 router.route("/login")
-.post(async (req,res) => {
+.post(async (req, res) => {
     let user = await hrMemberModel.findOne({email: req.body.email});
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
@@ -72,10 +72,11 @@ router.use(async (req, res, next) => {
 });
 
 router.route("/logout")
-.post(async (req,res) => {
+.post(async (req, res) => {
     const blacklistedToken = new jwtBlacklistModel({
         token: req.headers.token
     });
+
     try {
         await blacklistedToken.save();
         res.send("Logged out successfully.");
@@ -87,12 +88,22 @@ router.route("/logout")
 });
 
 router.route("/reset-password")
-.put(async (req,res) => {
+.put(async (req, res) => {
+    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    if (!req.body.email.match(mailFormat)) {
+        res.send("Invalid email address.");
+        return;
+    }
+
     let user = await hrMemberModel.findOne({email: req.body.email});
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
     }
-    
+    if (!user) {
+        res.send("User not found.");
+        return;
+    }
+
     const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
     if (!passwordCorrect) {
         res.status(401).send("Wrong password.");

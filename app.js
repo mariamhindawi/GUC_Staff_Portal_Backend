@@ -6,9 +6,9 @@ const authenticationRoutes = require("./routes/authentication_routes");
 const generalStaffRoutes = require("./routes/general_staff_routes");
 const hrMemberRoutes = require("./routes/hr_member_routes");
 const academicMemberRoutes = require("./routes/academic_member_routes");
-const hodRoutes = require("./routes/hod_routes.js");
-const ciRoutes = require("./routes/ci_routes.js");
-const coordinatorRoutes = require('./routes/coordinator_routes')
+const hodRoutes = require("./routes/head_of_department_routes");
+const ciRoutes = require("./routes/course_instructor_routes");
+const coordinatorRoutes = require('./routes/course_coordinator_routes')
 
 const app = express();
 
