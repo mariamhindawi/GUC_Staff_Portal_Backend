@@ -1,6 +1,4 @@
 const mongoose = require("mongoose");
-//const departmentSchema = require("./department_model");
-//const academicMemberSchema = require("./academic_member_model");
 
 const courseSchema = new mongoose.Schema({
     id: {
@@ -24,15 +22,15 @@ const courseSchema = new mongoose.Schema({
         type: [String],
         required: true
     },
+    courseCoordinator: {
+        type: String,
+        required: true,
+        default: "UNASSIGNED"
+    },
     totalSlotsNumber: {
         type: Number,
         required: true
-    },
-    courseCoordinator: {
-        type: String,
-        required: true
     }
-
-})
+});
 
 module.exports = mongoose.model("course", courseSchema);

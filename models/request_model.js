@@ -36,7 +36,7 @@ const annualLeaveSchema = new mongoose.Schema({
     reason:{
         type:String
     }
-})
+});
 
 const accidentalLeaveSchema = new mongoose.Schema({
     type:{
@@ -67,7 +67,7 @@ const accidentalLeaveSchema = new mongoose.Schema({
     reason:{
         type:String
     }
-})
+});
 
 const sickLeaveSchema = new mongoose.Schema({
     type:{
@@ -102,7 +102,7 @@ const sickLeaveSchema = new mongoose.Schema({
     reason:{
         type:String
     }
-})
+});
 
 const maternityLeaveSchema = new mongoose.Schema({
     type:{
@@ -141,7 +141,7 @@ const maternityLeaveSchema = new mongoose.Schema({
     reason:{
         type:String
     }
-})
+});
 
 
 const compensationRequestSchema = new mongoose.Schema({
@@ -170,7 +170,7 @@ const compensationRequestSchema = new mongoose.Schema({
         type:String,
         required:true
     }
-})
+});
 
 
 const dayOffChangeRequestSchema = new mongoose.Schema({
@@ -202,7 +202,7 @@ const dayOffChangeRequestSchema = new mongoose.Schema({
     HODComment:{
         type:String
     }
-})
+});
 
 const slotLinkingRequestSchema = new mongoose.Schema({
     type:{
@@ -234,7 +234,7 @@ const slotLinkingRequestSchema = new mongoose.Schema({
     HODComment:{
         type:String
     }
-})
+});
 
 
 module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "request");

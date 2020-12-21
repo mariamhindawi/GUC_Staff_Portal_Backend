@@ -6,10 +6,6 @@ const departmentSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    courses: {
-        type: [String],
-        required: true
-    },
     faculty: {
         type: String,
         required: true
@@ -18,6 +14,6 @@ const departmentSchema = new mongoose.Schema({
         type: String,
         required: true
     }
-})
+});
 
 module.exports = mongoose.model("department", departmentSchema);

@@ -1,14 +1,13 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
 const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
-const courseModel = require("../models/course_model");
 const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
+const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 
 const router = express.Router();
@@ -25,9 +24,9 @@ router.route("")
     await academicMemberModel.deleteMany({});
     await academicMemberModel.resetCount();
     await roomModel.deleteMany({});
-    await courseModel.deleteMany({});
-    // await departmentModel.deleteMany({});
+    await departmentModel.deleteMany({});
     await facultyModel.deleteMany({});
+    await courseModel.deleteMany({});
     await attendanceRecordModel.deleteMany({});
 
     const newRoom = new roomModel({

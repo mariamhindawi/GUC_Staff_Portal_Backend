@@ -11,6 +11,6 @@ const attendanceRecordSchema = new mongoose.Schema({
     signOutTime: {
         type: String
     }
-})
+});
 
 module.exports = mongoose.model("attendance_record", attendanceRecordSchema);

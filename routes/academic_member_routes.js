@@ -1,5 +1,4 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const fs = require('fs');
 const path = require('path');
@@ -28,19 +27,50 @@ router.route("/update-profile")
     let user = await academicMemberModel.findOne({id: token.id});
     
     if (req.body.email) {
+        const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        if (!req.body.email.match(mailFormat)) {
+            res.send("Invalid email address.");
+            return;
+        }
+        
         let otherUser = await hrMemberModel.findOne({email: req.body.email});
         if (!otherUser) {
             otherUser = await academicMemberModel.findOne({email: req.body.email});
         }
         if (otherUser) {
-            res.send("Email already exists");
+            res.send("Email already exists.");
             return;
         }
+
         user.email = req.body.email;
     }
-    
+    if (req.body.office && req.body.office !== user.office) {
+        var office = await roomModel.findOne({name: req.body.office});
+        if (!office) {
+            res.send("Invalid office name.");
+            return;
+        }
+        if (office.type !== "Office") {
+            res.send("Room is not an office.");
+            return;
+        }
+        if (office.remainingCapacity === 0) {
+            res.send("Office has full capacity.");
+            return;
+        }
+
+        var oldOffice = await roomModel.findOne({name: user.office});
+        oldOffice.remainingCapacity++;
+        office.remainingCapacity--;
+        user.office = req.body.office;
+    }
+
     try {
         await user.save();
+        if (req.body.office && oldOffice) {
+            await office.save();
+            await oldOffice.save();
+        }
         res.send(user);
     }
     catch (error) {

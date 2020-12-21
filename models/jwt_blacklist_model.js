@@ -6,6 +6,6 @@ const jwtBlacklistSchema = new mongoose.Schema({
         required: true,
         unique: true
     }
-})
+});
 
 module.exports = mongoose.model("jwt_blacklisted_token", jwtBlacklistSchema);

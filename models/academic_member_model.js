@@ -15,12 +15,10 @@ const academicMemberSchema = new mongoose.Schema({
         type: String, 
         required: true,
         unique: true
-        // TODO: check format
     },
     password: {
         type: String,
         required: true
-        // TODO: password requirments
     },
     gender: {
         type: String,
@@ -32,17 +30,10 @@ const academicMemberSchema = new mongoose.Schema({
         required: true,
         enum : ["Course Instructor", "Head of Department", "Teaching Assistant", "Course Coordinator"]
     },
-    faculty: {
-        type: String
-        // TODO: find faculties from faculty schema
-        // check foreign key
-        // required?
-    },
     department: {
-        type: String
-        // TODO: find department from department schema
-        // check foreign key
-        // required?
+        type: String,
+        required: true,
+        default: "UNASSIGNED"
     },
     office: {
         type: String,

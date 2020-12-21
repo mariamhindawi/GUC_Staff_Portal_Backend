@@ -19,6 +19,6 @@ const roomSchema = new mongoose.Schema({
         required: true,
         enum: ["Office","Tutorial Room","Lecture Hall","Lab"]
     }
-})
+});
 
 module.exports = mongoose.model("room", roomSchema);

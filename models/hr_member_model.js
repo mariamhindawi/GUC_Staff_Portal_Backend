@@ -15,12 +15,10 @@ const hrMemberSchema = new mongoose.Schema({
         type: String, 
         required: true,
         unique: true
-        // TODO: check format
     },
     password: {
         type: String,
-        required: true,
-        // TODO: password requirments
+        required: true
     },
     gender: {
         type: String,
@@ -37,19 +35,17 @@ const hrMemberSchema = new mongoose.Schema({
     },
     dayOff: {
         type: String,
+        required: true,
         default: "Saturday",
         enum : ["Saturday"]
     },
-    leaveBalance: {
+    annualLeaveBalance: {
         type: Number,
         default: 0
     },
     accidentalLeaveBalance: {
         type: Number,
         default: 6
-    },
-    remainingHours: {
-        type: Number
     }
 });
 

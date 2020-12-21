@@ -5,11 +5,7 @@ const facultySchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true
-    },
-    departments: {
-        type: [String],
-        required: true
     }
-})
+});
 
 module.exports = mongoose.model("faculty", facultySchema);

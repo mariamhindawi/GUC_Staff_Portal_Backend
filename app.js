@@ -1,5 +1,4 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
 
 const resetRoutes = require("./routes/reset_routes");
 const campusRoutes = require("./routes/campus_routes");
