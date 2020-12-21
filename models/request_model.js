@@ -18,6 +18,12 @@ const annualLeaveSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    slot:{
+        type:Number,
+        min:1,
+        max:5,
+        required:true
+    },
     status:{
         type:String,
         enum:['Under review','Accepted','Rejected','Not submitted'],
@@ -154,6 +160,10 @@ const compensationRequestSchema = new mongoose.Schema({
         type:Number,
         required:true
     },
+    day:{
+        type:String,
+        required:true
+    },
     requestedBy:{
         type:String,
         required:true
@@ -226,12 +236,20 @@ const slotLinkingRequestSchema = new mongoose.Schema({
         type: Number,
         required:true
     },
+    course: {
+        type:String,
+        required:true
+    },
+    room:{
+        type:String,
+        required:true
+    },
     status:{
         type:String,
         enum:['Under review','Accepted','Rejected'],
         default:'Under review'
     },
-    HODComment:{
+    ccComment:{
         type:String
     }
 })

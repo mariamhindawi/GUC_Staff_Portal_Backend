@@ -9,6 +9,7 @@ const hrMemberRoutes = require("./routes/hr_member_routes");
 const academicMemberRoutes = require("./routes/academic_member_routes");
 const hodRoutes = require("./routes/hod_routes.js");
 const ciRoutes = require("./routes/ci_routes.js");
+const coordinatorRoutes = require('./routes/coordinator_routes')
 
 const app = express();
 
@@ -21,5 +22,6 @@ app.use("/hr", hrMemberRoutes);
 app.use("/academic", academicMemberRoutes);
 app.use("/hod", hodRoutes);
 app.use("/ci", ciRoutes);
+app.use('/cc',coordinatorRoutes)
 
 module.exports.app = app;
