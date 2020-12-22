@@ -6,10 +6,10 @@ const attendanceRecordSchema = new mongoose.Schema({
         required: true
     },
     signInTime: {
-        type: String
+        type: Date
     },
     signOutTime: {
-        type: String
+        type: Date
     }
 });
 

@@ -1,6 +1,4 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
@@ -15,7 +13,7 @@ function compareDates(date1, date2) {
 }
 
 router.route("/sign-in")
-.post(async (req,res) => {
+.post(async (req, res) => {
     let user = await hrMemberModel.findOne({id: req.body.user});
     if (!user) {
         user = await academicMemberModel.findOne({id: req.body.user});
@@ -43,7 +41,7 @@ router.route("/sign-in")
 });
 
 router.route("/sign-out")
-.post(async (req,res) => {
+.post(async (req, res) => {
     let user = await hrMemberModel.findOne({id: req.body.user});
     if (!user) {
         user = await academicMemberModel.findOne({id: req.body.user});

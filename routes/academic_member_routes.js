@@ -5,11 +5,11 @@ const path = require('path');
 
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
+const roomModel = require("../models/room_model");
 const { annualLeaveModel, accidentalLeaveModel,
     maternityLeaveModel, dayOffChangeModel,
     slotLinkingModel, compensationLeaveModel, sickLeaveModel } = require("../models/request_model");
 const notificationModel = require('../models/notification_model');
-const { findOne } = require("../models/hr_member_model");
 const slotModel = require('../models/slot_model')
 
 const router = express.Router();
@@ -26,6 +26,11 @@ router.use((req, res, next) => {
 
 router.route("/update-profile")
 .put(async (req,res) => {
+    if (!(req.body.email || req.body.office)) {
+        res.send("No data entered.");
+        return
+    }
+
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id: token.id});
     
@@ -47,34 +52,39 @@ router.route("/update-profile")
 
         user.email = req.body.email;
     }
-    if (req.body.office && req.body.office !== user.office) {
-        var office = await roomModel.findOne({name: req.body.office});
-        if (!office) {
+
+    if (req.body.office) {
+        var oldOffice = await roomModel.findOne({_id: user.office});
+        var newOffice = await roomModel.findOne({name: req.body.office});
+        if (!newOffice) {
             res.send("Invalid office name.");
             return;
         }
-        if (office.type !== "Office") {
-            res.send("Room is not an office.");
-            return;
+        if (oldOffice._id !== newOffice._id) {
+            if (newOffice.type !== "Office") {
+                res.send("Room is not an office.");
+                return;
+            }
+            if (newOffice.remainingCapacity === 0) {
+                res.send("Office has full capacity.");
+                return;
+            }
+            oldOffice.remainingCapacity++;
+            newOffice.remainingCapacity--;
+            user.office = newOffice._id;
         }
-        if (office.remainingCapacity === 0) {
-            res.send("Office has full capacity.");
-            return;
-        }
-
-        var oldOffice = await roomModel.findOne({name: user.office});
-        oldOffice.remainingCapacity++;
-        office.remainingCapacity--;
-        user.office = req.body.office;
     }
 
     try {
         await user.save();
-        if (req.body.office && oldOffice) {
-            await office.save();
+        if (req.body.office && oldOffice._id !== newOffice._id) {
+            await newOffice.save();
             await oldOffice.save();
         }
-        res.send(user);
+        else {
+            var newOffice = await roomModel.findOne({_id: user.office});
+        }
+        res.send({user: user, office: newOffice});
     }
     catch (error) {
         console.log(error.message);

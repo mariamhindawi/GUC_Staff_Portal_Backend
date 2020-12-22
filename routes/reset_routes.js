@@ -35,12 +35,14 @@ router.route("")
     await slotModel.deleteMany({});
     await notificationModel.deleteMany({});
 
-    const newRoom = new roomModel({
+    let newRoom = new roomModel({
         name: "C7.201",
         capacity: 10,
         remainingCapacity: 9,
         type: "Office"
     });
+    await newRoom.save();
+    newRoom = await roomModel.findOne({name: "C7.201"});
 
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
@@ -56,12 +58,11 @@ router.route("")
         email: "mm@gmail.com",
         password: newPassword,
         gender: "Male",
-        office: "C7.201",
+        office: newRoom._id,
         salary: 7000,
         dayOff: "Saturday"
     })
 
-    await newRoom.save();
     await newUser.save();
 
     resetRequests();

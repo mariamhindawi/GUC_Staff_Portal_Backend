@@ -15,7 +15,7 @@ const app = express();
 app.use(express.json());
 app.use("/reset",resetRoutes);
 app.use("/campus",campusRoutes);
-app.use(authenticationRoutes);
+app.use("/staff", authenticationRoutes);
 app.use("/staff", generalStaffRoutes);
 app.use("/hr", hrMemberRoutes);
 app.use("/academic", academicMemberRoutes);

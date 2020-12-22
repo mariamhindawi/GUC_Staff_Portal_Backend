@@ -27,7 +27,7 @@ router.use((req, res, next) => {
 router.route("/add-hr-member")
 .post(async (req, res) => {
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (!req.body.email.match(mailFormat)) {
+    if (req.body.email && !req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
         return;
     }
@@ -76,7 +76,7 @@ router.route("/add-hr-member")
     try {
         await newUser.save();
         await office.save();
-        res.send(newUser);
+        res.send({user: newUser, office: office});
     }
     catch (error) {
         console.log(error.message)
@@ -101,15 +101,25 @@ router.route("/add-academic-member")
         return;
     }
 
-    if (req.body.role === "Course Coordinator") {
-        res.status(403).send("You cannot assign an academic member to be a course coordinator");
-        return;
-    }
-
     if (req.body.department) {
         var department  = await departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
+            return;
+        }
+    }
+
+    if (req.body.role === "Course Coordinator") {
+        res.status(403).send("Cannot assign an academic member to be a course coordinator.");
+        return;
+    }
+    else if (req.body.role === "Head of Department") {
+        if (!department) {
+            res.send("Cannot assign an academic member to be a head of department without specifying the department.");
+            return;
+        }
+        if (department.headOfDepartment !== "UNASSIGNED") {
+            res.send("Department already has a head.");
             return;
         }
     }
@@ -172,6 +182,7 @@ router.route("/update-hr-member")
     if (req.body.name) {
         user.name = req.body.name;
     }
+
     if (req.body.email) {
         const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
         if (!req.body.email.match(mailFormat)) {
@@ -190,14 +201,17 @@ router.route("/update-hr-member")
 
         user.email = req.body.email;
     }
+
     if (req.body.password) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
         user.password = hashedPassword;
     }
+
     if (req.body.gender) {
         user.gender = req.body.gender;
     }
+
     if (req.body.office) {
         var newOffice = await roomModel.findOne({name: req.body.office});
         if (!newOffice) {
@@ -219,6 +233,7 @@ router.route("/update-hr-member")
             user.office = newOffice._id;
         }
     }
+
     if (req.body.salary) {
         user.salary = req.body.salary;
     }
@@ -248,6 +263,7 @@ router.route("/update-academic-member")
     if (req.body.name) {
         user.name = req.body.name;
     }
+
     if (req.body.email) {
         const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
         if (!req.body.email.match(mailFormat)) {
@@ -266,29 +282,46 @@ router.route("/update-academic-member")
         
         user.email = req.body.email;
     }
+
     if (req.body.password) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
         user.password = hashedPassword;
     }
+
     if (req.body.gender) {
         user.gender = req.body.gender;
     }
-    if (req.body.role) {
-        if (req.body.role === "Course Coordinator") {
-            res.status(403).send("You cannot assign an academic member to be a course coordinator");
-            return;
-        }
-        user.role = req.body.role;
-    }
+
     if (req.body.department) {
         const department  = await departmentModel.findOne({name: req.body.department});
         if (!department) {
             res.send("Invalid department name.");
             return;
         }
+        if ((req.body.role === "Head of Department" && department.headOfDepartment !== "UNASSIGNED") ||
+            (!req.body.role && user.role === "Head of Department" && department.headOfDepartment !== "UNASSIGNED")) {
+            res.send("Department already has a head.");
+            return;
+        }
         user.department = department._id;
     }
+
+    if (req.body.role) {
+        if (req.body.role === "Course Coordinator") {
+            res.status(403).send("You cannot assign an academic member to be a course coordinator");
+            return;
+        }
+        else if (req.body.role === "Head of Department" && !req.body.department) {
+            const department = await departmentModel.findOne({_id: user.department});
+            if (department.headOfDepartment !== "UNASSIGNED") {
+                res.send("Department already has a head.");
+                return;
+            }
+        }
+        user.role = req.body.role;
+    }
+
     if (req.body.office) {
         var newOffice = await roomModel.findOne({name: req.body.office});
         if (!newOffice) {
@@ -310,9 +343,11 @@ router.route("/update-academic-member")
             user.office = newOffice._id;
         }
     }
+
     if (req.body.salary) {
         user.salary = req.body.salary;
     }
+
     if (req.body.dayOff) {
         user.dayOff = req.body.dayOff;
     }
@@ -446,6 +481,7 @@ router.route("/update-room")
     if (req.body.newName) {
         room.name = req.body.newName;
     }
+
     let personsAssigned = room.capacity - room.remainingCapacity;
     if (req.body.capacity) {
         if (personsAssigned > req.body.capacity) {
@@ -455,6 +491,7 @@ router.route("/update-room")
         room.capacity = req.body.capacity;
         room.remainingCapacity = req.body.capacity - personsAssigned;
     }
+
     if (req.body.type) {
         if (room.type === "Office" && req.body.type !== "Office" && personsAssigned > 0) {
             res.send("Cannot update type. Reassign people in office first.");
@@ -627,7 +664,7 @@ router.route("/add-department")
     }
     catch (error) {
         console.log(error.message);
-        res.send("error");
+        res.send(error);
     }
 });
 
@@ -730,9 +767,11 @@ router.route("/update-faculty")
         return;
     }
 
-    if (req.body.newName) {
-        faculty.name = req.body.newName;
+    if (!req.body.newName) {
+        res.send("Must enter faculty name.");
+        return;
     }
+    faculty.name = req.body.newName;
 
     try {
         await faculty.save();

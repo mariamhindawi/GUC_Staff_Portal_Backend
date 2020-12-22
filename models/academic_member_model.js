@@ -59,6 +59,11 @@ const academicMemberSchema = new mongoose.Schema({
         required: true,
         default: 6
     },
+    loggedIn: {
+        type: Boolean,
+        required: true,
+        default: false
+    }
 });
 
 academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {

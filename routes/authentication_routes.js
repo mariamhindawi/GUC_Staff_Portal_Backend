@@ -10,11 +10,21 @@ const router = express.Router();
 
 router.route("/login")
 .post(async (req, res) => {
+    if (!(req.body.email && req.body.password)) {
+        res.send("Not all the required fields are entered.");
+        return;
+    }
+
+    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    if (!req.body.email.match(mailFormat)) {
+        res.send("Invalid email address.");
+        return;
+    }
+
     let user = await hrMemberModel.findOne({email: req.body.email});
     if (!user) {
         user = await academicMemberModel.findOne({email: req.body.email});
     }
-
     if (!user) {
         res.status(401).send("User not found.");
         return;
@@ -26,16 +36,24 @@ router.route("/login")
         return;
     }
     
-    let role;
     if (!user.role) {
-        role = "HR";
+        var role = "HR";
     }
     else {
-        role = user.role;
+        var role = user.role;
     }
-
     const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
-    res.header("token", token).send("Logged in successfully.");
+    
+    if (!user.loggedIn) {
+        res.header("token", token).send("First login, reset password.");
+        // res.header("token", token).redirect("change-password");
+    }
+    else {
+        res.header("token", token).send("Logged in successfully.");
+    }
+})
+.get(async (req, res) => {
+    res.send("Please enter email and password.");
 });
 
 router.use(async (req, res, next) => {
@@ -87,21 +105,19 @@ router.route("/logout")
     }
 });
 
-router.route("/reset-password")
+router.route("/change-password")
 .put(async (req, res) => {
-    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (!req.body.email.match(mailFormat)) {
-        res.send("Invalid email address.");
+    if (!(req.body.oldPassword && req.body.newPassword)) {
+        res.send("Not all the required fields are entered.");
         return;
     }
 
-    let user = await hrMemberModel.findOne({email: req.body.email});
-    if (!user) {
-        user = await academicMemberModel.findOne({email: req.body.email});
+    const token = jwt.decode(req.headers.token);
+    if (token.role === "HR") {
+        var user = await hrMemberModel.findOne({id: token.id});
     }
-    if (!user) {
-        res.send("User not found.");
-        return;
+    else {
+        var user = await academicMemberModel.findOne({id: token.id});
     }
 
     const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
@@ -114,18 +130,25 @@ router.route("/reset-password")
     const newPassword = await bcrypt.hash(req.body.newPassword, salt);
     user.password = newPassword;
     
+    if (!user.loggedIn) {
+        user.loggedIn = true;
+    }
+
     try {
         await user.save();
         const blacklistedToken = new jwtBlacklistModel({
             token: req.headers.token
         });
-        await blacklistedToken.save();        
-        res.send("Password changed successfully.");
+        await blacklistedToken.save();
+        res.redirect("login");
     }
     catch (error) {
         console.log(error.message);
         res.send(error);
     }
+})
+.get(async (req, res) => {
+    res.send("Please renter old password and enter new password.");
 });
 
 module.exports = router;

@@ -46,6 +46,11 @@ const hrMemberSchema = new mongoose.Schema({
     accidentalLeaveBalance: {
         type: Number,
         default: 6
+    },
+    loggedIn: {
+        type: Boolean,
+        required: true,
+        default: false
     }
 });
 
