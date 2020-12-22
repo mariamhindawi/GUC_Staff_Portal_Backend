@@ -9,8 +9,9 @@ const { annualLeaveModel, accidentalLeaveModel,
     maternityLeaveModel, dayOffChangeModel,
     slotLinkingModel, compensationLeaveModel, sickLeaveModel } = require("../models/request_model");
 const notificationModel = require('../models/notification_model');
-const { findOne } = require("../models/hr_member_model");
 const slotModel = require('../models/slot_model')
+const roomModel = require('../models/room_model')
+const courseModel=require('../models/course_model')
 
 const router = express.Router();
 
@@ -188,13 +189,23 @@ router.post('/send-slot-linking-request', async (req, res) => {
         res.send('Request already submitted')
         return
     }
+    let room = await roomModel.findOne({name:req.body.room})
+    let course = await courseModel.findOne({id:req.body.course})
+    if(!room){
+        res.send("Room doesn't exist")
+        return
+    }
+    if(!course){
+        res.send("Course doesn't exist")
+        return
+    }
     const request = new slotLinkingModel({
         id: id,
         requestedBy: token.id,
         day: req.body.day,
         slot: req.body.slot,
-        course: req.body.course,
-        room:req.body.room
+        course: course._id,
+        room:room._id
     })
     try {
         request.save()
@@ -209,6 +220,12 @@ router.post('/send-slot-linking-request', async (req, res) => {
 router.get('/slot-linking-requests', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let myRequests = await slotLinkingModel.find({ requestedBy: token.id, type: "slotLinkingRequest" })
+    for(let i=0;i<myRequests.length;i++){
+        let courseName = await courseModel.findOne({_id:myRequests[i].course})   
+        let roomName = await courseModel.findOne({_id:myRequests[i].room})
+        myRequests[i].course=courseName
+        myRequests[i].room=roomName
+    }
     res.send(myRequests)
 })
 
