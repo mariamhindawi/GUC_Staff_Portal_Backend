@@ -54,7 +54,7 @@ router.route("/sign-out")
     let signOutTime = new Date();
     let attendanceRecords = await attendanceRecordModel.find({user: req.body.user}).sort({signInTime: 1});
     let attendanceRecord = attendanceRecords[attendanceRecords.length-1];
-    let signInTime = attendanceRecords.length === 0 ? null : new Date(attendanceRecord.signInTime);
+    let signInTime = attendanceRecords.length === 0 ? null : attendanceRecord.signInTime;
 
     if (attendanceRecords.length === 0 || attendanceRecord.signOutTime !== null 
             || !compareDates(signOutTime, signInTime)) {
