@@ -27,7 +27,17 @@ router.use((req, res, next) => {
 })
 
 router.post('/slot-linking-requests/:reqId/accept', async (req, res) => {
+    const token = jwt.decode(req.headers.token);
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+    let course = await courseModel.find({_id:request.course})
+    if(token.id!==course.courseCoordinator){
+        res.send('Invalid credentials')
+        return
+    }
+    if(request.status==='Accepted'|| request.status==='Rejected'){
+        res.send('Already replied to request')
+        return
+    }
     let slot = await slotModel.find({ day: request.day, slot: request.slotNumber, room: request.room, course: request.course })
     if (slot.staffMember !== 'Unassigned') {
         request.status = 'Rejected'
@@ -60,7 +70,17 @@ router.post('/slot-linking-requests/:reqId/accept', async (req, res) => {
 })
 
 router.post('/slot-linking-requests/:reqId/reject', async (req, res) => {
+    const token = jwt.decode(req.headers.token);
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+    let course = await courseModel.find({_id:request.course})
+    if(token.id!==course.courseCoordinator){
+        res.send('Invalid credentials')
+        return
+    }
+    if(request.status==='Accepted'|| request.status==='Rejected'){
+        res.send('Already replied to request')
+        return
+    }
     request.status = 'Rejected'
     request.ccComment = req.body.ccComment
     request.save()
