@@ -7,6 +7,7 @@ const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
+const slotModel = require("../models/slot_model");
 const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
 
@@ -114,4 +115,111 @@ router.route("/delete-academic-member")
         }
 })
 
+router.route('/view-coverage')
+.get(async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let courseInstructor = await academicMemberModel.findOne({id: token.id});
+    let courses = await courseModel.find({courseInstructors: courseInstructor.id});
+    for( let i = 0; i<courses.length; i++) {
+        let unassignedSlots = await slotModel.find({course: courses[i]._id,staffMember: "UNASSIGNED"});
+        let totalSlots = await slotModel.find({course: courses[i]._id});
+        let coverage = (totalSlots.length-unassignedSlots.length)/(totalSlots.length);
+        res.send(courses[i].name+"Course: "+"'s coverage = "+coverage+"%");
+    }
+})
+
+router.route('/view-teaching-assignments')
+.get( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let courseInstructor = await academicMemberModel.findOne({id: token.id});
+    let course = await courseModel.findOne({id: req.body.course,courseInstructors: courseInstructor.id});
+    if(!course) {
+        res.send("No such course");
+        return;
+    }
+    let slots = await slotModel.find({course: course._id});
+    res.body.send(slots); // all info of slots
+})
+
+router.route('/assign-academic-member-to-slot')
+.put( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let academicMember = await academicMemberModel.findOne({id: req.body.id});
+    if (!academicMember) {
+        res.send("No TA with such id");
+        return;
+    }
+    if (!(academicMember.role === "Teaching Assistant" || academicMember.role === "Course Coordinator")) {
+        res.send("academic member is not a TA");
+        return;
+    }
+    let room = await roomModel.findOne({name: req.body.room});
+    let course = await courseModel.findOne({id: req.body.course});
+    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
+    if(! slot) {
+        res.body.send("No such slot");
+        return;
+    }
+    if (!(slot.staffMember==="UNASSIGNED")) {
+        res.send("Slot already assigned.. try updating it");
+        return;
+    }
+    slot.staffMember = academicMember.id;
+    try {
+        slot.save();
+    }
+    catch(error)
+    {
+        res.body.send(error);
+    }
+})
+
+router.route('/update-academic-member-to-slot')
+.put( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let academicMember = await academicMemberModel.findOne({id: req.body.id});
+    if (!academicMember) {
+        res.send("No TA with such id");
+        return;
+    }
+    if (!(academicMember.role === "Teaching Assistant" || academicMember.role === "Course Coordinator")) {
+        res.send("academic member is not a TA");
+        return;
+    }
+    let room = await roomModel.findOne({name: req.body.room});
+    let course = await courseModel.findOne({id: req.body.course});
+    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
+    if(! slot) {
+        res.body.send("No such slot");
+        return;
+    }
+    slot.staffMember = academicMember.id;
+    try {
+        slot.save();
+    }
+    catch(error)
+    {
+        res.body.send(error);
+    }
+})
+
+router.route('/update-academic-member-to-slot')
+.delete( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let room = await roomModel.findOne({name: req.body.room});
+    let course = await courseModel.findOne({id: req.body.course});
+    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
+    if(! slot) {
+        res.body.send("No such slot");
+        return;
+    }
+    slot.staffMember = "UNASSIGNED";
+    try {
+        await slot.save();
+    }
+    catch(error)
+    {
+        res.body.send(error);
+    }
+})
 module.exports = router;

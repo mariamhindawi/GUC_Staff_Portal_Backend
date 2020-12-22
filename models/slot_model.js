@@ -21,7 +21,7 @@ const slotSchema = new mongoose.Schema({
     },
     staffMember: {
         type: String,
-        default: "Unassigned"
+        default: "UNASSIGNED"
     },
     type: {
         type: String,
