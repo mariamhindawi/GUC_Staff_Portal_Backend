@@ -3,9 +3,10 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const academicMemberModel = require("../models/academic_member_model");
+const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model")
 const departmentModel = require("../models/department_model")
-
+const slotModel = require("../models/slot_model")
 const { annualLeaveModel,accidentalLeaveModel,
     compensationLeaveModel,sickLeaveModel,
     dayOffChangeModel,maternityLeaveModel,slotLinkingModel } = require("../models/request_model");
@@ -291,5 +292,38 @@ router.get('/staff-requests', async (req, res) => {
     }
     res.send(requests)
 });
+
+//view the coverage of each course in his/her department
+router.route('/view-coverage').get( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let hod = await academicMemberModel.findOne({id: token.id});
+    let dep = await departmentModel.findOne({headOfDepartment: hod.id});
+    let courses = await courseModel.find({department: dep._id});
+    for (let i = 0; i < courses.length; i++) {
+        let unassignedSlots = await slotModel.find({course: courses[i]._id,staffMember: "UNASSIGNED"});
+        let totalSlots = await slotModel.find({course: courses[i]._id});
+        let coverage = ((totalSlots.length-unassignedSlots.length)/(totalSlots.length))*100;
+        res.send(courses[i].name+"Course: "+"'s coverage = "+coverage+"%");
+    }
+
+})
+
+//view teaching assignments
+router.route('/view-teaching-assignments')
+.get( async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let hod = await academicMemberModel.findOne({id: token.id});
+    let dep = await departmentModel.findOne({headOfDepartment: hod.id});
+    let course = await courseModel.findOne({id: req.body.course,department: dep._id});
+    if(!course) {
+        res.send("No such course");
+        return;
+    }
+    let slots = await slotModel.find({course: course._id});
+    res.send(slots); // all info of slots
+})
+
+
+
 
 module.exports = router;
