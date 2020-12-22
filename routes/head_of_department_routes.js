@@ -88,13 +88,11 @@ router.route("/assign-course-instructor")
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
         let course = await courseModel.findOne({ name: req.body.course })
+        if(instructor.role==="Course Instructor"||instructor.role==="Head of Department"){
         if(instructor){
         if(course){
-        let departmentCourse=await departmentModel.findOne({_id:course.department})
-        let departmentUser=await departmentModel.findOne({_id:user.department})
-        let departmentInstructor=await departmentModel.findOne({_id:instructor.department})
-        if(departmentUser.name===departmentCourse.name){
-            if(departmentUser.name===departmentInstructor.name){
+        if(user.department===course.department){
+            if(user.department===instructor.department){
                 try {
             let inst = req.body.id
             let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: inst } })
@@ -120,6 +118,11 @@ router.route("/assign-course-instructor")
         else{
             res.send("Instructor does not exist")
         }
+
+    } 
+    else{
+        res.send("Cannot assign TA to be a course instructor")
+    }
     })
 
 router.route("/delete-course-instructor")
@@ -130,11 +133,8 @@ router.route("/delete-course-instructor")
         let course = await courseModel.findOne({ name: req.body.course })
         if(instructor){
         if(course){
-        let departmentCourse=await departmentModel.findOne({_id:course.department})
-        let departmentUser=await departmentModel.findOne({_id:user.department})
-        let departmentInstructor=await departmentModel.findOne({_id:instructor.department})
-        if(departmentUser.name===departmentCourse.name){
-            if(departmentUser.name===departmentInstructor.name){
+            if(user.department===course.department){
+                if(user.department===instructor.department){
                 try {
             let inst = req.body.id
             let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })                
@@ -170,19 +170,18 @@ router.route("/update-course-instructor")
         let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
         let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
         let course = await courseModel.findOne({ name: req.body.course })
+        if(instructorupdate.role==="Course Instructor"||instructor.role==="Head of Department"){
         if(instructorupdate && instructordelete){
         if(course){
         let departmentCourse=await departmentModel.findOne({_id:course.department})
         let departmentUser=await departmentModel.findOne({_id:user.department})
         let departmentInstructorup=await departmentModel.findOne({_id:instructorupdate.department})
         let departmentInstructordelete=await departmentModel.findOne({_id:instructordelete.department})
-        if(departmentUser.name===departmentCourse.name){
-            if(departmentUser.name===departmentInstructorup.name && departmentUser.name===departmentInstructordelete.name ){
+        if(user.department===course.department){
+            if(user.department===instructorupdate.department&&user.department===instructordelete.department){
                 try {
             let inst = req.body.idDelete
             let instupdate = req.body.idUpdate
-            console.log(req.body.idDelete)
-            console.log(req.body.idUpdate)
             let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
             let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instupdate } })                
             res.send("Instructor updated")
@@ -207,7 +206,10 @@ router.route("/update-course-instructor")
         else{
             res.send("Instructor does not exist")
         }
-
+    }
+    else{
+        res.send("Cannot assign TA to be a course instructor")
+    }
 
     })
 
