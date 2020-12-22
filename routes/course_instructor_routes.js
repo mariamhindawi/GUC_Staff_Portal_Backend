@@ -68,8 +68,7 @@ router.route("/assign-course-coordinator")
     let user = await academicMemberModel.findOne({id:token.id});
     let course=await courseModel.findOne({name:req.body.course})
     let instructors=course.instructors
-    console.log(instructors)
-    let ta=req.body.ta
+    let ta=req.body.id
     if(user.department===course.department){
         let course=await courseModel.findOneAndUpdate({name:req.body.course}, { courseCoordinator: ta })
     }
@@ -86,32 +85,59 @@ router.route("/delete-academic-member")
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
     let course=await courseModel.findOne({name:req.body.course})
-    let instructors=course.instructors
-    
-    let inst=req.body.instructor
-    if(inst){
-    if(user.department===course.department){
-        let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { instructors: inst }})
-    }
-    try{
-        res.send("Academic member deleted")
-        }
-        catch(error){
-            res.send("Cannot delete academic member")
-        }
-    }
-    let ta=req.body.ta
     if(ta){
-        if(user.department===course.department){
-            let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { TAs: ta }})
-        }
         try{
+        if(user.department===course.department){
+            let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$pull": { teachingAssistants: req.body.id }})
             res.send("Academic member deleted")
+        }
+        else{
+            res.send("Cannot delete academic member from a course not in your department")
+        }
             }
             catch(error){
                res.send("Cannot delete academic member")
             }
         }
+        else{
+            res.send("TA does not exist")
+        }
+})
+
+
+router.route("/add-academic-member")
+.post(async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let user = await academicMemberModel.findOne({id:token.id});
+    let course=await courseModel.findOne({name:req.body.course})
+    let ta=await academicMemberModel.findOne({id:req.body.id});
+    if(ta.role==="Teaching Assistant"){
+    if(ta){
+        if(user.department===course.department){
+            if(user.department===ta.department){
+            let course=await courseModel.findOneAndUpdate({name:req.body.course},{"$push": { teachingAssistants: req.body.ta }})
+            try{
+                res.send("Academic member added")
+                }
+                catch(error){
+                    res.send("Cannot delete academic member")
+                 }
+            }
+            else{
+                res.send("Can not add academic member not in your department")
+            }}
+            else{
+                res.send("Can not add academic member to course not in your department")
+            } 
+        }
+        else{
+            res.send("TA does not exist")
+        }
+    }
+    else{
+        res.send("ID is not an ID of a TA")
+    }
+
 })
 
 module.exports = router;

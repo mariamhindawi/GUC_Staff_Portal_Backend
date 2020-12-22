@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 
 const academicMemberModel = require("../models/academic_member_model");
 const courseModel = require("../models/course_model")
+const departmentModel = require("../models/department_model")
+
 const { annualLeaveModel,accidentalLeaveModel,
     compensationLeaveModel,sickLeaveModel,
     dayOffChangeModel,maternityLeaveModel,slotLinkingModel } = require("../models/request_model");
@@ -41,8 +43,8 @@ router.route("/view-all-staff-per-course")
         let user = await academicMemberModel.findOne({ id: token.id });
         let course = await courseModel.findOne({ department: user.department, name: req.body.course })
         let output = []
-        let instructors = await course.instructors;
-        let tas = await course.TAs;
+        let instructors = await course.courseInstructors;
+        let tas = await course.teachingAssistants;
         for (let i = 0; i < instructors.length; i++) {
             let user = await academicMemberModel.findOne({ id: instructors[i] });
             output.push(user)
@@ -84,59 +86,131 @@ router.route("/assign-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
+        let instructor = await academicMemberModel.findOne({ id: req.body.id });
         let course = await courseModel.findOne({ name: req.body.course })
-        let instructors = course.instructors
-        console.log(instructors)
-        let inst = req.body.instructor
-        if (user.department === course.department) {
-            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { instructors: inst } })
+        if(instructor.role==="Course Instructor"||instructor.role==="Head of Department"){
+        if(instructor){
+        if(course){
+        if(user.department===course.department){
+            if(user.department===instructor.department){
+                try {
+            let inst = req.body.id
+            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: inst } })
+                res.send("Instructor assigned to course")
+            }
+            catch (error) {
+                res.send("Cannot assign instructor")
+            }
+            }
+            else{
+                res.send("Cannot assign instructor that is not in your department")
+            }
+            
         }
-        try {
-            res.send("Instructor assigned to course")
+        else{
+            res.send("Cannot assign instructor to a course not in your department")
         }
-        catch (error) {
-            res.send("Cannot assign instructor")
+    }
+    else{
+        res.send("Course does not exist")
+    }
         }
+        else{
+            res.send("Instructor does not exist")
+        }
+
+    } 
+    else{
+        res.send("Cannot assign TA to be a course instructor")
+    }
     })
 
 router.route("/delete-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
+        let instructor = await academicMemberModel.findOne({ id: req.body.id });
         let course = await courseModel.findOne({ name: req.body.course })
-        let instructors = course.instructors
-        console.log(instructors)
-        let inst = req.body.instructor
-        if (user.department === course.department) {
-            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { instructors: inst } })
+        if(instructor){
+        if(course){
+            if(user.department===course.department){
+                if(user.department===instructor.department){
+                try {
+            let inst = req.body.id
+            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })                
+            res.send("Instructor deleted from course")
+            }
+            catch (error) {
+                res.send("Cannot delete instructor")
+            }
+            }
+            else{
+                res.send("Cannot delete instructor that is not in your department")
+            }
+            
         }
-        try {
-            res.send("Instructor deleted")
+        else{
+            res.send("Cannot delete instructor from a course not in your department")
         }
-        catch (error) {
-            res.send("Cannot delete instructor")
+    }
+    else{
+        res.send("Course does not exist")
+    }
         }
+        else{
+            res.send("Instructor does not exist")
+        }
+
     })
 
 router.route("/update-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
+        let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
+        let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
         let course = await courseModel.findOne({ name: req.body.course })
-        let instructors = course.instructors
-        console.log(instructors)
-        let inst = req.body.instructordelete
-        let instupdate = req.body.instructorupdate
-        if (user.department === course.department) {
-            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { instructors: inst } })
-            let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { instructors: instupdate } })
-        }
-        try {
+        if(instructorupdate.role==="Course Instructor"||instructor.role==="Head of Department"){
+        if(instructorupdate && instructordelete){
+        if(course){
+        let departmentCourse=await departmentModel.findOne({_id:course.department})
+        let departmentUser=await departmentModel.findOne({_id:user.department})
+        let departmentInstructorup=await departmentModel.findOne({_id:instructorupdate.department})
+        let departmentInstructordelete=await departmentModel.findOne({_id:instructordelete.department})
+        if(user.department===course.department){
+            if(user.department===instructorupdate.department&&user.department===instructordelete.department){
+                try {
+            let inst = req.body.idDelete
+            let instupdate = req.body.idUpdate
+            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
+            let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instupdate } })                
             res.send("Instructor updated")
+            }
+            catch (error) {
+                res.send("Cannot update instructor")
+            }
+            }
+            else{
+                res.send("Cannot update instructor that is not in your department")
+            }
+            
         }
-        catch (error) {
-            res.send("Cannot update instructor")
+        else{
+            res.send("Cannot update instructor in a course not in your department")
         }
+    }
+    else{
+        res.send("Course does not exist")
+    }
+        }
+        else{
+            res.send("Instructor does not exist")
+        }
+    }
+    else{
+        res.send("Cannot assign TA to be a course instructor")
+    }
+
     })
 
 router.post('/staff-requests/:reqId/accept', async (req, res) => {
