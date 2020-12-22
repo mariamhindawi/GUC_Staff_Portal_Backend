@@ -16,19 +16,19 @@ Response:success or failure message
 Functionality: HOD assign a course instructor for each course in his department.
 Route: /hod/assign-course-instructor
 Request type: POST
-Body:{"instructor":ac-56}
+Body:{"id":"ac-56","course":"CSEN401"}
 Response:success or failure message
 
 Functionality: HOD delete a course instructor for each course in his department.
 Route: /hod/delete-course-instructor
 Request type: POST
-Body:{"instructor":ac-56}
+Body:{"id":"ac-56","course":"CSEN401"}
 Response:success or failure message
 
 Functionality: HOD update a course instructor for each course in his department.
 Route: /hod/update-course-instructor
 Request type: POST
-Body:{"instructordelete":ac-56,"instructorupdate":ac-6}
+Body:{"idUpdate":"ac-56","idDelete":"ac-3",course":"CSEN401"}
 Response:success or failure message
 
 Functionality: HOD view staff of his department.
@@ -40,7 +40,7 @@ Functionality: HOD view one of the staff's day off.
 Route: /hod/view-one-staff-dayoff
 Request type: POST
 Body:{"id":"ac-2"}
-Response:object containing academic members's day off
+Response:object containing academic member's day off
 
 Functionality: HOD view all staff's day off.
 Route: /hod/view-all-staff-dayoff
@@ -50,12 +50,18 @@ Response:object containing academic members's dayoff
 Functionality: Course instructor delete an academic member for each course in his department.
 Route: /ci/delete-academic-member
 Request type: POST
-Body:{"instructor":"ac-56","ta":"ac-3"}
+Body:{"id":"ac-3"}
+Response:success or failure message
+
+Functionality: Course instructor assign an academic member for each course in his department.
+Route: /ci/assign-academic-member
+Request type: POST
+Body:{"id":"ac-3"}
 Response:success or failure message
 
 
 Functionality: Course instructor assign a course coordinator for each course in his department.
 Route: /ci/assign-course-coordinator
 Request type: POST
-Body:{"ta":ac-56}
+Body:{"id":ac-56}
 Response:success or failure message
