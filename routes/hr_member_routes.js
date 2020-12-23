@@ -26,8 +26,13 @@ router.use((req, res, next) => {
 
 router.route("/add-hr-member")
 .post(async (req, res) => {
+    if (!req.body.email) {
+        res.send("Must enter an email.");
+        return;
+    }
+
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (req.body.email && !req.body.email.match(mailFormat)) {
+    if (!req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
         return;
     }
@@ -86,6 +91,11 @@ router.route("/add-hr-member")
 
 router.route("/add-academic-member")
 .post(async (req, res) => {
+    if (!req.body.email) {
+        res.send("Must enter an email.");
+        return;
+    }
+
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     if (!req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
@@ -163,6 +173,10 @@ router.route("/add-academic-member")
     try {
         await newUser.save();
         await office.save();
+        if (req.body.role === "Head of Department") {
+            department.headOfDepartment = newUser.id;
+            await department.save();
+        }
         res.send(newUser);
     }
     catch (error) {
@@ -227,7 +241,7 @@ router.route("/update-hr-member")
             return;
         }
         var oldOffice = await roomModel.findOne({_id: user.office});
-        if (oldOffice !== newOffice) {
+        if (oldOffice._id.toString() !== newOffice._id.toString()) {
             oldOffice.remainingCapacity++;
             newOffice.remainingCapacity--;
             user.office = newOffice._id;
@@ -240,7 +254,7 @@ router.route("/update-hr-member")
 
     try {
         await user.save();
-        if (req.body.office && oldOffice !== newOffice) {
+        if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
             await newOffice.save();
             await oldOffice.save();
         }
@@ -337,7 +351,7 @@ router.route("/update-academic-member")
             return;
         }
         var oldOffice = await roomModel.findOne({_id: user.office});
-        if (oldOffice !== newOffice) {
+        if (oldOffice._id.toString() !== newOffice._id.toString()) {
             oldOffice.remainingCapacity++;
             newOffice.remainingCapacity--;
             user.office = newOffice._id;
@@ -354,7 +368,7 @@ router.route("/update-academic-member")
     
     try {
         await user.save();
-        if (req.body.office && oldOffice !== newOffice) {
+        if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
             await newOffice.save();
             await oldOffice.save();
         }
@@ -582,6 +596,9 @@ router.route("/update-course")
     if (req.body.name) {
         course.name = req.body.name;
     }
+    if (req.body.totalSlotsNumber) {
+        course.totalSlotsNumber = req.body.totalSlotsNumber;
+    }
     if (req.body.department) {
         const department = await departmentModel.findOne({name: req.body.department});
         if (!department) {
@@ -589,9 +606,6 @@ router.route("/update-course")
             return;
         }
         course.department = department._id;
-    }
-    if (req.body.totalSlotsNumber) {
-        course.totalSlotsNumber = req.body.totalSlotsNumber;
     }
 
     try {
@@ -643,24 +657,34 @@ router.route("/add-department")
             return;
         }
         if (headOfDepartment.role === "Head of Department") {
-            res.send("Cannot add this instructor as a head of department as he is already a head of another department.");
+            res.send("Cannot add this instructor as a head of department as he/she is already a head of another department.");
             return;
         }
-        headOfDepartment.role = "Head of Department";
+        if (headOfDepartment.role !== "Course Instructor") {
+            res.send("Cannot assign this member to be head department as he/she is not a course instructor.");
+            return;
+        }
+        if (headOfDepartment.department !== "UNASSIGNED") {
+            res.send("Cannot assign this member to be head department as he/she is in another department.");
+            return;
+        }
     }
 
-    const newdepartment = new departmentModel({
+    let newDepartment = new departmentModel({
         name: req.body.name,
         faculty: faculty? faculty._id: "UNASSIGNED",
         headOfDepartment: headOfDepartment? headOfDepartment.id: "UNASSIGNED"
     });
     
     try {
-        await newdepartment.save();
+        await newDepartment.save();
         if (headOfDepartment) {
+            newDepartment = await departmentModel.findOne({name: req.body.name});
+            headOfDepartment.role = "Head of Department";
+            headOfDepartment.department = newDepartment._id;
             await headOfDepartment.save();
         }
-        res.send(newdepartment);
+        res.send(newDepartment);
     }
     catch (error) {
         console.log(error.message);
@@ -687,22 +711,40 @@ router.route("/update-department")
         }
         department.faculty = faculty._id;
     }
-    if (req.body.headOfDepartment && req.body.headOfDepartment !== department.headOfDepartment) {
+    if (req.body.headOfDepartment) {
         var newHeadOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
         if (!newHeadOfDepartment) {
             res.send("No academic member with such id to be head of this department.");
             return;
         }
+        if (newHeadOfDepartment.role === "Head of Department") {
+            res.send("Cannot add this instructor as a head of department as he/she is already a head of another department.");
+            return;
+        }
+        if (newHeadOfDepartment.role !== "Course Instructor") {
+            res.send("Cannot assign this member to be head department as he/she is not a course instructor.");
+            return;
+        }
+        if (newHeadOfDepartment.department !== department._id.toString() && newHeadOfDepartment.department !== "UNASSIGNED") {
+            res.send("Cannot assign this member to be head department as he/she is in another department.");
+            return;
+        }
         var oldHeadOfDepartment = await academicMemberModel.findOne({id: department.headOfDepartment});
+        if (oldHeadOfDepartment) {
+            oldHeadOfDepartment.role = "Course Instructor";
+        }
         newHeadOfDepartment.role = "Head of Department";
-        oldHeadOfDepartment.role = "Course Instructor";
-        department.headOfDepartment = req.body.headOfDepartment;
+        newHeadOfDepartment.department = department._id;
+        department.headOfDepartment = newHeadOfDepartment.id;
     }
     
     try {
         await department.save();
         if (newHeadOfDepartment) {
             await newHeadOfDepartment.save();
+            
+        }
+        if (oldHeadOfDepartment) {
             await oldHeadOfDepartment.save();
         }
         res.send(department);
@@ -736,9 +778,11 @@ router.route("/delete-department")
         await academicMember.save();
     }
 
-    let headOfDepartment = academicMemberModel.findOne({id: department.headOfDepartment});
-    headOfDepartment.role = "Course Instructor";
-    await headOfDepartment.save();
+    if (department.headOfDepartment !== "UNASSIGNED") {
+        let headOfDepartment = await academicMemberModel.findOne({id: department.headOfDepartment});
+        headOfDepartment.role = "Course Instructor";
+        await headOfDepartment.save();
+    }
 
     res.send(department);
 });
