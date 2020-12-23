@@ -7,7 +7,6 @@ const roomModel = require("../models/room_model");
 const slotModel = require("../models/slot_model");
 const courseModel = require("../models/course_model");
 const { slotLinkingModel } = require("../models/request_model");
-const slotModel = require('../models/slot_model')
 const notificationModel=require('../models/notification_model')
 
 const router = express.Router();

@@ -23,10 +23,10 @@ router.route("/sign-in")
         return;
     }
 
-    const date = new Date();
+    let signInTime = new Date();
     const newAttendanceRecord = new attendanceRecordModel({
         user: req.body.user,
-        signInTime: date,
+        signInTime: signInTime,
         signOutTime: null
     });
 
@@ -75,7 +75,7 @@ router.route("/sign-out")
         return;
     }
     
-    attendanceRecord.signOutTime = signOutTime;
+   attendanceRecord.signOutTime = signOutTime;
     try {
         await attendanceRecord.save();
         res.send(attendanceRecord);
