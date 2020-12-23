@@ -4,9 +4,9 @@ const jwt = require("jsonwebtoken");
 const academicMemberModel = require("../models/academic_member_model");
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model")
-const slotModel = require("../models/slot_model")
-const { annualLeaveModel, dayOffChangeModel } = require("../models/request_model");
+const { annualLeaveModel, dayOffChangeModel, requestModel } = require("../models/request_model");
 const notificationModel = require('../models/notification_model')
+const slotModel = require('../models/slot_model')
 
 const router = express.Router();
 
@@ -210,8 +210,8 @@ else{
 
 });
 
-router.post('/staff-requests/:reqId/accept', async (req, res) => {
-    let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+router.put('/staff-requests/:reqId/accept', async (req, res) => {
+    let request = await requestModel.findOne({ id: req.params.reqId })
     let requester = await academicMemberModel.findOne({ id: request.requestedBy })
     if(request.status!=='Under review'){
         res.send('Already responded')
@@ -225,6 +225,11 @@ router.post('/staff-requests/:reqId/accept', async (req, res) => {
         }
         else {
             request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave balance" }, { new: true })
+            let notification = new notificationModel({
+                user:request.requestedBy,
+                message: `Your request(${req.params.reqId}) has been rejected.`
+            })
+            notification.save()
         }
     }
     if (request.type === 'accidentalLeave') {
@@ -236,10 +241,15 @@ router.post('/staff-requests/:reqId/accept', async (req, res) => {
         }
         else {
             request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave/accidental leave balance" }, { new: true })
+            let notification = new notificationModel({
+                user:request.requestedBy,
+                message: `Your request(${req.params.reqId}) has been rejected.`
+            })
+            notification.save()
         }
     }
     if (request.type === 'sickLeave'|| request.type === 'maternityLeave'|| request.type === 'compensationRequest') {
-        request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
+        request = await requestModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
     }
     if (request.type === 'dayOffChangeRequest') {
         request = await dayOffChangeModel.findOne({ id: req.params.reqId })
@@ -251,23 +261,23 @@ router.post('/staff-requests/:reqId/accept', async (req, res) => {
     }
     let notification = new notificationModel({
         user:request.requestedBy,
-        message: request.type=== 'dayOffChangeRequest'?'Your day off has been changed.':'Your leave request has been accepted.'
+        message: `Your request(${req.params.reqId}) has been accepted`
     })
     notification.save()
     res.send(request)
 })
 
-router.post('/staff-requests/:reqId/reject', async (req, res) => {
-    let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+router.put('/staff-requests/:reqId/reject', async (req, res) => {
+    let request = await requestModel.findOne({ id: req.params.reqId })
     if(request.status !== 'Under review'){
-        res.send('Already rejected')
+        res.send('Already responded')
         return
     }
     request.status='Rejected'
     request.save()
     let notification = new notificationModel({
         user:request.requestedBy,
-        message: 'Your leave request has been rejected.'
+        message: `Your request(${req.params.reqId}) has been rejected by the hod.`
     })
     notification.save()
     res.send(request)
@@ -277,7 +287,7 @@ router.post('/staff-requests/:reqId/reject', async (req, res) => {
 router.get('/staff-requests', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let hod = await academicMemberModel.findOne({ id: token.id });
-    let requests = await annualLeaveModel.find({ $and: [{ $nor: [{ type: 'slotLinkingRequest' }] }, { status: 'Under review' }] })
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: 'slotLinkingRequest' }] }, { status: 'Under review' }] })
     for (let i = 0; i < requests.length; i++) {
         let request = requests[i]
         let staffMember = await academicMemberModel.findOne({ id: request.requestedBy })
