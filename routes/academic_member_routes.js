@@ -91,10 +91,13 @@ router.get('/schedule', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let schedule = await slotModel.find({ staffMember: token.id })
     let date = new Date()
-    let replacementRequests = await replacementModel.find({ $and: [{ replacementID: token.id }, { day: { $lt: date.addDays(7), $gte: date } }] })
+    let replacementRequests = await annualLeaveModel.find({ type:'annualLeave',replacementIDs: token.id, status:'Accepted', day: { $lt: date.addDays(7), $gte: date } })
     for (let i = 0; i < replacementRequests.length; i++) {
-        let slot = await slotModel.findOne({ _id: replacementRequests[i].slot })
-        schedule.push(slot)
+        for(let j=0;j<replacementRequests[i].replacementIDs.length;j++){
+            if(replacementRequests[i].replacementIDs[j]===token.id){
+                schedule.push(replacementRequests[i].slots[j])
+            }
+        }
     }
     res.send(schedule)
 });
@@ -441,7 +444,22 @@ router.get('/all-requests/:filter', async (req, res) => {
 router.delete('/cancel-request/:id', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let request = await requestModel.findOne({ requestedBy: token.id, id: req.params.id })
-    if (request && (request.status === 'Under review' || request.day > new Date())) {
+    if (request && request.status === 'Under review') {
+        await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
+        res.send('Your request has been cancelled successfully')
+    }
+    else if(request && request.type!=='dayOffChangeRequest' && request.type!=='slotLinkingRequest' && request.day > new Date()){
+        if(request.type==='annualLeave' ){
+            let requester = await academicMemberModel.findOne({id:token.id})
+            requester.annualLeaveBalance+=1
+            requester.save()
+        }
+        if(request.type ==='accidentalLeave'){
+            let requester = await academicMemberModel.findOne({id:token.id})
+            requester.annualLeaveBalance+=1
+            requester.accidentalLeaveBalance+=1
+            requester.save()
+        }
         await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
         res.send('Your request has been cancelled successfully')
     }

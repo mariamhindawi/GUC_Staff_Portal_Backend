@@ -50,7 +50,7 @@ const annualLeaveSchema = new mongoose.Schema({
         required:true
     },
     slots:{
-        type:[String],
+        type:[{}],
         required:true
     },
     status:{
