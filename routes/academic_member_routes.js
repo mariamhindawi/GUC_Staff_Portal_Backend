@@ -50,20 +50,6 @@ router.route("/update-profile")
             res.send("Email already exists.");
             return;
         }
-        if (req.body.office && req.body.office !== user.office) {
-            var office = await roomModel.findOne({ name: req.body.office });
-            if (!office) {
-                res.send("Invalid office name.");
-                return;
-            }
-            if (office.type !== "Office") {
-                res.send("Room is not an office.");
-                return;
-            }
-            if (office.remainingCapacity === 0) {
-                res.send("Office has full capacity.");
-                return;
-            }
 
         user.email = req.body.email;
     }
@@ -75,7 +61,7 @@ router.route("/update-profile")
             res.send("Invalid office name.");
             return;
         }
-        if (oldOffice._id !== newOffice._id) {
+        if (oldOffice._id.toString() !== newOffice._id.toString()) {
             if (newOffice.type !== "Office") {
                 res.send("Room is not an office.");
                 return;
@@ -92,7 +78,7 @@ router.route("/update-profile")
 
     try {
         await user.save();
-        if (req.body.office && oldOffice._id !== newOffice._id) {
+        if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
             await newOffice.save();
             await oldOffice.save();
         }
@@ -105,7 +91,6 @@ router.route("/update-profile")
         console.log(error.message);
         res.send(error);
     }
-    res.send(schedule)
 });
 
 router.post('/send-replacement-request', async (req, res) => {
