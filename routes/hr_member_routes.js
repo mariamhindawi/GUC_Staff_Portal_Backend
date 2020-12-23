@@ -8,6 +8,195 @@ const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
 const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
+const { findOne } = require("../models/hr_member_model");
+const attendance_record_model = require("../models/attendance_record_model");
+
+function getMonthStats(currMonth, currYear){
+    let daysInMonth;
+    switch(currMonth){
+        //31 days
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+        case 7:
+        case 9:
+        case 11:
+            daysInMonth=31;
+            break;
+        case 1:
+            //28 days
+            if(currYear % 4===0){
+                daysInMonth=28;
+            }
+            //29 days
+            else{
+                daysInMonth=29;
+            }
+            break;
+        //30 days
+        case 3:
+        case 5:
+        case 8:
+        case 10:
+            daysInMonth=30;
+            break;
+    }    
+    return daysInMonth;
+}
+function convertDayOff(day){
+    if(day==="Sunday"){
+       return 0;
+    }
+    else if(day==="Monday"){
+        return 1;
+    }    
+    else if(day==="Tuesday"){
+        return 2;
+    }
+    else if(day==="Wednesday"){
+        return 3; 
+    }
+    else if(day==="Thursday"){
+        return 4;
+    }
+    else if(day==="Friday"){
+        return 5;
+    }
+    else if(day==="Saturday"){
+        return 6;
+    }
+}
+ function getExpectedDaysToAttend(dayOff, firstDay, daysInMonth){
+    let expectedDaysToAttend=20;  
+    if(daysInMonth===31){
+        if((firstDay)%7===5 || (firstDay+1)%7===5 || (firstDay+2)%7===5 ){
+           expectedDaysToAttend=22;  
+        }
+        if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff || (firstDay+2)%7===dayOff ){
+            expectedDaysToAttend=21;
+        }
+    }
+    else if(daysInMonth===30){
+        expectedDaysToAttend=22;
+        if((firstDay)%7===5 || (firstDay+1)%7===5){
+            expectedDaysToAttend=21;  
+         }
+         if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff){
+             expectedDaysToAttend=20;
+         }
+    }
+    else if(daysInMonth===29){
+        expectedDaysToAttend=21;
+        if((firstDay)%7===5){
+            expectedDaysToAttend=20;  
+         }
+         if((firstDay+1)%7===dayOff){
+             expectedDaysToAttend=20;
+         }
+    }
+    return expectedDaysToAttend;
+   
+}
+function getDaysOfTheMonth(daysInMonth){
+    let daysOfTheMonth=[];
+    for(var i=11;i<daysInMonth+1;i++){
+        daysOfTheMonth.push(i);
+    }
+    for(var i=1;i<11;i++){
+        daysOfTheMonth.push(i);
+    }
+    return daysOfTheMonth;
+}
+function getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended){
+
+    let missingDays=[];
+    //remove days off and Fridays
+   for(var i=0;i<daysOfTheMonth.length;i++){
+    if(daysOfTheMonth[i]<=daysInMonth){
+        if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month,daysOfTheMonth[i]).getDay()!==dayOff){
+            missingDays.push(daysOfTheMonth[i]);
+        }
+    }
+    else{
+        if(month!==11){
+            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==dayOff){
+                missingDays.push(daysOfTheMonth[i]);
+            }
+        }
+        else{
+            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==5 && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==dayOff){
+                missingDays.push(daysOfTheMonth[i]);
+            }
+        }
+   }
+}
+   return missingDays;
+}
+function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
+    
+    let daysInMonth=getMonthStats(month);
+    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,new Date(year,month,11).getDay(),daysInMonth);
+    let expectedHoursToSpend=expectedDaysToAttend*8.4;
+    let spentHours=0;
+    let spentMinutes=0;
+    let spentSeconds=0;
+    let missingHours=0;
+    let timeDiiffInSeconds;
+
+    for(var i=0;i<userAttendanceRecords.length;i++){
+        let signInTime=userAttendanceRecords[i].signInTime;
+        let signOutTime=userAttendanceRecords[i].signOutTime;
+
+        if(signInTime.getHours()>18 || signOutTime.getHours()<7 ||(signOutTime.getHours()===7 && signOutTime.getMinutes()===0 && signOutTime.getSeconds()===0) ){
+           timeDiiffInSeconds=0;
+        }
+        else if(signInTime.getHours()<7 && signOutTime.getHours()>19){
+         timeDiiffInSeconds=12*60*60;
+        }
+        else if(signInTime.getHours()<7 && signOutTime.getHours()<19){
+            let date=signInTime;
+            date.setHours(7);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+            timeDiiffInSeconds=(signOutTime-date)/1000;
+        }
+        else if(signInTime.getHours()>7 && signOutTime.getHours()>19){
+            let date=signOutTime;
+            date.spentHours(19);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+            timeDiiffInSeconds=(date-signInTime)/1000;
+        }
+        else{
+           timeDiiffInSeconds=(signOutTime-signInTime)/1000;
+        }
+    }
+
+    spentSeconds=spentSeconds+timeDiiffInSeconds%60;
+    spentMinutes=spentMinutes+(timeDiiffInSeconds-spentSeconds)/60;
+    spentHours=spentHours+(spentMinutes-spentMinutes%60)/60;
+    spentMinutes=spentMinutes%60;
+   
+    missingHours=((expectedHoursToSpend*60)-(spentHours*60)-(spentMinutes))/60.0;
+  
+
+    if(missingHours<0){
+            extraHours=missingHours*-1;
+            missingHours=0;
+    }
+    else{
+        extraHours=0;
+    }
+    var obj={
+        missingHours:missingHours,
+        extraHours:extraHours
+    }
+    return obj;
+}
+
 
 const router = express.Router();
 
@@ -642,5 +831,429 @@ router.route("/delete-faculty")
     }
 })
 
+router.route("/view-staff-attendance-records")
+.get(async (req,res) => {
+    let user = await hrMemberModel.findOne({id: req.body.id});
+    if (!user) {
+        user = await academicMemberModel.findOne({id: req.body.id});
+    }
+    if (!user) {
+        res.send("Invalid user id.");
+        return;
+    }
+    let userAttendanceRecords;
+    let month=req.body.month;
+    let year=req.body.year;
+
+    if(month<0 || month>11){
+        res.send("Not a valid month");
+        return;
+    }
+    if(year<2000){
+        res.send("Not a valid year");
+        return;
+    }
+    if(!month && year!==null){
+        res.send("No month specified");
+        return;
+    }
+    if(!year && month!==null){
+        res.send("No year specified");
+        return;
+    }
+    if(month===null && year===null){
+        userAttendanceRecords=await attendance_record_model.find({user:token.id})
+    }
+    else{
+        if(month>=0 && month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]},
+                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year,month,11),$gte:new Date(year,month,11)}}]}
+            ]})
+        }
+        else if(month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]},
+                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]}
+            ]})
+        }
+    }
+
+    try {
+        res.send(userAttendanceRecords);
+    }
+    catch (error) {
+        console.log(error.message)
+        res.send(error);
+    }
+
+    try {
+        await newUser.save();
+        await office.save();
+        res.send(newUser);
+    }
+    catch (error) {
+        console.log(error.message);
+        res.send(error);
+    }
+})
+
+router.route("/add-missing-record")
+.post(async (req,res) =>{
+    const token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({id: req.body.id});
+    if (!user) {
+        user = await academicMemberModel.findOne({id: req.body.id});
+    }
+    if (!user) {
+        res.send("Invalid user id.");
+        return;
+    }
+    if(user.id===token.id){
+        res.send("Cannot add missing record for yourself");
+        return;
+    }
+    let missingRecordType=req.body.missingRecordType;
+    let signInYear=req.body.signInYear;
+    let signInMonth=req.body.signInMonth;
+    let signInDay=req.body.signInDay;
+    let signInHour=req.body.signInHour;
+    let signInMinute=req.body.signInMinute;
+    let signOutYear=req.body.signOutYear;
+    let signOutMonth=req.body.signOutMonth;
+    let signOutDay=req.body.signOutDay;
+    let signOutHour=req.body.signOutHour;
+    let signOutMinute=req.body.signOutMinute;
+    let signInDate;
+    let signOutDate;
+    let userRecord;
+
+    if(missingRecordType!=="signOut"&& missingRecordType!=="SignIn"){
+        res.send("Inavalid missing record type.");
+        return;
+    }
+    if(signInYear===null || signOutYear===null || signInMonth===null || signOutMonth===null || signInDay===null || signOutDay===null
+    || signInHour===null|| signOutHour===null || signInMinute===null || signOutMinute===null ){
+        res.send("Not all fields are entered.");
+        return;
+    }
+    if(signInYear<2000 || signOutYear<2000){
+        res.send("Invalid year.");
+        return;
+    }
+    if(signInMonth<0 || signInMonth>11 || signOutMonth<0 || signOutMonth>11){
+        res.send("Invalid month.");
+        return;
+    }
+    if(signInHour<0 || signInHour>23 || signOutHour<0 || signOutHour>23 ){
+        res.send("Invalid hour.");
+        return;
+    }
+    if(signInMinute<0 || signInMinute>59 || signOutMinute<0 || signOutMinute>59 ){
+        res.send("Invalid hour.");
+        return;
+    }
+    if(signInDay!==signOutDay ||signInMonth!==signOutMonth || signInYear!==signOutYear){
+            res.send("Cannot match these records together ");
+            return;
+    }
+    if(signInHour>signOuHour){
+        res.send("Cannot have the sign in hour that is greater than the sign out hour.");
+        return;
+    }   
+    if(signInHour===signOuHour && signInMinute>signOutMinute){
+        res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
+        return;
+    }  
+    if(missingRecordType==="signIn"){
+        signInDate=new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,0,0);
+        signOutDate=new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,0,0);
+
+        userRecord=await attendance_record_model.findOne({user:user.id,signOutTime:{$gte:signOutDate,
+        $lte:new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,59,0)},signInTime:null})
+
+        if(!userRecord){
+            res.send("Could not find specified sign out time.");
+            return;
+        }
+        else{
+            userRecord.signInTime=signInDate;
+            try {
+                userRecord.save();
+                res.send(userRecord);
+            }
+            catch (error) {
+                console.log(error.message)
+                res.send(error);
+            }
+        }
+    }
+    else if(missingRecordType==="signOut"){
+        signInDate=new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,0,0);
+        signOutDate=new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,0,0);
+
+        userRecord=await attendance_record_model.findOne({user:user.id,signInTime:{$gte:signInDate,
+        $lte:new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,59,0)},signOutTime:null})
+
+        if(!userRecord){
+            res.send("Could not find specified sign in time.");
+            return;
+        }
+        else{
+            userRecord.signOutTime=signOutDate;
+            try {
+                userRecord.save();
+                res.send(userRecord);
+            }
+            catch (error) {
+                console.log(error.message)
+                res.send(error);
+            }
+        }
+    }
+});
+
+router.route("/view-staff-missing-days")
+.get(async (req,res)=>{
+    let staffwithMissingDays=[];
+    let academicMembers;
+    let hrMembers;
+    
+    if(new Date().getDate()>=11){
+        month=new Date().getMonth();
+        year=new Date().getFullYear();
+    }
+    else{
+        if(new Date().getMonth()===0){
+            month=11;
+            year=new Date().getFullYear()-1;
+        }
+        else{
+            month=new Date().getMonth()-1;
+            year=new Date().getFullYear();
+        }
+    }
+    let daysInMonth=getMonthStats(month);
+    let daysOfTheMonth=getDaysOfTheMonth(daysInMonth);
+
+    academicMembers=await academicMemberModel.find();
+    hrMembers=await hrMemberModel.find(); 
+
+    for(var i=0;i<academicMembers.length;i++){
+        let dayOff=convertDayOff(academicMembers[i].dayOff);
+        let userAttendanceRecords;
+        let daysOffAttended=[];
+        let normalDaysAttended=[];
+        let missingDays=[];
+        let maxDate;
+    
+        if(month>=0 && month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                 { $and: [ { user: academicMembers[i].id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+        }
+        else if(month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: academicMembers[i].id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+        }
+        for(var i=0;i<userAttendanceRecords.length;i++){
+            if(userAttendanceRecords[i].signInTime.getDay()!==5 && userAttendanceRecords[i].signInTime.getDay()!==dayOff){
+                normalDaysAttended.push(userAttendanceRecords[i].signInTime.getDate());
+            }
+            else{
+                daysOffAttended.push(userAttendanceRecords[i].signInTime.getDate());
+            }
+        }
+            missingDays=getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended);
+    
+            if(missingDays.length!==0){
+                for(var i=0;i<missingDays.length;i++){
+                    let date;
+                    if(missingDays[i]>=11){
+                        date=new Date(year,month,missingDays[i]);
+                    }
+                    else{
+                        if(month!==11){
+                            date=new Date(year,month+1,missingDays[i]);
+                        }
+                        else{
+                            date=new Date(year+1,0,missingDays[i]);
+                        }
+                    }
+                    missingDays[i]=date;
+    
+                    let request= await annualLeaveModel.findOne({requestedBy:academicMembers[i].id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
+                    type:{$ne:"maternityLeave"},type:{$ne:"replacementRequest"},status:"Accepted"});
+                    if(request){
+                        if(request.type==="compensationRequest"){
+                            if(daysOffAttended.includes(missingDays[i].getDate())){
+                                    missingDays.slice(i,i+1);
+                            }
+                        }
+                    }
+                    else {
+                        request=await annualLeaveModel.find({requestedBy:academicMembers[i].id,type:"maternityLeave",status:"Accepted"});
+                        if(request.length>0){
+                              maxDate=new Date(new Date().getTime()+(request.duration*24*60*60*1000));
+                        }
+                        request=await annualLeaveModel.findOne({requestedBy:academicMembers[i].id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave",status:"Accepted"});
+                        if(request){
+                            missingDays.slice(i,i+1);
+                        }
+                    }
+                }
+            }
+        var obj={id:academicMembers[i].id,
+                missingDays:missingDays
+        }
+        staffwithMissingDays.push(obj);
+    }
+
+    for(var i=0;i<hrMembers.length;i++){
+        let dayOff=convertDayOff(hrMembers[i].dayOff);
+        let userAttendanceRecords;
+        let daysOffAttended=[];
+        let normalDaysAttended=[];
+        let missingDays=[];
+        let maxDate;
+    
+        if(month>=0 && month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                 { $and: [ { user: hrMembers[i].id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+        }
+        else if(month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: hrMembers[i].id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+        }
+        for(var i=0;i<userAttendanceRecords.length;i++){
+            if(userAttendanceRecords[i].signInTime.getDay()!==5 && userAttendanceRecords[i].signInTime.getDay()!==dayOff){
+                normalDaysAttended.push(userAttendanceRecords[i].signInTime.getDate());
+            }
+            else{
+                daysOffAttended.push(userAttendanceRecords[i].signInTime.getDate());
+            }
+        }
+            missingDays=getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended);
+    
+            if(missingDays.length!==0){
+                for(var i=0;i<missingDays.length;i++){
+                    let date;
+                    if(missingDays[i]>=11){
+                        date=new Date(year,month,missingDays[i]);
+                    }
+                    else{
+                        if(month!==11){
+                            date=new Date(year,month+1,missingDays[i]);
+                        }
+                        else{
+                            date=new Date(year+1,0,missingDays[i]);
+                        }
+                    }
+                    missingDays[i]=date;
+    
+                    let request= await annualLeaveModel.findOne({requestedBy:hrMembers[i].id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
+                    type:{$ne:"maternityLeave"},type:{$ne:"replacementRequest"},status:"Accepted"});
+                    if(request){
+                        if(request.type==="compensationRequest"){
+                            if(daysOffAttended.includes(missingDays[i].getDate())){
+                                    missingDays.slice(i,i+1);
+                            }
+                        }
+                    }
+                    else {
+                        request=await annualLeaveModel.find({requestedBy:hrMembers[i].id,type:"maternityLeave",status:"Accepted"});
+                        if(request.length>0){
+                              maxDate=new Date(new Date().getTime()+(request.duration*24*60*60*1000));
+                        }
+                        request=await annualLeaveModel.findOne({requestedBy:hrMembers[i].id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave",status:"Accepted"});
+                        if(request){
+                            missingDays.slice(i,i+1);
+                        }
+                    }
+                }
+            }
+        var obj={id:hrMembers[i].id,
+                missingDays:missingDays
+        }
+        staffwithMissingDays.push(obj);
+    }
+    try {
+        res.send(staffwithMissingDays);
+    }
+    catch (error) {
+        console.log(error.message)
+        res.send(error);
+    }
+});
+
+router.route("/view-staff-missing-hours")
+.get(async(req,res)=>{
+    let staffwithMissingHours=[];
+    let academicMembers=await academicMemberModel.find();
+    let hrMembers=await hrMemberModel.find();
+    let month;
+    let year;
+    if(new Date().getDate()>=11){
+        month=new Date().getMonth();
+        year=new Date().getFullYear();
+    }
+    else{
+        if(new Date().getMonth()===0){
+            month=11;
+            year=new Date().getFullYear()-1;
+        }
+        else{
+            month=new Date().getMonth()-1;
+            year=new Date().getFullYear();
+        }
+    }
+
+    for(var i=0;i<academicMembers.length;i++){
+        let userAttendanceRecords;
+        let missingHours;
+        if(month>=0 && month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: academicMembers[i] },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+        }
+        else if(month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: academicMembers[i] },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+        }
+
+        missingHours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDayOff(academicMembers[i].dayOff)).missingHours;
+        var obj={
+            id: academicMembers[i].id,
+            missingHours: missingHours
+        }
+        staffwithMissingHours.push(obj);
+    }
+    
+    for(var i=0;i<hrMembers.length;i++){
+        let userAttendanceRecords;
+        let missingHours;
+        if(month>=0 && month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: hrMembers[i] },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+        }
+        else if(month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                { $and: [ { user: hrMembers[i] },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+        }
+
+        missingHours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDayOff(hrMembers[i].dayOff)).missingHours;
+        var obj={
+            id:hrMembers[i].id,
+            missingHours: missingHours
+        }
+        staffwithMissingHours.push(obj);
+    }
+    try {
+        res.send(staffwithMissingHours);
+    }
+    catch (error) {
+        console.log(error.message)
+        res.send(error);
+    }
+       
+});
 
 module.exports = router;

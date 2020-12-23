@@ -13,50 +13,6 @@ const { ConnectionStates } = require("mongoose");
 const attendance_record_model = require("../models/attendance_record_model");
 const { request } = require("express");
 
-const router = express.Router();
-
-router.route("/view-profile")
-.get(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id: token.id});
-    if (!user) {
-        user = await academicMemberModel.findOne({email: req.body.email});
-    }
-    res.send(user);
-});
-
-router.route("/reset-password")
-.put(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({email: req.body.email});
-    if (!user) {
-        user = await academicMemberModel.findOne({email: req.body.email});
-    }
-
-    const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
-    if (!passwordCorrect) {
-        res.status(401).send("Wrong password.");
-        return;
-    }
-    
-    const salt = await bcrypt.genSalt(10);
-    const newPassword = await bcrypt.hash(req.body.newPassword, salt);
-    user.password = newPassword;
-    
-    try {
-        await user.save();
-        const blacklistedToken = new jwtBlacklistModel({
-            token: req.headers.token
-        });
-        await blacklistedToken.save();        
-        res.send("Password changed successfully.");
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
-
 function getMonthStats(currMonth, currYear){
     let daysInMonth;
     switch(currMonth){
@@ -114,7 +70,6 @@ function convertDayOff(day){
     }
 }
  function getExpectedDaysToAttend(dayOff, firstDay, daysInMonth){
-     console.log(dayOff);
     let expectedDaysToAttend=20;  
     if(daysInMonth===31){
         if((firstDay)%7===5 || (firstDay+1)%7===5 || (firstDay+2)%7===5 ){
@@ -175,7 +130,6 @@ function getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysA
             if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==5 && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==dayOff){
                 missingDays.push(daysOfTheMonth[i]);
             }
-            
         }
    }
 }
@@ -185,46 +139,49 @@ function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
     
     let daysInMonth=getMonthStats(month);
     let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,new Date(year,month,11).getDay(),daysInMonth);
-    console.log(expectedDaysToAttend);
     let expectedHoursToSpend=expectedDaysToAttend*8.4;
     let spentHours=0;
     let spentMinutes=0;
     let spentSeconds=0;
     let missingHours=0;
+    let timeDiiffInSeconds;
 
     for(var i=0;i<userAttendanceRecords.length;i++){
         let signInTime=userAttendanceRecords[i].signInTime;
         let signOutTime=userAttendanceRecords[i].signOutTime;
 
-        if(signOutTime.getHours()<7 || signInTime.getHours()>18){
-            spentHours=spentHours+0;
+        if(signInTime.getHours()>18 || signOutTime.getHours()<7 ||(signOutTime.getHours()===7 && signOutTime.getMinutes()===0 && signOutTime.getSeconds()===0) ){
+           timeDiiffInSeconds=0;
         }
         else if(signInTime.getHours()<7 && signOutTime.getHours()>19){
-            spentHours=spentHours+12;
+         timeDiiffInSeconds=12*60*60;
         }
         else if(signInTime.getHours()<7 && signOutTime.getHours()<19){
-            spentHours=spentHours+(signOutTime.getHours()-7);
-            spentMinutes=spentMinutes+signOutTime.getMinutes();
-            spentSeconds=spentSeconds+signOutTime.getSeconds();
+            let date=signInTime;
+            date.setHours(7);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+            timeDiiffInSeconds=(signOutTime-date)/1000;
         }
         else if(signInTime.getHours()>7 && signOutTime.getHours()>19){
-            spentHours=spentHours+(19-(signInTime.getHours()+1));
-            spentMinutes=spentMinutes+signInTime.getMinutes();
-            spentSeconds=spentSeconds+signInTime.getSeconds();
-
+            let date=signOutTime;
+            date.spentHours(19);
+            date.setMinutes(0);
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+            timeDiiffInSeconds=(date-signInTime)/1000;
         }
         else{
-            spentHours=spentHours+(signOutTime.getHours()-(signInTime.getHours()+1));
-            spentMinutes=spentMinutes+signInTime.getMinutes()+signOutTime.getMinutes();
-            spentSeconds=spentSeconds+signInTime.getSeconds()+signOutTime.getSeconds();
+           timeDiiffInSeconds=(signOutTime-signInTime)/1000;
         }
     }
 
-    spentMinutes=spentMinutes+((spentSeconds-spentSeconds%60)/60);
-    spentSeconds=spentSeconds%60;
-    spentHours=spentHours+((spentMinutes-spentMinutes%60)/60);
+    spentSeconds=spentSeconds+timeDiiffInSeconds%60;
+    spentMinutes=spentMinutes+(timeDiiffInSeconds-spentSeconds)/60;
+    spentHours=spentHours+(spentMinutes-spentMinutes%60)/60;
     spentMinutes=spentMinutes%60;
-    
+   
     missingHours=((expectedHoursToSpend*60)-(spentHours*60)-(spentMinutes))/60.0;
   
 
@@ -242,6 +199,50 @@ function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
     return obj;
 }
 
+const router = express.Router();
+
+router.route("/view-profile")
+.get(async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({id: token.id});
+    if (!user) {
+        user = await academicMemberModel.findOne({email: req.body.email});
+    }
+    res.send(user);
+});
+
+router.route("/reset-password")
+.put(async (req,res) => {
+    const token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({email: req.body.email});
+    if (!user) {
+        user = await academicMemberModel.findOne({email: req.body.email});
+    }
+
+    const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
+    if (!passwordCorrect) {
+        res.status(401).send("Wrong password.");
+        return;
+    }
+    
+    const salt = await bcrypt.genSalt(10);
+    const newPassword = await bcrypt.hash(req.body.newPassword, salt);
+    user.password = newPassword;
+    
+    try {
+        await user.save();
+        const blacklistedToken = new jwtBlacklistModel({
+            token: req.headers.token
+        });
+        await blacklistedToken.save();        
+        res.send("Password changed successfully.");
+    }
+    catch (error) {
+        console.log(error.message);
+        res.send(error);
+    }
+});
+
 router.route("/attendance-records")
 .get(async (req,res) =>{
     const token = jwt.decode(req.headers.token);
@@ -257,32 +258,40 @@ router.route("/attendance-records")
     let month=req.body.month;
     let year=req.body.year;
 
-    if(month && year){
-
-        if(req.body.month>=0 && req.body.month<11){
+    if(month<0 || month>11){
+        res.send("Not a valid month");
+        return;
+    }
+    if(year<2000){
+        res.send("Not a valid year");
+        return;
+    }
+    if(!month && year!==null){
+        res.send("No month specified");
+        return;
+    }
+    if(!year && month!==null){
+        res.send("No year specified");
+        return;
+    }
+    if(month===null && year===null){
+        userAttendanceRecords=await attendance_record_model.find({user:token.id})
+    }
+    else{
+        if(month>=0 && month<11){
             userAttendanceRecords=await attendance_record_model.find(
-                {$or:[ { $and: [ { user: token.id },{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]},
-                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]}
+                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]},
+                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year,month,11),$gte:new Date(year,month,11)}}]}
             ]})
         }
-        else if(req.body.month===11){
+        else if(month===11){
             userAttendanceRecords=await attendance_record_model.find(
                 {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]},
                 { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]}
             ]})
         }
-        else{
-            res.send("Not a valid month");
-            return;
-        }
-        if(!req.body.year>0){
-            res.send("Not a valid month");
-            return;
-        }
     }
-    else{
-        userAttendanceRecords=await attendance_record_model.find({user:token.id})
-    }
+
     try {
         res.send(userAttendanceRecords);
     }
@@ -291,6 +300,7 @@ router.route("/attendance-records")
         res.send(error);
     }
 });
+
 router.route("/missing-days")
 .get(async (req,res) =>{
     const token = jwt.decode(req.headers.token);
@@ -345,7 +355,7 @@ router.route("/missing-days")
         }
     }
         missingDays=getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended);
-  
+
         if(missingDays.length!==0){
             for(var i=0;i<missingDays.length;i++){
                 let date;
@@ -360,29 +370,30 @@ router.route("/missing-days")
                         date=new Date(year+1,0,missingDays[i]);
                     }
                 }
-               let request= await annualLeaveModel.findOne({requestedBy:token.id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
-                type:{$ne:"maternityLeave"}});
-                if(!request){
-                    if(date.getMonth()>=9){
-                        maxDate=new Date(year+1,(month+3)%12,missingDays[i]);
-                    }
-                    else{
-                        maxDate=new Date(year,(month+3)%12,missingDays[i]);
-                    }
-                    request=await annualLeaveModel.findOne({requestedBy:token.id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave"});
-                    if(request){
-                        missingDays.slice(i,i+1);
-                    }
-                }
-                else{
+                missingDays[i]=date;
+
+                let request= await annualLeaveModel.findOne({requestedBy:token.id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
+                type:{$ne:"maternityLeave"},type:{$ne:"replacementRequest"},status:"Accepted"});
+                if(request){
                     if(request.type==="compensationRequest"){
-                        if(daysOffAttended.includes(missingDays[i])){
+                        if(daysOffAttended.includes(missingDays[i].getDate())){
                                 missingDays.slice(i,i+1);
                         }
                     }
                 }
+                else {
+                    request=await annualLeaveModel.find({requestedBy:token.id,type:"maternityLeave",status:"Accepted"});
+                    if(request.length>0){
+                          maxDate=new Date(new Date().getTime()+(request.duration*24*60*60*1000));
+                    }
+                    request=await annualLeaveModel.findOne({requestedBy:token.id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave",status:"Accepted"});
+                    if(request){
+                        missingDays.slice(i,i+1);
+                    }
+                }
             }
         }
+    
     try {
         res.send(missingDays);
     }
@@ -390,9 +401,8 @@ router.route("/missing-days")
         console.log(error.message)
         res.send(error);
     }
-
-   
 });
+
 router.route("/missing-hours")
 .get(async (req,res) =>{
     const token = jwt.decode(req.headers.token);
@@ -441,6 +451,7 @@ router.route("/missing-hours")
         res.send(error);
     }
 });
+
 router.route("/extra-hours")
 .get(async(req,res)=>{
     const token = jwt.decode(req.headers.token);
