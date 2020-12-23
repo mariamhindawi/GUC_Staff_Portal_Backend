@@ -171,7 +171,8 @@ router.post('/send-leave-request', async (req, res) => {
         request = new compensationLeaveModel({
             id: id,
             requestedBy: token.id,
-            reason: req.body.reason
+            reason: req.body.reason,
+            day:req.body.day
         })
     }
     fs.writeFileSync(path.join(path.dirname(__dirname), 'config.json'), JSON.stringify(config))

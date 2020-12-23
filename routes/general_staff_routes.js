@@ -9,6 +9,9 @@ const attendanceRecordModel = require("../models/attendance_record_model");
 const { annualLeaveModel, accidentalLeaveModel,
     maternityLeaveModel, dayOffChangeModel,
     slotLinkingModel, compensationLeaveModel, sickLeaveModel } = require("../models/request_model");
+const { ConnectionStates } = require("mongoose");
+const attendance_record_model = require("../models/attendance_record_model");
+const { request } = require("express");
 
 const router = express.Router();
 
@@ -59,17 +62,17 @@ function getMonthStats(currMonth, currYear){
     switch(currMonth){
         //31 days
         case 0:
-        case 1:
-        case 3:
-        case 5:
+        case 2:
+        case 4:
+        case 6:
         case 7:
-        case 8:
-        case 10:
+        case 9:
+        case 11:
             daysInMonth=31;
             break;
-        case 2:
+        case 1:
             //28 days
-            if(year % 4===0){
+            if(currYear % 4===0){
                 daysInMonth=28;
             }
             //29 days
@@ -78,10 +81,10 @@ function getMonthStats(currMonth, currYear){
             }
             break;
         //30 days
-        case 4:
-        case 6:
-        case 9:
-        case 11:
+        case 3:
+        case 5:
+        case 8:
+        case 10:
             daysInMonth=30;
             break;
     }    
@@ -110,54 +113,40 @@ function convertDayOff(day){
         return 6;
     }
 }
-function getFirstDay(daysInMonth){
-    let firstDay;
-    if (daysInMonth === 31){
-        firstDay=new Date().getDay()-((new Date().getDate()%7)-1);
-    } 
-    else if (daysInMonth === 30){
-        firstDay=new Date().getDay()-((new Date().getDate()%7)-2);
-    }
-    else if(daysInMonth === 29){
-        firstDay=new Date().getDay()-((new Date().getDate()%7)-4);
-    }
-    else if(daysInMonth === 28){
-        firstDay=new Date().getDay()-((new Date().getDate()%7)-3);
-    }
-    return firstDay;
-    
- }
-function getExpectedDaysToAttend(dayOff, firstDay, daysInMonth){
-
-    let expectedDaysToAttend=20;
-    if (daysInMonth === 31){
-        if(dayOff%7===firstDay+1 || dayOff%7===firstDay+2 || dayOff%7===firstDay+3){
-                expectedDaysToAttend=expectedDaysToAttend+2;
+ function getExpectedDaysToAttend(dayOff, firstDay, daysInMonth){
+     console.log(dayOff);
+    let expectedDaysToAttend=20;  
+    if(daysInMonth===31){
+        if((firstDay)%7===5 || (firstDay+1)%7===5 || (firstDay+2)%7===5 ){
+           expectedDaysToAttend=22;  
         }
-        else{
-            expectedDaysToAttend=expectedDaysToAttend+3;
+        if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff || (firstDay+2)%7===dayOff ){
+            expectedDaysToAttend=21;
         }
-            
-    } 
-    else if (daysInMonth === 30){
-        if(dayOff%7===firstDay+1 || dayOff%7===firstDay+2){
-            expectedDaysToAttend=expectedDaysToAttend+1;
-        }   
-        else{
-            expectedDaysToAttend=expectedDaysToAttend+2;
-        }
-
     }
-    else if(daysInMonth === 29){
-        if(! (dayOff%7===firstDay+1)){
-            expectedDaysToAttend=expectedDaysToAttend+1;
-        }   
+    else if(daysInMonth===30){
+        expectedDaysToAttend=22;
+        if((firstDay)%7===5 || (firstDay+1)%7===5){
+            expectedDaysToAttend=21;  
+         }
+         if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff){
+             expectedDaysToAttend=20;
+         }
+    }
+    else if(daysInMonth===29){
+        expectedDaysToAttend=21;
+        if((firstDay)%7===5){
+            expectedDaysToAttend=20;  
+         }
+         if((firstDay+1)%7===dayOff){
+             expectedDaysToAttend=20;
+         }
     }
     return expectedDaysToAttend;
    
 }
 function getDaysOfTheMonth(daysInMonth){
-    let daysOfTheMonth;
+    let daysOfTheMonth=[];
     for(var i=11;i<daysInMonth+1;i++){
         daysOfTheMonth.push(i);
     }
@@ -166,148 +155,96 @@ function getDaysOfTheMonth(daysInMonth){
     }
     return daysOfTheMonth;
 }
-function getDaysOfTheWeek(daysInMonth, firstDay){
-    let daysOfTheWeek;
-    let counter=0;
-    for(var i=11;i<daysInMonth+1;i++){
-        daysOfTheWeek.push((firstDay+counter)%7);
-    }
-    for(var i=1;i<11;i++){
-        daysOfTheWeek.push((firstDay+counter)%7);
-    }
-    return daysOfTheWeek;
-}
-function calculateHoursSpentInRecord(attendanceRecord){
-    let spentHours;
-    let spentMinutes;
-    if(attendanceRecord.signInTime.getHours()<7){
-        //if sign in time is before 7am and sign out time is after 7pm
-        if(attendanceRecord.signOutTime.getHours()>=19){
-            spentHours=spentHours+12;
-        }  
-        else{
-        //if sign in time is before 7am and sign out time is before 7pm  
-            spentHours=spentHours+(attendanceRecord.signOutTime.getHours()-7);
-            spentMinutes=spentMinutes+attendanceRecord.signOutTime.getMinutes() +
-            (attendanceRecord.signOutTime.getSeconds()/1.0);
+function getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended){
+
+    let missingDays=[];
+    //remove days off and Fridays
+   for(var i=0;i<daysOfTheMonth.length;i++){
+    if(daysOfTheMonth[i]<=daysInMonth){
+        if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month,daysOfTheMonth[i]).getDay()!==dayOff){
+            missingDays.push(daysOfTheMonth[i]);
         }
     }
     else{
-        //if sign in time is after 7am and sign out time is after 7pm
-        if(attendanceRecord.signOutTime.getHours()>=19){
-                spentHours=spentHours+(19-attendanceRecord.signOutTime.getHours());
-                spentMinutes=spentMinutes+attendanceRecord.signInTime.getMinutes()
-                +(attendanceRecord.signInTime.getSeconds()/1.0);
-        }  
-        else{
-            //if sign in time is after 7am and sign out time is before 7pm
-            spentHours=spentHours+attendanceRecord.signInTime.getHours()
-            + attendanceRecord.signOutTime.getHours();
-            spentMinutes=spentMinutes+attendanceRecord.signInTime.getMinutes()
-            + attendanceRecord.signOutTime.getMinutes()
-            + (attendanceRecord.signInTime.getSeconds()/1.0)
-            + (attendanceRecord.signOutTime.getSeconds()/1.0);
+        if(month!==11){
+            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==dayOff){
+                missingDays.push(daysOfTheMonth[i]);
+            }
         }
-    }
-    return {spentHours:spentHours, spentMinutes:spentMinutes};
-}
-function getMissingDays(daysInMonth,attendedDays,daysOfTheMonth,daysOfTheWeek,dayOff,month,year){
-    let dateOfRequest;
-    let missingDays;
-    for(var i=0;i<daysInMonth;i++){
-        if((!attendedDays.includes(daysOfTheMonth[i]))&& daysOfTheWeek[i]!==dayOff &&
-        daysOfTheWeek[i]!==5){
-            //add to missing days
-            missingDays.push(daysInMonth[i]);
-            //check for requests
+        else{
+            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==5 && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==dayOff){
+                missingDays.push(daysOfTheMonth[i]);
+            }
             
-            //if no request deduct from salary
-            if(daysInMonth[i]<11){
-                dateOfRequest=daysInMonth[i]+"/"+(month+1)%12+"/"+year;
-            }
-            else{
-                dateOfRequest=daysInMonth[i]+"/"+month+"/"+year;
-            }
-         //check requests
-         let deductedDays=checkForRequests(staffId,dateOfRequest);
+        }
+   }
+}
+   return missingDays;
+}
+function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
+    
+    let daysInMonth=getMonthStats(month);
+    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,new Date(year,month,11).getDay(),daysInMonth);
+    console.log(expectedDaysToAttend);
+    let expectedHoursToSpend=expectedDaysToAttend*8.4;
+    let spentHours=0;
+    let spentMinutes=0;
+    let spentSeconds=0;
+    let missingHours=0;
+
+    for(var i=0;i<userAttendanceRecords.length;i++){
+        let signInTime=userAttendanceRecords[i].signInTime;
+        let signOutTime=userAttendanceRecords[i].signOutTime;
+
+        if(signOutTime.getHours()<7 || signInTime.getHours()>18){
+            spentHours=spentHours+0;
+        }
+        else if(signInTime.getHours()<7 && signOutTime.getHours()>19){
+            spentHours=spentHours+12;
+        }
+        else if(signInTime.getHours()<7 && signOutTime.getHours()<19){
+            spentHours=spentHours+(signOutTime.getHours()-7);
+            spentMinutes=spentMinutes+signOutTime.getMinutes();
+            spentSeconds=spentSeconds+signOutTime.getSeconds();
+        }
+        else if(signInTime.getHours()>7 && signOutTime.getHours()>19){
+            spentHours=spentHours+(19-(signInTime.getHours()+1));
+            spentMinutes=spentMinutes+signInTime.getMinutes();
+            spentSeconds=spentSeconds+signInTime.getSeconds();
+
+        }
+        else{
+            spentHours=spentHours+(signOutTime.getHours()-(signInTime.getHours()+1));
+            spentMinutes=spentMinutes+signInTime.getMinutes()+signOutTime.getMinutes();
+            spentSeconds=spentSeconds+signInTime.getSeconds()+signOutTime.getSeconds();
         }
     }
-    return {missingDays:missingDays,deductedDays:deductedDays};
-}
-function getMissingHours(expectedDaysToAttend,spentHours){
-let expectedHoursToSpend=expectedDaysToAttend*8.4;
-let missingHours;
-    if(expectedHoursToSpend-spentHours>=0){
-        missingHours=0;
-    }
-    else{
-        missingHours=(expectedHoursToSpend-spentHours)*-1;
-    }
-    return missingHours;
-}
-function getExtraHours(expectedDaysToAttend,spentHours){
-    let expectedHoursToSpend=expectedDaysToAttend*8.4;
-    let extraHours;
-    if(expectedHoursToSpend-spentHours>=0){
-        extraHours=expectedHoursToSpend-spentHours;
+
+    spentMinutes=spentMinutes+((spentSeconds-spentSeconds%60)/60);
+    spentSeconds=spentSeconds%60;
+    spentHours=spentHours+((spentMinutes-spentMinutes%60)/60);
+    spentMinutes=spentMinutes%60;
+    
+    missingHours=((expectedHoursToSpend*60)-(spentHours*60)-(spentMinutes))/60.0;
+  
+
+    if(missingHours<0){
+            extraHours=missingHours*-1;
+            missingHours=0;
     }
     else{
         extraHours=0;
     }
-    return extraHours;
+    var obj={
+        missingHours:missingHours,
+        extraHours:extraHours
+    }
+    return obj;
 }
-function checkForRequests (staffId, dateOfRequest){
-    let deductedDays;
-    let request=await annualLeaveModel.find({ requestedBy: staffId, day: dateOfRequest, status:'Accepted'});
-    if(!request){
-        request=await accidentalLeaveModel.find({ requestedBy: staffId, day: dateOfRequest, status:'Accepted'});
-    }
-    if(!request){
-        request=await sickLeaveModel.find({ requestedBy:staffId, day: dateOfRequest, status:'Accepted'});
-    }
-    if(!request){
-        request=await compensationLeaveModel.find({ requestedBy: staffId, day: dateOfRequest, status:'Accepted'});
-        if(!daysOffAttended.includes(daysOfTheMonth[i])){
-            deductedDays++;
-        }
-    }
-    if(!request){
-        deductedDays++;
-    }
-    return deductedDays;
-}
-function calculateSalary(initialSalary,deductedDays, missingHours){
-let finalSalary=initialSalary-(deductedDays*(initialSalary/60));
-if(missingHours-2-(59/60)>0){
-    finalSalary=(missingHours-2-(59/60))*(initialSalary/180);
-}
-return finalSalary;
 
-}
-function getAttendanceRecordsByMonth(userAttendanceRecords,month,year){
-    let daysInMonth=getMonthStats(month,year);
-    //check which records to consider
-    for (var i=0;i<userAttendanceRecords.length();i++){
-        let signInTime=new Date(userAttendanceRecords[i].signInTime);
-        let signOutTime=new Date(userAttendanceRecords[i].signOutTime);
-
-        //skip the records before the intended ones to consider
-        if(signInTime.getFullYear<year || (signInTime.getDate<11 && signInTime.getMonth===month)
-        || (signInTime.getDate>10 && signInTime.getMonth>(month+1)%12)){
-            continue;
-        }
-        //break when the records are after the intended ones to consider
-        else if(signInTime.getMonth !==11 && year === signInTime.getFullYear+1){
-            break;
-        }
-        //the records to be considered
-        else{
-        response.push(userAttendanceRecords[i]);
-        }
-    }
-}
-router.route("/salary")
-.get(async (req,res) => {
+router.route("/attendance-records")
+.get(async (req,res) =>{
+    const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id: token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
@@ -316,82 +253,35 @@ router.route("/salary")
         res.send("Invalid user id.");
         return;
     }
+    let userAttendanceRecords;
     let month=req.body.month;
     let year=req.body.year;
-    let daysInMonth=getMonthStats(month,year);
-    let dayOff=convertDayOff(user.dayOff);
-    let firstDay=getFirstDay(daysInMonth);
-    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,firstDay,daysInMonth);
-    let userAttendanceRecords=await attendanceRecordModel.find({staffId: token.id}).sort({signInTime: 1});
 
-    let attendedDays;
-    let daysOffAttended;
-    let spentHours;
-    let spentMinutes;
-    let prevRecordDate;
+    if(month && year){
 
-     //check which records to consider
-     for (var i=0;i<userAttendanceRecords.length();i++){
-        let signInTime=new Date(userAttendanceRecords[i].signInTime);
-        let signOutTime=new Date(userAttendanceRecords[i].signOutTime);
-
-        //skip the records before the intended ones to consider
-        if(signInTime.getFullYear<year || (signInTime.getDate<11 && signInTime.getMonth===month)){
-            continue;
+        if(req.body.month>=0 && req.body.month<11){
+            userAttendanceRecords=await attendance_record_model.find(
+                {$or:[ { $and: [ { user: token.id },{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]},
+                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]}
+            ]})
         }
-        //break when the records are after the intended ones to consider
-        else if(signInTime.getMonth !==11 && year === signInTime.getFullYear+1){
-            break;
+        else if(req.body.month===11){
+            userAttendanceRecords=await attendance_record_model.find(
+                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]},
+                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]}
+            ]})
         }
-        //the records to be considered
         else{
-            if(signInTime!==null && signOutTime!==null){
-                //calculate spent hours
-                spentHours=spentHours+calculateHoursSpentInRecord(userAttendanceRecords[i]).spentHours;
-                spentMinutes=spentMinutes+calculateHoursSpentInRecord(userAttendanceRecords[i].spentMinutes);
-                if(signInTime.getDay === 5 || signInTime.getDay ===dayOff){
-                    daysOffAttended.push(signInTime.getDate());
-                }
-                if(prevRecordDate!==signInTime.getDate){
-                    attendedDays.push(signInTime.getDate);
-                    prevRecordDate===signInTime.getDate;
-                } 
-            }
+            res.send("Not a valid month");
+            return;
         }
-    }
-    spentHours=spentHours+Math.floor(spentMinutes/60);
-    spentMinutes=spentMinutes-Math.floor(spentMinutes/60);
-    spentHours=spentHours+(spentMinutes/60);
-
-    if(!(expectedDaysToAttend===attendedDays.length())){
-        //get missing days
-        //construct 2 arrays 1  for days in month  and 1 for corresponding day of week
-        let daysOfTheMonth=getDaysOfTheMonth(daysInMonth);
-        let daysOfTheWeek=getDaysOfTheWeek(daysInMonth,firstDay);
+        if(!req.body.year>0){
+            res.send("Not a valid month");
+            return;
         }
-        //check missing hours and extra hours
-        let missingHours=getMissingHours(expectedDaysToAttend,spentHours);
-        let deductedDays=getMissingDays(daysInMonth,attendedDays,daysOfTheMonth,daysOfTheWeek,dayOff,month,year).deductedDays;
-        let salary=calculateSalary(initialSalary,deductedDays,missingHours);
-
-    try {
-        res.send(salary);
-    }
-    catch (error) {
-        console.log(error.message)
-        res.send(error);
-    }
-
-});
-router.route("/attendance-records")
-.get(async (req,res) =>{
-    let userAttendanceRecords;
-    let response;
-    if(req.body.month !==null){
-       userAttendanceRecords=await attendanceRecordModel.find({staffId: token.id}).sort({signInTime: 1});
     }
     else{
-        userAttendanceRecords= getAttendanceRecordsByMonth(userAttendanceRecords,month,year);
+        userAttendanceRecords=await attendance_record_model.find({user:token.id})
     }
     try {
         res.send(userAttendanceRecords);
@@ -403,7 +293,8 @@ router.route("/attendance-records")
 });
 router.route("/missing-days")
 .get(async (req,res) =>{
-    let user = await hrMemberModel.findOne({id: token.id});
+    const token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({id:token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
     }
@@ -411,55 +302,87 @@ router.route("/missing-days")
         res.send("Invalid user id.");
         return;
     }
-    let month=req.body.month;
-    let year=req.body.year;
-    let daysInMonth=getMonthStats(month,year);
-    let dayOff=convertDayOff(user.dayOff);
-    let firstDay=getFirstDay(daysInMonth);
-    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,firstDay,daysInMonth);
-    let userAttendanceRecords=await attendanceRecordModel.find({staffId: token.id}).sort({signInTime: 1});
+    let month;
+    let year;
+    let userAttendanceRecords;
+    let daysOffAttended=[];
+    let normalDaysAttended=[];
+    let missingDays=[];
+    let maxDate;
 
-    let attendedDays;
-    let daysOffAttended;
-    let prevRecordDate;
-    let missingDays;
-
-     //check which records to consider
-     for (var i=0;i<userAttendanceRecords.length();i++){
-        let signInTime=new Date(userAttendanceRecords[i].signInTime);
-        let signOutTime=new Date(userAttendanceRecords[i].signOutTime);
-
-        //skip the records before the intended ones to consider
-        if(signInTime.getFullYear<year || (signInTime.getDate<11 && signInTime.getMonth===month)
-        || (signInTime.getDate>10 && signInTime.getMonth>(month+1)%12)){
-            continue;
+    if(new Date().getDate()>=11){
+        month=new Date().getMonth();
+        year=new Date().getFullYear();
+    }
+    else{
+        if(new Date().getMonth()===0){
+            month=11;
+            year=new Date().getFullYear()-1;
         }
-        //break when the records are after the intended ones to consider
-        else if(signInTime.getMonth !==11 && year === signInTime.getFullYear+1){
-            break;
-        }
-        //the records to be considered
         else{
-            if(signInTime!==null && signOutTime!==null){
-                if(signInTime.getDay === 5 || signInTime.getDay === dayOff){
-                    daysOffAttended.push(signInTime.getDate());
+            month=new Date().getMonth()-1;
+            year=new Date().getFullYear();
+        }
+    }
+    let daysInMonth=getMonthStats(month);
+    let daysOfTheMonth=getDaysOfTheMonth(daysInMonth);
+    let dayOff=convertDayOff(user.dayOff);
+
+    if(month>=0 && month<11){
+        userAttendanceRecords=await attendance_record_model.find(
+             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+    }
+    else if(month===11){
+        userAttendanceRecords=await attendance_record_model.find(
+            { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+    }
+    for(var i=0;i<userAttendanceRecords.length;i++){
+        if(userAttendanceRecords[i].signInTime.getDay()!==5 && userAttendanceRecords[i].signInTime.getDay()!==dayOff){
+            normalDaysAttended.push(userAttendanceRecords[i].signInTime.getDate());
+        }
+        else{
+            daysOffAttended.push(userAttendanceRecords[i].signInTime.getDate());
+        }
+    }
+        missingDays=getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended);
+  
+        if(missingDays.length!==0){
+            for(var i=0;i<missingDays.length;i++){
+                let date;
+                if(missingDays[i]>=11){
+                    date=new Date(year,month,missingDays[i]);
                 }
-                if(prevRecordDate!==signInTime.getDate){
-                    attendedDays.push(signInTime.getDate);
-                    prevRecordDate===signInTime.getDate;
-                } 
+                else{
+                    if(month!==11){
+                        date=new Date(year,month+1,missingDays[i]);
+                    }
+                    else{
+                        date=new Date(year+1,0,missingDays[i]);
+                    }
+                }
+               let request= await annualLeaveModel.findOne({requestedBy:token.id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
+                type:{$ne:"maternityLeave"}});
+                if(!request){
+                    if(date.getMonth()>=9){
+                        maxDate=new Date(year+1,(month+3)%12,missingDays[i]);
+                    }
+                    else{
+                        maxDate=new Date(year,(month+3)%12,missingDays[i]);
+                    }
+                    request=await annualLeaveModel.findOne({requestedBy:token.id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave"});
+                    if(request){
+                        missingDays.slice(i,i+1);
+                    }
+                }
+                else{
+                    if(request.type==="compensationRequest"){
+                        if(daysOffAttended.includes(missingDays[i])){
+                                missingDays.slice(i,i+1);
+                        }
+                    }
+                }
             }
         }
-    }
-    if(!(expectedDaysToAttend===attendedDays.length())){
-        //get missing days
-        //construct 2 arrays 1  for days in month  and 1 for corresponding day of week
-        let daysOfTheMonth=getDaysOfTheMonth(daysInMonth);
-        let daysOfTheWeek=getDaysOfTheWeek(daysInMonth,firstDay);
-       
-        //loop and find days that are not attended and are neither friday nor a day off        
-         missingDays=getMissingDays(daysInMonth,attendedDays,daysOfTheMonth,daysOfTheWeek,dayOff,month,year).missingDays;
-    }
     try {
         res.send(missingDays);
     }
@@ -467,10 +390,12 @@ router.route("/missing-days")
         console.log(error.message)
         res.send(error);
     }
-});
 
+   
+});
 router.route("/missing-hours")
 .get(async (req,res) =>{
+    const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id: token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
@@ -479,69 +404,46 @@ router.route("/missing-hours")
         res.send("Invalid user id.");
         return;
     }
-    let month=req.body.month;
-    let year=req.body.year;
-    let daysInMonth=getMonthStats(month,year);
-    let dayOff=convertDayOff(user.dayOff);
-    let firstDay=getFirstDay(daysInMonth);
-    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,firstDay,daysInMonth);
-    let userAttendanceRecords=await attendanceRecordModel.find({staffId: token.id}).sort({signInTime: 1});
-
-    let attendedDays;
-    let daysOffAttended;
-    let spentHours;
-    let spentMinutes;
-    let prevRecordDate;
+    let month;
+    let year;
+    let userAttendanceRecords;
     let missingHours;
 
-     //check which records to consider
-     for (var i=0;i<userAttendanceRecords.length();i++){
-        let signInTime=new Date(userAttendanceRecords[i].signInTime);
-        let signOutTime=new Date(userAttendanceRecords[i].signOutTime);
-
-        //skip the records before the intended ones to consider
-        if(signInTime.getFullYear<year || (signInTime.getDate<11 && signInTime.getMonth===month)
-        || (signInTime.getDate>10 && signInTime.getMonth>(month+1)%12)){
-            continue;
+    if(new Date().getDate()>=11){
+        month=new Date().getMonth();
+        year=new Date().getFullYear();
+    }
+    else{
+        if(new Date().getMonth()===0){
+            month=11;
+            year=new Date().getFullYear()-1;
         }
-        //break when the records are after the intended ones to consider
-        else if(signInTime.getMonth !==11 && year === signInTime.getFullYear+1){
-            break;
-        }
-        //the records to be considered
         else{
-            if(signInTime!==null && signOutTime!==null){
-                //calculate spent hours
-                spentHours=spentHours+calculateHoursSpentInRecord(userAttendanceRecords[i]).spentHours;
-                spentMinutes=spentMinutes+calculateHoursSpentInRecord(userAttendanceRecords[i].spentMinutes);
-                if(signInTime.getDay === 5 || signInTime.getDay ===dayOff){
-                    daysOffAttended.push(signInTime.getDate());
-                }
-                if(prevRecordDate!==signInTime.getDate){
-                    attendedDays.push(signInTime.getDate);
-                    prevRecordDate===signInTime.getDate;
-                } 
-            }
+            month=new Date().getMonth()-1;
+            year=new Date().getFullYear();
         }
     }
-    spentHours=spentHours+Math.floor(spentMinutes/60);
-    spentMinutes=spentMinutes-Math.floor(spentMinutes/60);
-    spentHours=spentHours+(spentMinutes/60);
-    //check missing hours and extra hours
-    missingHours=getMissingHours(expectedDaysToAttend,spentHours);
+    if(month>=0 && month<11){
+        userAttendanceRecords=await attendance_record_model.find(
+             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+    }
+    else if(month===11){
+        userAttendanceRecords=await attendance_record_model.find(
+            { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+    }
+
+    missingHours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDayOff(user.dayOff)).missingHours;
     try {
-        res.send(missingHours);
+        res.send(missingHours+'');
     }
     catch (error) {
         console.log(error.message)
         res.send(error);
     }
-
-
 });
-
 router.route("/extra-hours")
 .get(async(req,res)=>{
+    const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id: token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
@@ -550,64 +452,40 @@ router.route("/extra-hours")
         res.send("Invalid user id.");
         return;
     }
-    let month=req.body.month;
-    let year=req.body.year;
-    let daysInMonth=getMonthStats(month,year);
-    let dayOff=convertDayOff(user.dayOff);
-    let firstDay=getFirstDay(daysInMonth);
-    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,firstDay,daysInMonth);
-    let userAttendanceRecords=await attendanceRecordModel.find({id:token.id}).sort({signInTime: 1});
-
-    let attendedDays;
-    let daysOffAttended;
-    let spentHours;
-    let spentMinutes;
-    let prevRecordDate;
-    let missingHours;
-
-     //check which records to consider
-     for (var i=0;i<userAttendanceRecords.length();i++){
-        let signInTime=new Date(userAttendanceRecords[i].signInTime);
-        let signOutTime=new Date(userAttendanceRecords[i].signOutTime);
-
-        //skip the records before the intended ones to consider
-        if(signInTime.getFullYear<year || (signInTime.getDate<11 && signInTime.getMonth===month)
-        || (signInTime.getDate>10 && signInTime.getMonth>(month+1)%12)){
-            continue;
+    let month;
+    let year;
+    let userAttendanceRecords;
+    let extraHours;
+    if(new Date().getDate()>=11){
+        month=new Date().getMonth();
+        year=new Date().getFullYear();
+    }
+    else{
+        if(new Date().getMonth()===0){
+            month=11;
+            year=new Date().getFullYear()-1;
         }
-        //break when the records are after the intended ones to consider
-        else if(signInTime.getMonth !==11 && year === signInTime.getFullYear+1){
-            break;
-        }
-        //the records to be considered
         else{
-            if(signInTime!==null && signOutTime!==null){
-                //calculate spent hours
-                spentHours=spentHours+calculateHoursSpentInRecord(userAttendanceRecords[i]).spentHours;
-                spentMinutes=spentMinutes+calculateHoursSpentInRecord(userAttendanceRecords[i].spentMinutes);
-                if(signInTime.getDay === 5 || signInTime.getDay ===dayOff){
-                    daysOffAttended.push(signInTime.getDate());
-                }
-                if(prevRecordDate!==signInTime.getDate){
-                    attendedDays.push(signInTime.getDate);
-                    prevRecordDate===signInTime.getDate;
-                } 
-            }
+            month=new Date().getMonth()-1;
+            year=new Date().getFullYear();
         }
     }
-    spentHours=spentHours+Math.floor(spentMinutes/60);
-    spentMinutes=spentMinutes-Math.floor(spentMinutes/60);
-    spentHours=spentHours+(spentMinutes/60);
-    //check missing hours and extra hours
-    let extraHours=getExtraHours(expectedDaysToAttend,spentHours);
+    if(month>=0 && month<11){
+        userAttendanceRecords=await attendance_record_model.find(
+             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
+    }
+    else if(month===11){
+        userAttendanceRecords=await attendance_record_model.find(
+            { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
+    }
+
+        extraHours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDayOff(user.dayOff)).extraHours;
     try {
-        res.send(extraHours);
+        res.send(extraHours+'');
     }
     catch (error) {
         console.log(error.message)
         res.send(error);
     }
-
 });
-
 module.exports = router;

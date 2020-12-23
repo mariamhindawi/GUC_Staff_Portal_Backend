@@ -169,6 +169,10 @@ const compensationRequestSchema = new mongoose.Schema({
     reason:{
         type:String,
         required:true
+    },
+    day:{
+        type:String,
+        required:true
     }
 })
 

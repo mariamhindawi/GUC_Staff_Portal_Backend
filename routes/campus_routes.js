@@ -16,9 +16,9 @@ function compareDates(date1, date2) {
 
 router.route("/sign-in")
 .post(async (req,res) => {
-    let user = await hrMemberModel.findOne({id: req.body.staffId});
+    let user = await hrMemberModel.findOne({id: req.body.user});
     if (!user) {
-        user = await academicMemberModel.findOne({id: req.body.staffId});
+        user = await academicMemberModel.findOne({id: req.body.user});
     }
     if (!user) {
         res.send("Invalid user id.");
@@ -26,8 +26,9 @@ router.route("/sign-in")
     }
 
     const date = new Date();
+    
     const newAttendanceRecord = new attendanceRecordModel({
-        staffId: req.body.staffId,
+        user: req.body.user,
         signInTime: date,
         signOutTime: null
     });
@@ -44,9 +45,9 @@ router.route("/sign-in")
 
 router.route("/sign-out")
 .post(async (req,res) => {
-    let user = await hrMemberModel.findOne({id: req.body.staffId});
+    let user = await hrMemberModel.findOne({id: req.body.user});
     if (!user) {
-        user = await academicMemberModel.findOne({id: req.body.staffId});
+        user = await academicMemberModel.findOne({id: req.body.user});
     }
     if (!user) {
         res.send("Invalid user id.");
@@ -54,14 +55,14 @@ router.route("/sign-out")
     }
     
     let signOutTime = new Date();
-    let attendanceRecords = await attendanceRecordModel.find({staffId: req.body.staffId}).sort({signInTime: 1});
-    let attendanceRecord = attendanceRecords.pop();
-    let signInTime = attendanceRecords.length === 0 ? null : new Date(attendanceRecord.signInTime);
+    let attendanceRecords = await attendanceRecordModel.find({user: req.body.user}).sort({signInTime: 1});
+    let attendanceRecord = attendanceRecords[attendanceRecords.length-1];
+    let signInTime = attendanceRecords.length === 0 ? null : attendanceRecord.signInTime;
 
     if (attendanceRecords.length === 0 || attendanceRecord.signOutTime !== null 
             || !compareDates(signOutTime, signInTime)) {
         let newAttendanceRecord = new attendanceRecordModel({
-            staffId: req.body.staffId,
+            user: req.body.user,
             signInTime: null,
             signOutTime: signOutTime
         });
