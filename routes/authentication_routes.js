@@ -34,7 +34,7 @@ router.route("/login")
         role = user.role;
     }
 
-    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
+    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET);
     res.header("token", token).send("Logged in successfully.");
 });
 

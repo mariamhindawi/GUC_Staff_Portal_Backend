@@ -1,5 +1,36 @@
 const mongoose = require("mongoose");
 
+const replacementSchema = new mongoose.Schema({
+    type:{
+        type:String,
+        default:"replacementRequest",
+        immutable:true
+    },
+    id:{
+        type:Number,
+        required:true
+    },
+    requestedBy:{
+        type:String,
+        required:true
+    },
+    day:{
+        type:Date,
+        required:true
+    },
+    slot:{
+        type:String,
+        required:true
+    },
+    replacementID:{
+        type:String,
+        required:true
+    },
+    replacementReply:{
+        type: String,
+        enum:['Accepted','Rejected','Waiting for reply']
+    }
+})
 const annualLeaveSchema = new mongoose.Schema({
     type:{
         type:String,
@@ -15,29 +46,24 @@ const annualLeaveSchema = new mongoose.Schema({
         required:true
     },
     day:{
-        type:String,
+        type:Date,
         required:true
     },
-    slot:{
-        type:Number,
-        min:1,
-        max:5,
+    slots:{
+        type:[String],
         required:true
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected','Not submitted'],
-        default:'Not submitted'
+        enum:['Under review','Accepted','Rejected'],
+        default:'Under review'
     },
     HODComment:{
         type:String
     },
-    replacementID:{
-        type:String
-    },
-    replacementReply:{
-        type: String,
-        enum:['Accepted','Rejected','Waiting for reply']
+    replacementIDs:{
+        type:[String],
+        required:true
     },
     reason:{
         type:String
@@ -59,7 +85,7 @@ const accidentalLeaveSchema = new mongoose.Schema({
         required:true
     },
     day:{
-        type:String,
+        type:Date,
         required:true
     },
     status:{
@@ -90,7 +116,7 @@ const sickLeaveSchema = new mongoose.Schema({
         required:true
     },
     day:{
-        type:String,
+        type:Date,
         required:true
     },
     status:{
@@ -129,7 +155,7 @@ const maternityLeaveSchema = new mongoose.Schema({
         max:90
     },
     day:{
-        type:String,
+        type:Date,
         required:true
     },
     status:{
@@ -161,7 +187,7 @@ const compensationRequestSchema = new mongoose.Schema({
         required:true
     },
     day:{
-        type:String,
+        type:Date,
         required:true
     },
     requestedBy:{
@@ -228,20 +254,8 @@ const slotLinkingRequestSchema = new mongoose.Schema({
         type:String,
         required:true
     },
-    day:{
-        type:String,
-        required:true
-    },
     slot:{
-        type: Number,
-        required:true
-    },
-    course: {
-        type:String,
-        required:true
-    },
-    room:{
-        type:String,
+        type: String,
         required:true
     },
     status:{
@@ -254,11 +268,29 @@ const slotLinkingRequestSchema = new mongoose.Schema({
     }
 });
 
+const requestSchema = new mongoose.Schema({
+    type:{
+        type:String
+    },
+    id:{
+        type:Number
+    },
+    requestedBy:{
+        type:String
+    },
+    status:{
+        type:String,
+        enum:['Under review','Accepted','Rejected'],
+        default:'Under review'
+    }
+});
 
-module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "request");
-module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "request");
-module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "request");
-module.exports.slotLinkingModel = mongoose.model("slotLinkingLeave", slotLinkingRequestSchema, "request");
-module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "request");
-module.exports.dayOffChangeModel = mongoose.model("dayOffChangeLeave", dayOffChangeRequestSchema, "request");
-module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "request");
+module.exports.requestModel = mongoose.model("Request", requestSchema, "requests");
+module.exports.replacementModel = mongoose.model("replacementRequest", replacementSchema, "requests");
+module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "requests");
+module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "requests");
+module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "requests");
+module.exports.slotLinkingModel = mongoose.model("slotLinkingRequest", slotLinkingRequestSchema, "requests");
+module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "requests");
+module.exports.dayOffChangeModel = mongoose.model("dayOffChangeRequest", dayOffChangeRequestSchema, "requests");
+module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "requests");

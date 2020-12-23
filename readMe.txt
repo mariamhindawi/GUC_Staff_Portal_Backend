@@ -1,13 +1,13 @@
 Route: /hod
 
 Route: /staff-requests/:reqId/accept
-Request: POST
-Parameters:	reqId
+Request: PUT
+Parameters:	request Id
 Body:{ }
 
 Route: /staff-requests/:reqId/reject
-Request:	POST
-Parameters:	reqId
+Request: PUT
+Parameters:	request Id
 Body: {HODComment: "Reason for rejection" }
 
 Route: /staff-requests
@@ -19,13 +19,13 @@ Body:{ }
 Route: /cc
 
 Route: /slot-linking-requests/:reqId/accept
-Request: POST
-Parameters: reqId
+Request: PUT
+Parameters: request Id
 Body:{ }
 
 Route: /slot-linking-requests/:reqId/reject
-Request: POST
-Parameters: reqId
+Request: PUT
+Parameters: request Id
 Body:{ccComment: "Reason for rejection }
 
 Route:/slot-linking-requests
@@ -36,10 +36,15 @@ Body:{ }
 
 Route: /academicMember
 
+Route:/schedule
+Request: GET
+Parameters:
+Body: { }
+
 Route:/send-replacement-request
 Request: POST
 Parameters: 
-Body: {day:"11/12/2020", slot:"2",replacementID:"ac-3",reason:"reason" }
+Body: {"day":"2020-12-26","replacementID":"ac-2","slot":"3"}
 
 Route: /replacement-requests
 Request: GET
@@ -47,25 +52,25 @@ Parameters:
 Body: { }
 
 Route: /replacement-requests/:id/accept
-Request: POST
-Parameters: id
+Request: PUT
+Parameters: Request id
 Body: { }
 
 
 Route: /replacement-requests/:id/reject
 Request: POST
-Parameters: id
-Body: {}
+Parameters: Request id
+Body: { }
 
 Route: /send-slot-linking-request
 Request: POST
 Parameters:
-Body: {day:"Saturday",slot:"3",course:"CSEN 501",room:"c5.202" }
+Body: {"day":"Saturday","slot":"3","room":"C5.103" }
 
 Route: /slot-linking-requests
 Request: GET
 Parameters:
-Body: {}
+Body: { }
 
 Route: /change-day-off-request
 Request: POST
@@ -77,14 +82,15 @@ Request: POST
 Parameters: 
 Body: 
 Annual leave:
-{type:"annualLeave",id:"6" (incase a replacement request has already been sent to another staff member)
-,day:"15/4/2020",reason: ""(incase no replacement request has been sent }
-Accidental or compensation leave:
-{type:"accidentalLeave"||"compensationLeave",day:"15/1/2020",reason:""}
+{type:"annualLeave",day:"2020-04-22",reason: ""}
+Accidental leave:
+{type:"accidentalLeave",day:"2020-04-22",reason:""}
+Compensation leave:
+{type:"compensationLeave",day:"2020-04-22",reason:""}
 Sick leave:
-{type:"sickLeave",day:"15/01/2020",document:"googledrive.com/uploadedProofDocument",reason:"I had the corona virus"}
+{type:"sickLeave",day:"2020-04-22",document:"googledrive.com/uploadedProofDocument",reason:"I had the corona virus"}
 Maternity:
-{type:"maternityLeave",day:"15/01/2020",document:"googledrive.com/uploadedProofDocument",duration:"70",reason:""}
+{type:"maternityLeave",day:"2020-04-22",document:"googledrive.com/uploadedProofDocument",duration:"70",reason:""}
 
 Route: /all-requests/:filter
 Request: GET
@@ -92,6 +98,6 @@ Parameters: filter: All, Accepted, Rejected or Pending
 Body: {}
 
 Route: /cancel-request/:id
-Request: GET
-Paramters: id
+Request: DELETE
+Paramters: Request id
 Body: {}
