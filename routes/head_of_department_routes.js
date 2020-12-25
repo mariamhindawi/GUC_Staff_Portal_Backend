@@ -187,6 +187,18 @@ router.route("/delete-course-instructor")
 router.route("/update-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
+        if (typeof req.body.idUpdate !== 'string') {
+            res.send('Please enter a valid id')
+            return
+        }
+        if (typeof req.body.idDelete !== 'string') {
+            res.send('Please enter a valid course id')
+            return
+        }
+        if (typeof req.body.course !== 'string') {
+            res.send('Please enter a valid course id')
+            return
+        }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
         let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });

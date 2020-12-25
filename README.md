@@ -456,88 +456,176 @@ Web portal for GUC staff members
     - Request: PUT
     - Parameters:	request Id
     - Body:{ }
+    - Example of response : The accepted request{
+        RequestedBy: 'ac-2',
+        id: 20,
+        status:'Accepted',
+        type:'MaternityLeave',
+        duration: 80,
+        document: 'drive.google.com/document'
+    }
 
 #### Functionality: HOD rejects a request from an academic member in his departmment
     - Route: /hod/staff-requests/:reqId/reject
     - Request: PUT
     - Parameters:	request Id
     - Body: {HODComment: "Reason for rejection" }
+    - Example of response : The rejected request{
+        RequestedBy: 'ac-2',
+        id: 20,
+        status:'Rejected',
+        HODComment: 'Shortage of staff',
+        type:'annualLeave',
+        day: 10-09-2021,
+        document: 'drive.google.com/document'
+    }
 
-Fcuntionality: HOD gets all requests from staff in his department
+#### Functionality: HOD gets all requests from staff in his department
     - Route: /hod/staff-requests
     - Request: GET
     - Parameters:
-    - Body:{ }
+    - Body:{ }    
+    - Example of response : [{
+        RequestedBy: 'ac-2',
+        id: 20,
+        status:'Accepted',
+        type:'MaternityLeave',
+        duration: 80,
+        document: 'drive.google.com/document'},
+        {
+        RequestedBy: 'ac-4',
+        id: 20,
+        status:'Accepted',
+        type:'sickLeave',
+        duration: 80,
+        document: 'drive.google.com/document'}
+    ]
+
 
 #### Functionality: Course coordinator accepts a slot linking request
     - Route: /cc/slot-linking-requests/:reqId/accept
     - Request: PUT
     - Parameters: request Id
     - Body:{ }
+    - Response: 'Request accepted'
 
 #### Functionality: Course coordinator rejects a slot linking request
     - Route: /cc/slot-linking-requests/:reqId/reject
     - Request: PUT
     - Parameters: request Id
     - Body:{ccComment: "Reason for rejection }
+    - Response: 'Request rejected'
 
 #### Functionality: Coordinator views all slot linking requests from staff in courses linked to him
     - Route: /cc/slot-linking-requests
     - Request:	GET
     - Parameters:	
     - Body:{ }
+    -Response example: [
+        {
+            id: 18,
+            requestedBy: 'ac-3',
+            slot: *slot id*,
+            status:'Under review
+        }
+    ]
 
 #### Functionality: Academic member views his schedule
-    - Route: /academicMember/schedule
+    - Route: /academic/schedule
     - Request: GET
     - Parameters:
     - Body: { }
+    - Response example: [{
+        slotNo: 2,
+        day: Saturday,
+        Course: csen501,
+        staffMember: ac-1
+    },
+    {
+        slotNo: 3,
+        day: Saturday,
+        Course: csen501,
+        staffMember: ac-1
+    },
+    {
+        slotNo: 2,
+        day: Saturday,
+        Course: csen501,
+        staffMember: ac-4  (In case they are replacing someone)
+    }
+    ]
 
-#### Functionality: Academic members= sends a replacement request
-    - Route: /academicMember/send-replacement-request
+#### Functionality: Academic members sends a replacement request
+    - Route: /academic/send-replacement-request
     - Request: POST
     - Parameters: 
     - Body: {"day":"2020-12-26","replacementID":"ac-2","slot":"3"}
+    - Response example: Request sent
 
 #### Functionality: Academic member view replacement requests
-    - Route: /academicMember/replacement-requests
+    - Route: /academic/replacement-requests
     - Request: GET
     - Parameters: 
     - Body: { }
+    - Response example: [
+        {
+            requestedBy: 'ac-2',
+            slot: {
+                slotNo: 2,
+                day: Saturday ,
+                course: csen501
+            },
+            status:'Waiting for reply'
+        }
+    ]
 
 #### Functionality: Academic member accepts replacement request
-    - Route: /academicMember/replacement-requests/:id/accept
+    - Route: /academic/replacement-requests/:id/accept
     - Request: PUT
     - Parameters: Request id
     - Body: { }
+    - Response example: Request accepted
 
 
 #### Functionality:Academic member rejects a replacement request
-    - Route: /academicMember/replacement-requests/:id/reject
+    - Route: /academic/replacement-requests/:id/reject
     - Request: POST
     - Parameters: Request id
     - Body: { }
+    - Response example: Request rejected
 
 #### Functionality:Academic member sends a slot linking request
-    - Route: /academicMember/send-slot-linking-request
+    - Route: /academic/send-slot-linking-request
     - Request: POST
     - Parameters:
     - Body: {"day":"Saturday","slot":"3","room":"C5.103" }
+    - Response example: 'Request sent'
 
 #### Functionality: Academic member views slot linking requests
-    - Route: /academicMember/slot-linking-requests
+    - Route: /academic/slot-linking-requests
     - Request: GET
     - Parameters:
     - Body: { }
+    - Response example: [
+        {
+            id:2,
+            slot:{
+                day:Saturday,
+                slotNo:3,
+                Course: csen501
+            }
+        }
+    ]
 
 #### Functionality: Acdemic member sends a request to change his day off
-    - Route: /academicMember/change-day-off-request
+    - Route: /academic/change-day-off-request
     - Request: POST
     - Parameters:
     - Body: {dayOff:"Monday",reason: ""}
+    - Response example: Request sent
 
 #### Functionality:Academic member sends a leave request
-    - Route: /academicMember/send-leave-request
+    - Route: /academic/send-leave-request
     - Request: POST
     - Parameters: 
     - Body: 
@@ -551,15 +639,32 @@ Fcuntionality: HOD gets all requests from staff in his department
     - {type:"sickLeave",day:"2020-04-22",document:"googledrive.com/uploadedProofDocument",reason:"I had the corona virus"}
     - Maternity:
     - {type:"maternityLeave",day:"2020-04-22",document:"googledrive.com/uploadedProofDocument",duration:"70",reason:""}
+    - Response example: Request submitted
 
 #### Functionality:Academic member views requests
-    - Route: /academicMember/all-requests/:filter
+    - Route: /academic/all-requests/:filter
     - Request: GET
     - Parameters: filter: All, Accepted, Rejected or Pending
     - Body: {}
+    - Response example: [
+        {
+            id:3,
+            type: annualLeave,
+            day:11-02-2020,
+            status: 'Under review
+        },
+        {
+            id:5,
+            type:sickLeave,
+            day:11-03-2020,
+            document: url,
+            status: Accepted
+        }
+    ]
 
 #### Functionality:Academic member cancels a request
-    - Route: /academicMember/cancel-request/:id
+    - Route: /academic/cancel-request/:id
     - Request: DELETE
     - Parameters: Request id
     - Body: {}
+    - Response example: Request cancelled

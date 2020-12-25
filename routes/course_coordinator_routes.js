@@ -111,20 +111,40 @@ router.get('/slot-linking-requests', async (req, res) => {
 router.route('/add-course-slot')
 .post ( async(req,res) => {
     const token = jwt.decode(req.headers.token);
+    if (typeof req.body.course !== 'string') {
+        res.send('Please enter a valid course id')
+        return
+    }
     let academicMember = await academicMemberModel.findOne({id: token.id});
     let course = await courseModel.findOne({id: req.body.course});
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");
         return;
     }
+    if (typeof req.body.room !== 'string') {
+        res.send('Please enter a valid room')
+        return
+    }
     let room = await roomModel.findOne({name: req.body.room});
     if (!room) {
         res.send("Not a valid room");
         return;
     }
+    if (typeof req.body.type !== 'string') {
+        res.send('Please enter a valid room type')
+        return
+    }
     if (!(room.type===req.body.type)) {
         res.send("room type and slot type do not match");
         return;
+    }
+    if (typeof req.body.day !== 'string') {
+        res.send('Please enter a valid day')
+        return
+    }
+    if(isNaN(req.body.slotNumber)){
+        res.send('Please enter a valid slot number')
+        return
     }
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
     if (slot) {
@@ -151,12 +171,20 @@ router.route('/update-course-slot')
 .put( async(req, res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});
+    if (typeof req.body.course !== 'string') {
+        res.send('Please enter a valid course id')
+        return
+    }
     let course = await courseModel.findOne({id: req.body.course});
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");
         return;
     }
     let room = await roomModel.findOne({name: req.body.room});
+    if (typeof req.body.updatedRoom !== 'string') {
+        res.send('Please enter a room name')
+        return
+    }
     if (req.body.updatedRoom) {
         let updatedRoom = await roomModel.findOne({name: req.body.updatedRoom});
         if(!updatedRoom) {
@@ -173,10 +201,21 @@ router.route('/update-course-slot')
         return; 
     }
     
+    if (isNaN(req.body.slotNumber)) {
+        res.send('Please enter a valid slot number')
+        return
+    }
     let slot = await slotModel.findOne({day: req.body.day,room: room._id, slotNumber: req.body.slotNumber});
     if (!slot) {
         res.send("No slot to update");
         return;
+    }if (typeof req.body.updatedDay !== 'string') {
+        res.send('Please enter a day')
+        return
+    }
+    if (isNaN(req.body.updatedSlotNumber)) {
+        res.send('Please enter a valid slot number')
+        return
     }
     if (req.body.updatedDay) {
         if (req.body.updatedRoom) {
@@ -220,6 +259,19 @@ router.route('/delete-course-slot')
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");
         return;
+    }
+    if (typeof req.body.room !== 'string') {
+        res.send('Please enter a valid room')
+        return
+    }
+    if (typeof req.body.day !== 'string') {
+        res.send('Please enter a valid day')
+        return
+    }
+    
+    if (isNaN(req.body.slotNumber)) {
+        res.send('Please enter a valid slot number')
+        return
     }
     let room = await roomModel.findOne({name: req.body.room});
     let slot = await slotModel.findOne({day: req.body.day,room: room._id,slotNumber: req.body.slotNumber});
