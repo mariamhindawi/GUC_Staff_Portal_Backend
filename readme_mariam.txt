@@ -25,7 +25,7 @@ Route: /staff/view-missing-days
 Request type: GET
 Request body: { "month": 12, "year": 2020 } or {}
 Response: An array of the days that the user missed
-Example of response: ["2020-12-25T10:00:00.000Z", "2020-12-27T10:00:00.000Z"]
+Example of response: ["2020-12-25T22:00:00.000Z", "2020-12-27T22:00:00.000Z"]
 Notes:If the month and year are specified, the missing days of this month and year will be retrieved, if none are specified, the missing days of the current month and year will be retrieved,
 if only the month or only the year is specified, the response will be a message indicating that some of the fields are missing, these timings are in GMT time and so they are two hours behind
 
