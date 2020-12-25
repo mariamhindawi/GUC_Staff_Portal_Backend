@@ -652,8 +652,6 @@ router.route("/delete-hr-member")
     await office.save();
 
     await attendanceRecordModel.deleteMany({user: user.id});
-    // TODO: Check if hr have notification
-    await notificationModel.deleteMany({user: user.id});
 
     res.send(user);
 });
@@ -887,7 +885,6 @@ router.route("/delete-course")
     }
 
     await slotModel.deleteMany({course: course._id});
-
     // TODO: delete requests
 
     res.send(course);

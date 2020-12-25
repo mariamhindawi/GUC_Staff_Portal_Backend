@@ -16,6 +16,11 @@ router.route("/staff/login")
         return;
     }
 
+    if (typeof req.body.email !== "string" || typeof req.body.password !== "string") {
+        res.send("Wrong data types entered.");
+        return;
+    }
+
     const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     if (!req.body.email.match(mailFormat)) {
         res.send("Invalid email address.");
@@ -114,6 +119,11 @@ router.route("/staff/change-password")
 .put(async (req, res) => {
     if (!(req.body.oldPassword && req.body.newPassword)) {
         res.send("Not all the required fields are entered.");
+        return;
+    }
+
+    if (typeof req.body.oldPassword !== "string" || typeof req.body.newPassword !== "string") {
+        res.send("Wrong data types entered.");
         return;
     }
 
