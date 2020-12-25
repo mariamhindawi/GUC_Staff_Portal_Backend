@@ -103,6 +103,10 @@ router.post('/send-replacement-request', async (req, res) => {
         res.send('Insufficient leave balance')
         return
     }
+    if(!req.body.day || !req.body.day.match(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/)){
+        res.send('Please enter the date in a valid format (dd-mm-yyyy)')
+        return
+    }
     let parts = req.body.day.split('-')
     let date = new Date(parts[0], parts[1] - 1, parts[2])
     if (date < new Date()) {
@@ -112,9 +116,17 @@ router.post('/send-replacement-request', async (req, res) => {
     let dayNo = date.getDay()
     let weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     let day = weekDays[dayNo];
+    if(!req.body.slot || isNaN(req.body.slot)){
+        res.send('Please enter a valid slot number')
+        return
+    }
     const slot = await slotModel.findOne({ staffMember: token.id, day: day, slotNumber: req.body.slot })
     if (!slot) {
         res.send('Invalid slot')
+        return
+    }
+    if(typeof req.body.replacementID !=='string'){
+        res.send('Please enter a valid replacement ID')
         return
     }
     let replacement = await academicMemberModel.findOne({ id: req.body.replacementID })
@@ -152,6 +164,10 @@ router.post('/send-replacement-request', async (req, res) => {
 
 router.put('/replacement-requests/:id/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
+    if(isNaN(req.params.id)){
+        res.send('Invalid request id')
+        return
+    }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
     if (request && request.type === 'replacementRequest' && request.replacementReply === 'Waiting for reply' && token.id !== request.requestedBy) {
         request.replacementReply = 'Accepted'
@@ -170,6 +186,10 @@ router.put('/replacement-requests/:id/accept', async (req, res) => {
 
 router.put('/replacement-requests/:id/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
+    if(isNaN(req.params.id)){
+        res.send('Invalid request id')
+        return
+    }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
     if (request && request.type === 'replacementRequest' && request.replacementReply === 'Waiting for reply' && token.id !== request.requestedBy) {
         request.replacementReply = 'Rejected'
@@ -212,6 +232,14 @@ router.post('/send-slot-linking-request', async (req, res) => {
     let requester = await academicMemberModel.findOne({ id: token.id })
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
+    if(typeof req.body.room !=='string'){
+        res.send('Please enter a valid room name')
+        return
+    }
+    if(isNaN(req.body.slot) || typeof req.body.day !=='string'){
+        res.send('Please enter a valid day and slot number')
+        return
+    }
     let room = await roomModel.findOne({ name: req.body.room })
     let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slot, room: room._id })
     let course = await courseModel.findOne({ _id: slot.course })
@@ -296,8 +324,16 @@ router.post('/send-leave-request', async (req, res) => {
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
+    if(!req.body.day || !req.body.day.match(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/)){
+        res.send('Please enter the date in a valid format (dd-mm-yyyy)')
+        return
+    }
     let parts = req.body.day.split('-')
     let date = new Date(parts[0], parts[1] - 1, parts[2])
+    if(typeof req.body.type !=='string'){
+        res.send('Invalid leave type')
+        return
+    }
     const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: token.id, type: req.body.type })
     if (prev) {
         res.send('Request already exists')
@@ -335,7 +371,7 @@ router.post('/send-leave-request', async (req, res) => {
             reason: req.body.reason
         })
     }
-    if (req.body.type === "accidentalLeave") {
+    else if (req.body.type === "accidentalLeave") {
         if (date > new Date()) {
             res.send('Please enter a valid date')
             return
@@ -352,7 +388,7 @@ router.post('/send-leave-request', async (req, res) => {
             return
         }
     }
-    if (req.body.type === "sickLeave") {
+    else if (req.body.type === "sickLeave") {
         if (date > new Date()) {
             res.send('Please enter a valid date')
             return
@@ -372,10 +408,10 @@ router.post('/send-leave-request', async (req, res) => {
             return
         }
     }
-    if (req.body.type === "maternityLeave") {
+    else if (req.body.type === "maternityLeave") {
         let requester = await academicMemberModel.findOne({ id: token.id })
-        if (req.body.duration > 90) {
-            res.send("Maximum leave duration is 90 days")
+        if (isNaN(req.body.duration) || req.body.duration > 90) {
+            res.send("Please enter a valid leave duration. Maximum duration is 90 days.")
             return
         }
         if (requester.gender === 'Female')
@@ -392,7 +428,7 @@ router.post('/send-leave-request', async (req, res) => {
             return
         }
     }
-    if (req.body.type === "compensationRequest") {
+    else if (req.body.type === "compensationRequest") {
         if (date > new Date()) {
             res.send('Please enter a valid date')
             return
@@ -403,6 +439,10 @@ router.post('/send-leave-request', async (req, res) => {
             requestedBy: token.id,
             reason: req.body.reason
         })
+    }
+    else{
+        res.send('Invalid leave request type')
+        return
     }
     try {
         await request.save()
@@ -434,12 +474,20 @@ router.get('/all-requests/:filter', async (req, res) => {
 
 router.delete('/cancel-request/:id', async (req, res) => {
     const token = jwt.decode(req.headers.token);
+    if(isNaN(req.params.id)){
+        res.send('Invalid request ID')
+        return
+    }
     let request = await requestModel.findOne({ requestedBy: token.id, id: req.params.id })
-    if (request && request.status === 'Under review') {
+    if(!request){
+        res.send("Request doesn't exist")
+        return
+    }
+    if (request.status === 'Under review') {
         await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
         res.send('Your request has been cancelled successfully')
     }
-    else if(request && request.type!=='dayOffChangeRequest' && request.type!=='slotLinkingRequest' && request.day > new Date()){
+    else if(request.type!=='dayOffChangeRequest' && request.type!=='slotLinkingRequest' && request.day > new Date()){
         if(request.type==='annualLeave' ){
             let requester = await academicMemberModel.findOne({id:token.id})
             requester.annualLeaveBalance+=1

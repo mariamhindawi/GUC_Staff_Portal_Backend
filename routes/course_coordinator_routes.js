@@ -23,6 +23,10 @@ router.use((req, res, next) => {
 
 router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
+    if(isNaN(req.params.id)){
+        res.send('Invalid request id')
+        return
+    }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
@@ -59,6 +63,10 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
 
 router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
+    if(isNaN(req.params.id)){
+        res.send('Invalid request id')
+        return
+    }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
@@ -72,10 +80,15 @@ router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     }
     request.status = 'Rejected'
     request.ccComment = req.body.ccComment
-    request.save()
+    try{
+        await request.save()
+    }
+    catch(error){
+        res.send(error)
+    }
     let notification = new notificationModel({
         user: request.requestedBy,
-        message: 'Your slot-linking request request has been rejected.'
+        message: 'Your slot-linking request has been rejected.'
     })
     notification.save()
     res.send(request)

@@ -22,198 +22,226 @@ router.use((req, res, next) => {
 });
 
 router.route("/view-all-staff")
-.get(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let output = await academicMemberModel.find({ department: user.department }, { name: 1, _id: 0, email: 1, role: 1, faculty: 1, department: 1, office: 1, salary: 1 })
-    try {
-        res.send(output)
-    }
-    catch (error) {
-        res.send("error")
-    }
-});
+    .get(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let output = await academicMemberModel.find({ department: user.department }, { name: 1, _id: 0, email: 1, role: 1, faculty: 1, department: 1, office: 1, salary: 1 })
+        try {
+            res.send(output)
+        }
+        catch (error) {
+            res.send("error")
+        }
+    });
 
 router.route("/view-all-staff-per-course")
-.post(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let course = await courseModel.findOne({ department: user.department, name: req.body.course })
-    let output = []
-    let instructors = await course.courseInstructors;
-    let tas = await course.teachingAssistants;
-    for (let i = 0; i < instructors.length; i++) {
-        let user = await academicMemberModel.findOne({ id: instructors[i] });
-        output.push(user)
-    }
-    for (let i = 0; i < tas.length; i++) {
-        let user = await academicMemberModel.findOne({ id: tas[i] });
-        output.push(user)
-    }
-    try {
-        res.send(output)
-    }
-    catch (error) {
-        res.send("error")
-    }
-});
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let user = await academicMemberModel.findOne({ id: token.id });
+        if (typeof req.body.course !== 'string') {
+            res.send('Please enter a valid course id')
+            return
+        }
+        let course = await courseModel.findOne({ department: user.department, name: req.body.course })
+        let output = []
+        let instructors = await course.courseInstructors;
+        let tas = await course.teachingAssistants;
+        for (let i = 0; i < instructors.length; i++) {
+            let user = await academicMemberModel.findOne({ id: instructors[i] });
+            output.push(user)
+        }
+        for (let i = 0; i < tas.length; i++) {
+            let user = await academicMemberModel.findOne({ id: tas[i] });
+            output.push(user)
+        }
+        try {
+            res.send(output)
+        }
+        catch (error) {
+            res.send("error")
+        }
+    });
 
 router.route("/view-all-staff-dayoff")
-.get(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let output = await academicMemberModel.find({ department: user.department }, { dayoff: 1, _id: 0 })
-    res.send(output)
-});
+    .get(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let output = await academicMemberModel.find({ department: user.department }, { dayoff: 1, _id: 0 })
+        res.send(output)
+    });
 
 router.route("/view-one-staff-dayoff")
-.post(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let output = await academicMemberModel.findOne({ department: user.department, id: req.body.id }, { dayoff: 1, _id: 0 })
-    try {
-        res.send(output)
-    }
-    catch (error) {
-        res.send("error")
-    }
-});
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        if (typeof req.body.id !== 'string') {
+            res.send('Please enter a valid id')
+            return
+        }
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let output = await academicMemberModel.findOne({ department: user.department, id: req.body.id }, { dayoff: 1, _id: 0 })
+        try {
+            res.send(output)
+        }
+        catch (error) {
+            res.send("error")
+        }
+    });
 
 router.route("/assign-course-instructor")
-.post(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let instructor = await academicMemberModel.findOne({ id: req.body.id });
-    let course = await courseModel.findOne({ name: req.body.course })
-    if(instructor.role==="Course Instructor"||instructor.role==="Head of Department"){
-    if(instructor){
-    if(course){
-    if(user.department===course.department){
-        if(user.department===instructor.department){
-            try {
-        let inst = req.body.id
-        let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: inst } })
-            res.send("Instructor assigned to course")
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        if (typeof req.body.id !== 'string') {
+            res.send('Please enter a valid id')
+            return
         }
-        catch (error) {
-            res.send("Cannot assign instructor")
+        if (typeof req.body.course !== 'string') {
+            res.send('Please enter a valid course id')
+            return
         }
-        }
-        else{
-            res.send("Cannot assign instructor that is not in your department")
-        }
-        
-    }
-    else{
-        res.send("Cannot assign instructor to a course not in your department")
-    }
-}
-else{
-    res.send("Course does not exist")
-}
-    }
-    else{
-        res.send("Instructor does not exist")
-    }
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let instructor = await academicMemberModel.findOne({ id: req.body.id });
+        let course = await courseModel.findOne({ name: req.body.course })
+        if (instructor.role === "Course Instructor" || instructor.role === "Head of Department") {
+            if (instructor) {
+                if (course) {
+                    if (user.department === course.department) {
+                        if (user.department === instructor.department) {
+                            try {
+                                let inst = req.body.id
+                                let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: inst } })
+                                res.send("Instructor assigned to course")
+                            }
+                            catch (error) {
+                                res.send("Cannot assign instructor")
+                            }
+                        }
+                        else {
+                            res.send("Cannot assign instructor that is not in your department")
+                        }
 
-} 
-else{
-    res.send("Cannot assign TA to be a course instructor")
-}
-});
+                    }
+                    else {
+                        res.send("Cannot assign instructor to a course not in your department")
+                    }
+                }
+                else {
+                    res.send("Course does not exist")
+                }
+            }
+            else {
+                res.send("Instructor does not exist")
+            }
+
+        }
+        else {
+            res.send("Cannot assign TA to be a course instructor")
+        }
+    });
 
 router.route("/delete-course-instructor")
-.post(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let instructor = await academicMemberModel.findOne({ id: req.body.id });
-    let course = await courseModel.findOne({ name: req.body.course })
-    if(instructor){
-    if(course){
-        if(user.department===course.department){
-            if(user.department===instructor.department){
-            try {
-        let inst = req.body.id
-        let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })                
-        res.send("Instructor deleted from course")
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        if (typeof req.body.id !== 'string') {
+            res.send('Please enter a valid id')
+            return
         }
-        catch (error) {
-            res.send("Cannot delete instructor")
+        if (typeof req.body.course !== 'string') {
+            res.send('Please enter a valid course id')
+            return
         }
-        }
-        else{
-            res.send("Cannot delete instructor that is not in your department")
-        }
-        
-    }
-    else{
-        res.send("Cannot delete instructor from a course not in your department")
-    }
-}
-else{
-    res.send("Course does not exist")
-}
-    }
-    else{
-        res.send("Instructor does not exist")
-    }
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let instructor = await academicMemberModel.findOne({ id: req.body.id });
+        let course = await courseModel.findOne({ name: req.body.course })
+        if (instructor) {
+            if (course) {
+                if (user.department === course.department) {
+                    if (user.department === instructor.department) {
+                        try {
+                            let inst = req.body.id
+                            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
+                            res.send("Instructor deleted from course")
+                        }
+                        catch (error) {
+                            res.send("Cannot delete instructor")
+                        }
+                    }
+                    else {
+                        res.send("Cannot delete instructor that is not in your department")
+                    }
 
-});
+                }
+                else {
+                    res.send("Cannot delete instructor from a course not in your department")
+                }
+            }
+            else {
+                res.send("Course does not exist")
+            }
+        }
+        else {
+            res.send("Instructor does not exist")
+        }
+
+    });
 
 router.route("/update-course-instructor")
-.post(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({ id: token.id });
-    let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
-    let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
-    let course = await courseModel.findOne({ name: req.body.course })
-    if(instructorupdate.role==="Course Instructor"||instructor.role==="Head of Department"){
-    if(instructorupdate && instructordelete){
-    if(course){
-    let departmentCourse=await departmentModel.findOne({_id:course.department})
-    let departmentUser=await departmentModel.findOne({_id:user.department})
-    let departmentInstructorup=await departmentModel.findOne({_id:instructorupdate.department})
-    let departmentInstructordelete=await departmentModel.findOne({_id:instructordelete.department})
-    if(user.department===course.department){
-        if(user.department===instructorupdate.department&&user.department===instructordelete.department){
-            try {
-        let inst = req.body.idDelete
-        let instupdate = req.body.idUpdate
-        let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
-        let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instupdate } })                
-        res.send("Instructor updated")
-        }
-        catch (error) {
-            res.send("Cannot update instructor")
-        }
-        }
-        else{
-            res.send("Cannot update instructor that is not in your department")
-        }
-        
-    }
-    else{
-        res.send("Cannot update instructor in a course not in your department")
-    }
-}
-else{
-    res.send("Course does not exist")
-}
-    }
-    else{
-        res.send("Instructor does not exist")
-    }
-}
-else{
-    res.send("Cannot assign TA to be a course instructor")
-}
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let user = await academicMemberModel.findOne({ id: token.id });
+        let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
+        let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
+        let course = await courseModel.findOne({ name: req.body.course })
+        if (instructorupdate.role === "Course Instructor" || instructor.role === "Head of Department") {
+            if (instructorupdate && instructordelete) {
+                if (course) {
+                    let departmentCourse = await departmentModel.findOne({ _id: course.department })
+                    let departmentUser = await departmentModel.findOne({ _id: user.department })
+                    let departmentInstructorup = await departmentModel.findOne({ _id: instructorupdate.department })
+                    let departmentInstructordelete = await departmentModel.findOne({ _id: instructordelete.department })
+                    if (user.department === course.department) {
+                        if (user.department === instructorupdate.department && user.department === instructordelete.department) {
+                            try {
+                                let inst = req.body.idDelete
+                                let instupdate = req.body.idUpdate
+                                let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
+                                let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instupdate } })
+                                res.send("Instructor updated")
+                            }
+                            catch (error) {
+                                res.send("Cannot update instructor")
+                            }
+                        }
+                        else {
+                            res.send("Cannot update instructor that is not in your department")
+                        }
 
-});
+                    }
+                    else {
+                        res.send("Cannot update instructor in a course not in your department")
+                    }
+                }
+                else {
+                    res.send("Course does not exist")
+                }
+            }
+            else {
+                res.send("Instructor does not exist")
+            }
+        }
+        else {
+            res.send("Cannot assign TA to be a course instructor")
+        }
+
+    });
 
 router.put('/staff-requests/:reqId/accept', async (req, res) => {
+    if (isNaN(req.params.id)) {
+        res.send('Invalid request id')
+        return
+    }
     let request = await requestModel.findOne({ id: req.params.reqId })
     let requester = await academicMemberModel.findOne({ id: request.requestedBy })
-    if(request.status!=='Under review'){
+    if (request.status !== 'Under review') {
         res.send('Already responded')
         return
     }
@@ -226,7 +254,7 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
         else {
             request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave balance" }, { new: true })
             let notification = new notificationModel({
-                user:request.requestedBy,
+                user: request.requestedBy,
                 message: `Your request(${req.params.reqId}) has been rejected.`
             })
             notification.save()
@@ -242,25 +270,25 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
         else {
             request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave/accidental leave balance" }, { new: true })
             let notification = new notificationModel({
-                user:request.requestedBy,
+                user: request.requestedBy,
                 message: `Your request(${req.params.reqId}) has been rejected.`
             })
             notification.save()
         }
     }
-    if (request.type === 'sickLeave'|| request.type === 'maternityLeave'|| request.type === 'compensationRequest') {
+    if (request.type === 'sickLeave' || request.type === 'maternityLeave' || request.type === 'compensationRequest') {
         request = await requestModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
     }
     if (request.type === 'dayOffChangeRequest') {
         request = await dayOffChangeModel.findOne({ id: req.params.reqId })
-        let day=request.dayOff
+        let day = request.dayOff
         requester.dayOff = day
-        request.status='Accepted'
+        request.status = 'Accepted'
         request.save()
         requester.save()
     }
     let notification = new notificationModel({
-        user:request.requestedBy,
+        user: request.requestedBy,
         message: `Your request(${req.params.reqId}) has been accepted`
     })
     notification.save()
@@ -268,15 +296,25 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
 })
 
 router.put('/staff-requests/:reqId/reject', async (req, res) => {
+    if (isNaN(req.params.id)) {
+        res.send('Invalid request id')
+        return
+    }
     let request = await requestModel.findOne({ id: req.params.reqId })
-    if(request.status !== 'Under review'){
+    if (request.status !== 'Under review') {
         res.send('Already responded')
         return
     }
-    request.status='Rejected'
-    request.save()
+    request.HODComment = req.body.HODComment
+    request.status = 'Rejected'
+    try {
+        await request.save()
+    }
+    catch (error) {
+        res.send(error)
+    }
     let notification = new notificationModel({
-        user:request.requestedBy,
+        user: request.requestedBy,
         message: `Your request(${req.params.reqId}) has been rejected by the hod.`
     })
     notification.save()
@@ -300,34 +338,34 @@ router.get('/staff-requests', async (req, res) => {
 });
 
 //view the coverage of each course in his/her department
-router.route('/view-coverage').get( async (req,res) => {
+router.route('/view-coverage').get(async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    let hod = await academicMemberModel.findOne({id: token.id});
-    let dep = await departmentModel.findOne({headOfDepartment: hod.id});
-    let courses = await courseModel.find({department: dep._id});
+    let hod = await academicMemberModel.findOne({ id: token.id });
+    let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
+    let courses = await courseModel.find({ department: dep._id });
     for (let i = 0; i < courses.length; i++) {
-        let unassignedSlots = await slotModel.find({course: courses[i]._id,staffMember: "UNASSIGNED"});
-        let totalSlots = await slotModel.find({course: courses[i]._id});
-        let coverage = ((totalSlots.length-unassignedSlots.length)/(totalSlots.length))*100;
-        res.send(courses[i].name+"Course: "+"'s coverage = "+coverage+"%");
+        let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
+        let totalSlots = await slotModel.find({ course: courses[i]._id });
+        let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+        res.send(courses[i].name + "Course: " + "'s coverage = " + coverage + "%");
     }
 
 })
 
 //view teaching assignments
 router.route('/view-teaching-assignments')
-.get( async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let hod = await academicMemberModel.findOne({id: token.id});
-    let dep = await departmentModel.findOne({headOfDepartment: hod.id});
-    let course = await courseModel.findOne({id: req.body.course,department: dep._id});
-    if(!course) {
-        res.send("No such course");
-        return;
-    }
-    let slots = await slotModel.find({course: course._id});
-    res.send(slots); // all info of slots
-})
+    .get(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        let hod = await academicMemberModel.findOne({ id: token.id });
+        let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
+        let course = await courseModel.findOne({ id: req.body.course, department: dep._id });
+        if (!course) {
+            res.send("No such course");
+            return;
+        }
+        let slots = await slotModel.find({ course: course._id });
+        res.send(slots); // all info of slots
+    })
 
 
 
