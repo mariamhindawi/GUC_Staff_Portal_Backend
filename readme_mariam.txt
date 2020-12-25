@@ -80,10 +80,20 @@ Route: /hr/view-staff-missing-days
 Request type: GET
 Request body: {"user":"hr-1","month":12,"year":2020} or {"user":"hr-1"}
 Response: get array of objects of staffs with their missing days
+Example of response:  {
+        "id": "hr-1",
+        "missingDays": [
+            "2020-12-12T22:00:00.000Z",
+            "2020-12-13T22:00:00.000Z"
+}
 
 Functionality: View staff with missing hours 
 Route: /hr/view-staff-missing-hours
 Request type: GET
 Request body: {"user":"hr-1","month":12,"year":2020,} or{"user":"hr-1"}
 Response: get array of objects of staffs with their missing hours
+Example of response:  {
+        "id": "hr-1",
+        "missingHours": 176.4
+    }
 
