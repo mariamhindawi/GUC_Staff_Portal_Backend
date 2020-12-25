@@ -9,19 +9,20 @@ Web portal for GUC staff members
 
 
 - Notes:
-    - The user id is known from the token, not entered in the request body.
+    - The current user id is known from the token, not entered in the request body as well as his/her role.
     - Authentication based on the token
 
 
 - Functionalities:
 
-Functionality: Reset the database
-Route: /reset
-Request type: POST
-Request body: { "reset": true }
-Response: Message indicating if the reset was done or not.
-Example of response: "Reset done successfully."
-Notes: In order to have initial access to the system this route also saves a default user "hr-1" in the database, with email "user@guc.edu.eg" and the deafult password "123456". It also saves a room "C7.305" which is the users's office as it is a required field.
+### Functionality: Reset the database
+    - Route: /reset
+    - Request type: POST
+    - Request body: { "reset": true }
+    - Response: Message indicating if the reset was done or not.
+    - Example of response: "Reset done successfully."
+    - Notes: In order to have initial access to the system this route also saves a default user "hr-1" in the database, with email "user@guc.edu.eg" and the deafult password "123456". It also saves a room
+    "C7.305" which is the users's office as it is a required field.
 
 Functionality: Log in to the system
 Route: /staff/login
