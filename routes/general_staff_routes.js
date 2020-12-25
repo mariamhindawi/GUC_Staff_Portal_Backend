@@ -142,70 +142,66 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
     return { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
 }
 
-function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords) {
+async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords) {
     
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
     const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
     const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords).numberOfDaysWithExcuse;
-    const expectedHoursToSpend = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
-    
-    let spentHours = 0;
-    let spentMinutes = 0;
-    let spentSeconds = 0;
-    let missingHours = 0;
-    let timeDiffInSeconds;
+    const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
 
+    let timeDiffInSeconds = 0;
     for (let i = 0; i < userAttendanceRecords.length; i++) {
-        let signInTime=userAttendanceRecords[i].signInTime;
-        let signOutTime=userAttendanceRecords[i].signOutTime;
+        let signInTime = userAttendanceRecords[i].signInTime;
+        let signOutTime = userAttendanceRecords[i].signOutTime;
 
-        if(signInTime.getHours()>18 || signOutTime.getHours()<7 ||(signOutTime.getHours()===7 && signOutTime.getMinutes()===0 && signOutTime.getSeconds()===0) ){
-           timeDiffInSeconds=0;
+        if (signInTime.getHours() < 7) {
+            signInTime.setHours(7);
+            signInTime.setMinutes(0);
+            signInTime.setSeconds(0);
+            signInTime.setMilliseconds(0);
         }
-        else if(signInTime.getHours()<7 && signOutTime.getHours()>19){
-         timeDiffInSeconds=12*60*60;
+        else if (signInTime.getHours() > 18) {
+            signInTime.setHours(19);
+            signInTime.setMinutes(0);
+            signInTime.setSeconds(0);
+            signInTime.setMilliseconds(0);
         }
-        else if(signInTime.getHours()<7 && signOutTime.getHours()<19){
-            let date=signInTime;
-            date.setHours(7);
-            date.setMinutes(0);
-            date.setSeconds(0);
-            date.setMilliseconds(0);
-            timeDiffInSeconds=(signOutTime-date)/1000;
+        else {
+            signInTime.setMilliseconds(0);
         }
-        else if(signInTime.getHours()>7 && signOutTime.getHours()>19){
-            let date=signOutTime;
-            date.spentHours(19);
-            date.setMinutes(0);
-            date.setSeconds(0);
-            date.setMilliseconds(0);
-            timeDiffInSeconds=(date-signInTime)/1000;
-        }
-        else{
-           timeDiffInSeconds=(signOutTime-signInTime)/1000;
-        }
-    }
 
-    spentSeconds=spentSeconds+timeDiffInSeconds%60;
-    spentMinutes=spentMinutes+(timeDiffInSeconds-spentSeconds)/60;
-    spentHours=spentHours+(spentMinutes-spentMinutes%60)/60;
-    spentMinutes=spentMinutes%60;
-   
-    missingHours=((expectedHoursToSpend*60)-(spentHours*60)-(spentMinutes))/60.0;
-  
+        if (signOutTime.getHours() < 7) {
+            signOutTime.setHours(7);
+            signOutTime.setMinutes(0);
+            signOutTime.setSeconds(0);
+            signOutTime.setMilliseconds(0);
+        }
+        else if (signOutTime.getHours() > 18) {
+            signOutTime.setHours(19);
+            signOutTime.setMinutes(0);
+            signOutTime.setSeconds(0);
+            signOutTime.setMilliseconds(0);
+        }
+        else {
+            signOutTime.setMilliseconds(0);
+        }
+        
+        timeDiffInSeconds += (signOutTime - signInTime) / 1000;
+    }
+    
+    // const spentHours = Math.floor(timeDiffInSeconds / 3600);
+    // timeDiffInSeconds %= 3600;
+    // const spentMinutes = Math.floor(timeDiffInSeconds / 60);
+    // timeDiffInSeconds %= 60;
+    // const spentSeconds = timeDiffInSeconds;
 
-    if(missingHours<0){
-            extraHours=missingHours*-1;
-            missingHours=0;
+    const spentHours = timeDiffInSeconds / 3600;
+    if (spentHours > requiredHours) {
+        return {missingHours: 0, extraHours: spentHours - requiredHours};
     }
-    else{
-        extraHours=0;
+    else {
+        return {missingHours: requiredHours - spentHours, extraHours: 0};
     }
-    var obj={
-        missingHours:missingHours,
-        extraHours:extraHours
-    }
-    return obj;
 }
 
 const router = express.Router();
@@ -311,58 +307,63 @@ router.route("/view-missing-days")
     
     const dayOff = convertDay(user.dayOff);
     const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-    const missingDays = await (await getMissingDays(month, year, dayOff, userAttendanceRecords)).missingDays;
+    const missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords).missingDays;
 
     res.send(missingDays);
 });
 
 router.route("/view-hours")
 .get(async (req,res) =>{
+    if (!req.body.month && req.body.year) {
+        res.send("No month specified");
+        return;
+    }
+    if (req.body.month && !req.body.year) {
+        res.send("No year specified");
+        return;
+    }
+    
+    if (!req.body.month) {
+        const currentDate = new Date();
+        if (currentDate.getDate() >= 11) {
+            var month = currentDate.getMonth();
+            var year = currentDate.getFullYear();
+        }
+        else {
+            if (currentDate.getMonth() === 0){
+                month = 11;
+                year = currentDate.getFullYear() - 1;
+            }
+            else {
+                month = currentDate.getMonth() - 1;
+                year = currentDate.getFullYear();
+            }
+        }
+    }
+    else {
+        month = req.body.month - 1;
+        year = req.body.year;
+        if (month < 0 || month > 11) {
+            res.send("Not a valid month");
+            return;
+        }
+        if (year < 2000) {
+            res.send("Not a valid year");
+            return;
+        }
+    }
+
     const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id: token.id});
+    let user = await hrMemberModel.findOne({id:token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
     }
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
-    }
-    let month;
-    let year;
-    let userAttendanceRecords;
-    let hours;
+    
+    const dayOff = convertDay(user.dayOff);
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
+    const hours = await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords);
 
-    if(new Date().getDate()>=11){
-        month=new Date().getMonth();
-        year=new Date().getFullYear();
-    }
-    else{
-        if(new Date().getMonth()===0){
-            month=11;
-            year=new Date().getFullYear()-1;
-        }
-        else{
-            month=new Date().getMonth()-1;
-            year=new Date().getFullYear();
-        }
-    }
-    if(month>=0 && month<11){
-        userAttendanceRecords=await attendanceRecordModel.find(
-             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
-    }
-    else if(month===11){
-        userAttendanceRecords=await attendanceRecordModel.find(
-            { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
-    }
-
-    hours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDay(user.dayOff));
-    try {
-        res.send(hours);
-    }
-    catch (error) {
-        console.log(error.message)
-        res.send(error);
-    }
+    res.send(hours);
 });
 
 module.exports = router;
