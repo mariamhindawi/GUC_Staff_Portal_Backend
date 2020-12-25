@@ -1,5 +1,7 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+
+require("./periodic_scripts");
 const {app} = require("./app");
 
 app.listen(process.env.PORT);

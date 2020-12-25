@@ -3,13 +3,13 @@ const mongoose = require("mongoose");
 const slotSchema = new mongoose.Schema({
     day: {
         type: String,
-        enum: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
-        required:true
+        required: true,
+        enum: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
     },
     slotNumber: {
         type: Number,
-        enum: [1, 2, 3, 4, 5],
-        required: true
+        required: true,
+        enum: [1, 2, 3, 4, 5]
     },
     room: {
         type: String,
@@ -21,12 +21,13 @@ const slotSchema = new mongoose.Schema({
     },
     staffMember: {
         type: String,
+        required: true,
         default: "UNASSIGNED"
     },
     type: {
         type: String,
-        enum: ["Tutorial", "Lab", "Lecture"],
-        required: true
+        required: true,
+        enum: ["Tutorial", "Lab", "Lecture"]
     }
 });
 

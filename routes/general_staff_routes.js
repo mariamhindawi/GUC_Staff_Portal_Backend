@@ -5,11 +5,23 @@ const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
-const { annualLeaveModel } = require("../models/request_model");
+const { requestModel, maternityLeaveModel } = require("../models/request_model");
 
-function getMonthStats(currMonth, currYear){
-    let daysInMonth;
-    switch(currMonth){
+function convertDay(day) {
+    switch (day) {
+        case "Sunday": return 0;
+        case "Monday": return 1;
+        case "Tuesday": return 2;
+        case "Wednesday": return 3;
+        case "Thursday": return 4;
+        case "Friday": return 5;
+        case "Saturday": return 6;
+    }
+    return -1;
+}
+
+function getNumberOfDaysInMonth(currMonth, currYear) {
+    switch (currMonth) {
         //31 days
         case 0:
         case 2:
@@ -18,137 +30,140 @@ function getMonthStats(currMonth, currYear){
         case 7:
         case 9:
         case 11:
-            daysInMonth=31;
-            break;
-        case 1:
-            //28 days
-            if(currYear % 4===0){
-                daysInMonth=28;
-            }
-            //29 days
-            else{
-                daysInMonth=29;
-            }
-            break;
+            return 31;
         //30 days
         case 3:
         case 5:
         case 8:
         case 10:
-            daysInMonth=30;
-            break;
-    }    
-    return daysInMonth;
+            return 30;
+        //28 days or 29 days
+        case 1:
+            if (currYear % 4 !== 0)
+                return 29;
+            return 28;
+    }
+    return -1;
 }
-function convertDayOff(day){
-    if(day==="Sunday"){
-       return 0;
-    }
-    else if(day==="Monday"){
-        return 1;
-    }    
-    else if(day==="Tuesday"){
-        return 2;
-    }
-    else if(day==="Wednesday"){
-        return 3; 
-    }
-    else if(day==="Thursday"){
-        return 4;
-    }
-    else if(day==="Friday"){
-        return 5;
-    }
-    else if(day==="Saturday"){
-        return 6;
-    }
-}
- function getExpectedDaysToAttend(dayOff, firstDay, daysInMonth){
-    let expectedDaysToAttend=20;  
-    if(daysInMonth===31){
-        if((firstDay)%7===5 || (firstDay+1)%7===5 || (firstDay+2)%7===5 ){
-           expectedDaysToAttend=22;  
+
+ function getExpectedDaysToAttend(dayOff, firstDay, numberOfDaysInMonth) {
+    let expectedDaysToAttend = 20;  
+    if (numberOfDaysInMonth === 31) {
+        expectedDaysToAttend = 23;
+        if (firstDay % 7 === 5 || (firstDay+1) % 7 === 5 || (firstDay+2) % 7 === 5) {
+           expectedDaysToAttend--;
         }
-        if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff || (firstDay+2)%7===dayOff ){
-            expectedDaysToAttend=21;
+        if (firstDay % 7 === dayOff || (firstDay+1) % 7 === dayOff || (firstDay+2) % 7 === dayOff) {
+            expectedDaysToAttend--;
         }
     }
-    else if(daysInMonth===30){
-        expectedDaysToAttend=22;
-        if((firstDay)%7===5 || (firstDay+1)%7===5){
-            expectedDaysToAttend=21;  
+    else if (numberOfDaysInMonth === 30){
+        expectedDaysToAttend = 22;
+        if (firstDay % 7 === 5 || (firstDay+1) % 7 === 5) {
+            expectedDaysToAttend--;
          }
-         if((firstDay)%7===dayOff || (firstDay+1)%7===dayOff){
-             expectedDaysToAttend=20;
+         if (firstDay % 7 === dayOff || (firstDay+1) % 7 === dayOff) {
+             expectedDaysToAttend--;
          }
     }
-    else if(daysInMonth===29){
-        expectedDaysToAttend=21;
-        if((firstDay)%7===5){
-            expectedDaysToAttend=20;  
+    else if (numberOfDaysInMonth === 29) {
+        expectedDaysToAttend = 21;
+        if (firstDay % 7 === 5) {
+            expectedDaysToAttend--;
          }
-         if((firstDay+1)%7===dayOff){
-             expectedDaysToAttend=20;
+         if (firstDay % 7 === dayOff){
+             expectedDaysToAttend--;
          }
     }
     return expectedDaysToAttend;
-   
 }
-function getDaysOfTheMonth(daysInMonth){
-    let daysOfTheMonth=[];
-    for(var i=11;i<daysInMonth+1;i++){
-        daysOfTheMonth.push(i);
-    }
-    for(var i=1;i<11;i++){
-        daysOfTheMonth.push(i);
-    }
-    return daysOfTheMonth;
-}
-function getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended){
 
-    let missingDays=[];
-    //remove days off and Fridays
-   for(var i=0;i<daysOfTheMonth.length;i++){
-    if(daysOfTheMonth[i]<=daysInMonth){
-        if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month,daysOfTheMonth[i]).getDay()!==dayOff){
-            missingDays.push(daysOfTheMonth[i]);
+async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
+    const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+    let normalDaysAttended = [];
+    let daysOffAttended = [];
+
+    for (let i = 0; i < userAttendanceRecords.length; i++) {
+        let date = userAttendanceRecords[i].signInTime;
+        if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+            normalDaysAttended.push(date.getDate());
+        }
+        else if (!daysOffAttended.includes(date.getDate())) {
+            daysOffAttended.push(date.getDate());
         }
     }
-    else{
-        if(month!==11){
-            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==5 && new Date(year,month+1,daysOfTheMonth[i]).getDay()!==dayOff){
-                missingDays.push(daysOfTheMonth[i]);
-            }
+
+    let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+    if (expectedDaysToAttend === normalDaysAttended.length) {
+        return {missingDays: [], numberOfDaysWithExcuse: 0};
+    }
+
+    let missingDays = [];
+    for (let i = 0; i < numberOfDaysInMonth; i++) {
+        let date = new Date(year, month, 11 + i);
+        if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+            missingDays.push(date);
         }
-        else{
-            if(!normalDaysAttended.includes(daysOfTheMonth[i]) && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==5 && new Date(year+1,0,daysOfTheMonth[i]).getDay()!==dayOff){
-                missingDays.push(daysOfTheMonth[i]);
-            }
-        }
-   }
-}
-   return missingDays;
-}
-function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
+    }
     
-    let daysInMonth=getMonthStats(month);
-    let expectedDaysToAttend=getExpectedDaysToAttend(dayOff,new Date(year,month,11).getDay(),daysInMonth);
-    let expectedHoursToSpend=expectedDaysToAttend*8.4;
-    let spentHours=0;
-    let spentMinutes=0;
-    let spentSeconds=0;
-    let missingHours=0;
-    let timeDiiffInSeconds;
+    let numberOfDaysWithExcuse = 0;
+    for (let i = 0; i < missingDays.length; i++) {
+        let date = missingDays[i];
+        let request = await requestModel.findOne({ 
+            requestedBy: token.id, 
+            day: date, 
+            type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
+            status:"Accepted" 
+        });
 
-    for(var i=0;i<userAttendanceRecords.length;i++){
+        if (request) {
+            if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
+                missingDays.slice(i, i+1);
+                i--;
+                numberOfDaysWithExcuse++;
+            }
+        }
+        else {
+            request = await maternityLeaveModel.findOne({
+                requestedBy: token.id, 
+                type: "maternityLeave", 
+                status: "Accepted",
+                day: {$lte: missingDays[i]},
+                duration: "" //{$gt: (missingDays[i] - $day)}
+            });
+            if (request) {
+                missingDays.slice(i, i+1);
+                i--;
+                numberOfDaysWithExcuse++;
+            }
+        }
+    }
+
+    return { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+}
+
+function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords) {
+    
+    const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
+    const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords).numberOfDaysWithExcuse;
+    const expectedHoursToSpend = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
+    
+    let spentHours = 0;
+    let spentMinutes = 0;
+    let spentSeconds = 0;
+    let missingHours = 0;
+    let timeDiffInSeconds;
+
+    for (let i = 0; i < userAttendanceRecords.length; i++) {
         let signInTime=userAttendanceRecords[i].signInTime;
         let signOutTime=userAttendanceRecords[i].signOutTime;
 
         if(signInTime.getHours()>18 || signOutTime.getHours()<7 ||(signOutTime.getHours()===7 && signOutTime.getMinutes()===0 && signOutTime.getSeconds()===0) ){
-           timeDiiffInSeconds=0;
+           timeDiffInSeconds=0;
         }
         else if(signInTime.getHours()<7 && signOutTime.getHours()>19){
-         timeDiiffInSeconds=12*60*60;
+         timeDiffInSeconds=12*60*60;
         }
         else if(signInTime.getHours()<7 && signOutTime.getHours()<19){
             let date=signInTime;
@@ -156,7 +171,7 @@ function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
             date.setMinutes(0);
             date.setSeconds(0);
             date.setMilliseconds(0);
-            timeDiiffInSeconds=(signOutTime-date)/1000;
+            timeDiffInSeconds=(signOutTime-date)/1000;
         }
         else if(signInTime.getHours()>7 && signOutTime.getHours()>19){
             let date=signOutTime;
@@ -164,15 +179,15 @@ function getMissingAndExtraHours(month,year,userAttendanceRecords,dayOff){
             date.setMinutes(0);
             date.setSeconds(0);
             date.setMilliseconds(0);
-            timeDiiffInSeconds=(date-signInTime)/1000;
+            timeDiffInSeconds=(date-signInTime)/1000;
         }
         else{
-           timeDiiffInSeconds=(signOutTime-signInTime)/1000;
+           timeDiffInSeconds=(signOutTime-signInTime)/1000;
         }
     }
 
-    spentSeconds=spentSeconds+timeDiiffInSeconds%60;
-    spentMinutes=spentMinutes+(timeDiiffInSeconds-spentSeconds)/60;
+    spentSeconds=spentSeconds+timeDiffInSeconds%60;
+    spentMinutes=spentMinutes+(timeDiffInSeconds-spentSeconds)/60;
     spentHours=spentHours+(spentMinutes-spentMinutes%60)/60;
     spentMinutes=spentMinutes%60;
    
@@ -207,163 +222,98 @@ router.route("/view-profile")
 });
 
 router.route("/view-attendance-records")
-.get(async (req,res) =>{
+.get(async (req,res) => {
+    if (!req.body.month && req.body.year) {
+        res.send("No month specified");
+        return;
+    }
+    if (req.body.month && !req.body.year) {
+        res.send("No year specified");
+        return;
+    }
+
     const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id: token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
     }
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
+    
+    if (!req.body.month) {
+        var userAttendanceRecords = await attendanceRecordModel.find({user: token.id});
     }
-    let userAttendanceRecords;
-    let month=req.body.month;
-    let year=req.body.year;
-
-    if(month<0 || month>11){
-        res.send("Not a valid month");
-        return;
-    }
-    if(year<2000){
-        res.send("Not a valid year");
-        return;
-    }
-    if(!month && year!==null){
-        res.send("No month specified");
-        return;
-    }
-    if(!year && month!==null){
-        res.send("No year specified");
-        return;
-    }
-    if(month===null && year===null){
-        userAttendanceRecords=await attendanceRecordModel.find({user:token.id})
-    }
-    else{
-        if(month>=0 && month<11){
-            userAttendanceRecords=await attendanceRecordModel.find(
-                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]},
-                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year,month,11),$gte:new Date(year,month,11)}}]}
-            ]})
+    else {
+        const month = req.body.month - 1;
+        const year = req.body.year;
+        if (month < 0 || month > 11) {
+            res.send("Not a valid month");
+            return;
         }
-        else if(month===11){
-            userAttendanceRecords=await attendanceRecordModel.find(
-                {$or:[{ $and: [ { user: token.id },{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]},
-                { $and: [ { user: token.id },{signOutTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]}
-            ]})
+        if (year < 2000) {
+            res.send("Not a valid year");
+            return;
         }
-    }
 
-    try {
-        res.send(userAttendanceRecords);
+        userAttendanceRecords = await attendanceRecordModel.find({ $or: [
+            { user: token.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
+            { user: token.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
+        ] });
     }
-    catch (error) {
-        console.log(error.message)
-        res.send(error);
-    }
+    
+    res.send(userAttendanceRecords);
 });
 
 router.route("/view-missing-days")
-.get(async (req,res) =>{
+.get(async (req,res) => {
+    if (!req.body.month && req.body.year) {
+        res.send("No month specified");
+        return;
+    }
+    if (req.body.month && !req.body.year) {
+        res.send("No year specified");
+        return;
+    }
+    
+    if (!req.body.month) {
+        const currentDate = new Date();
+        if (currentDate.getDate() >= 11) {
+            var month = currentDate.getMonth();
+            var year = currentDate.getFullYear();
+        }
+        else {
+            if (currentDate.getMonth() === 0){
+                month = 11;
+                year = currentDate.getFullYear() - 1;
+            }
+            else {
+                month = currentDate.getMonth() - 1;
+                year = currentDate.getFullYear();
+            }
+        }
+    }
+    else {
+        month = req.body.month - 1;
+        year = req.body.year;
+        if (month < 0 || month > 11) {
+            res.send("Not a valid month");
+            return;
+        }
+        if (year < 2000) {
+            res.send("Not a valid year");
+            return;
+        }
+    }
+
     const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id:token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
     }
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
-    }
-    let month;
-    let year;
-    let userAttendanceRecords;
-    let daysOffAttended=[];
-    let normalDaysAttended=[];
-    let missingDays=[];
-    let maxDate;
-
-    if(new Date().getDate()>=11){
-        month=new Date().getMonth();
-        year=new Date().getFullYear();
-    }
-    else{
-        if(new Date().getMonth()===0){
-            month=11;
-            year=new Date().getFullYear()-1;
-        }
-        else{
-            month=new Date().getMonth()-1;
-            year=new Date().getFullYear();
-        }
-    }
-    let daysInMonth=getMonthStats(month);
-    let daysOfTheMonth=getDaysOfTheMonth(daysInMonth);
-    let dayOff=convertDayOff(user.dayOff);
-
-    if(month>=0 && month<11){
-        userAttendanceRecords=await attendanceRecordModel.find(
-             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year,month+1,11),$gte:new Date(year,month,11)}}]})
-    }
-    else if(month===11){
-        userAttendanceRecords=await attendanceRecordModel.find(
-            { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
-    }
-    for(var i=0;i<userAttendanceRecords.length;i++){
-        if(userAttendanceRecords[i].signInTime.getDay()!==5 && userAttendanceRecords[i].signInTime.getDay()!==dayOff){
-            normalDaysAttended.push(userAttendanceRecords[i].signInTime.getDate());
-        }
-        else{
-            daysOffAttended.push(userAttendanceRecords[i].signInTime.getDate());
-        }
-    }
-        missingDays=getMissingDays(month,year,daysInMonth,dayOff,daysOfTheMonth,normalDaysAttended);
-
-        if(missingDays.length!==0){
-            for(var i=0;i<missingDays.length;i++){
-                let date;
-                if(missingDays[i]>=11){
-                    date=new Date(year,month,missingDays[i]);
-                }
-                else{
-                    if(month!==11){
-                        date=new Date(year,month+1,missingDays[i]);
-                    }
-                    else{
-                        date=new Date(year+1,0,missingDays[i]);
-                    }
-                }
-                missingDays[i]=date;
-
-                let request= await annualLeaveModel.findOne({requestedBy:token.id,day:date,type:{$ne:"slotLinkingRequest"},type:{$ne:"dayOffChangeRequest"},
-                type:{$ne:"maternityLeave"},type:{$ne:"replacementRequest"},status:"Accepted"});
-                if(request){
-                    if(request.type==="compensationRequest"){
-                        if(daysOffAttended.includes(missingDays[i].getDate())){
-                                missingDays.slice(i,i+1);
-                        }
-                    }
-                }
-                else {
-                    request=await annualLeaveModel.find({requestedBy:token.id,type:"maternityLeave",status:"Accepted"});
-                    if(request.length>0){
-                          maxDate=new Date(new Date().getTime()+(request.duration*24*60*60*1000));
-                    }
-                    request=await annualLeaveModel.findOne({requestedBy:token.id,day:{$gte:{date},$lte:{maxDate}},type:"maternityLeave",status:"Accepted"});
-                    if(request){
-                        missingDays.slice(i,i+1);
-                    }
-                }
-            }
-        }
     
-    try {
-        res.send(missingDays);
-    }
-    catch (error) {
-        console.log(error.message)
-        res.send(error);
-    }
+    const dayOff = convertDay(user.dayOff);
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
+    const missingDays = await (await getMissingDays(month, year, dayOff, userAttendanceRecords)).missingDays;
+
+    res.send(missingDays);
 });
 
 router.route("/view-hours")
@@ -405,7 +355,7 @@ router.route("/view-hours")
             { $and: [ { user: token.id },{signInTime:{$ne:null}},{signOutTime:{$ne:null}},{signInTime:{$lt:new Date(year+1,0,11),$gte:new Date(year,11,11)}}]})
     }
 
-    hours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDayOff(user.dayOff));
+    hours=getMissingAndExtraHours(month,year,userAttendanceRecords,convertDay(user.dayOff));
     try {
         res.send(hours);
     }

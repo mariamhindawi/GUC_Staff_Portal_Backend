@@ -1,22 +1,44 @@
 const mongoose = require("mongoose");
 
+const requestSchema = new mongoose.Schema({
+    id: {
+        type: Number,
+        required: true,
+    },
+    requestedBy: {
+        type: String,
+        required: true,
+    },
+    type: {
+        type: String,
+        required: true,
+    },
+    status: {
+        type: String,
+        required: true,
+        default: "Under review",
+        enum: ["Under review", "Accepted", "Rejected"],
+
+    }
+});
+
 const replacementSchema = new mongoose.Schema({
-    type:{
-        type:String,
-        default:"replacementRequest",
-        immutable:true
+    type: {
+        type: String,
+        default: "replacementRequest",
+        immutable: true
     },
-    id:{
-        type:Number,
-        required:true
+    id: {
+        type: Number,
+        required: true
     },
-    requestedBy:{
-        type:String,
-        required:true
+    requestedBy: {
+        type: String,
+        required: true
     },
-    day:{
-        type:Date,
-        required:true
+    day: {
+        type: Date,
+        required: true
     },
     slot:{
         type:String,
@@ -243,54 +265,37 @@ const dayOffChangeRequestSchema = new mongoose.Schema({
 const slotLinkingRequestSchema = new mongoose.Schema({
     type:{
         type:String,
-        default:"slotLinkingRequest",
-        immutable:true
+        default: "slotLinkingRequest",
+        immutable: true
     },
     id:{
         type:Number,
-        required:true
+        required: true
     },
     requestedBy:{
         type:String,
-        required:true
+        required: true
     },
     slot:{
         type: String,
-        required:true
+        required: true
     },
     status:{
-        type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        type: String,
+        enum: ['Under review','Accepted','Rejected'],
+        default: 'Under review'
     },
     ccComment:{
         type:String
     }
 });
 
-const requestSchema = new mongoose.Schema({
-    type:{
-        type:String
-    },
-    id:{
-        type:Number
-    },
-    requestedBy:{
-        type:String
-    },
-    status:{
-        type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
-    }
-});
-
-module.exports.requestModel = mongoose.model("Request", requestSchema, "requests");
-module.exports.replacementModel = mongoose.model("replacementRequest", replacementSchema, "requests");
-module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "requests");
-module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "requests");
-module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "requests");
-module.exports.slotLinkingModel = mongoose.model("slotLinkingRequest", slotLinkingRequestSchema, "requests");
-module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "requests");
-module.exports.dayOffChangeModel = mongoose.model("dayOffChangeRequest", dayOffChangeRequestSchema, "requests");
-module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "requests");
+module.exports.requestModel = mongoose.model("request", requestSchema, "request");
+module.exports.replacementModel = mongoose.model("replacementRequest", replacementSchema, "request");
+module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "request");
+module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "request");
+module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "request");
+module.exports.slotLinkingModel = mongoose.model("slotLinkingRequest", slotLinkingRequestSchema, "request");
+module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "request");
+module.exports.dayOffChangeModel = mongoose.model("dayOffChangeRequest", dayOffChangeRequestSchema, "request");
+module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "request");

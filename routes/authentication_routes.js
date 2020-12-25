@@ -2,13 +2,14 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
+const jwtBlacklistModel = require("../models/jwt_blacklist_model");
+const userBlacklistModel = require("../models/user_blacklist_model");
 
 const router = express.Router();
 
-router.route("/login")
+router.route("/staff/login")
 .post(async (req, res) => {
     if (!(req.body.email && req.body.password)) {
         res.send("Not all the required fields are entered.");
@@ -43,7 +44,7 @@ router.route("/login")
         var role = user.role;
     }
     const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
-    
+
     if (!user.loggedIn) {
         res.header("token", token).send("First login, reset password.");
         // res.header("token", token).redirect("change-password");
@@ -80,8 +81,10 @@ router.use(async (req, res, next) => {
         return;
     }
 
-    let blacklistToken = await jwtBlacklistModel.findOne({token: req.headers.token});
-    if (blacklistToken) {
+
+    const blacklistToken = await jwtBlacklistModel.findOne({token: req.headers.token});
+    const blacklistUser = await userBlacklistModel.findOne({user: user.id, blockedAt: {$gt: new Date(1000 * token.iat)}});
+    if (blacklistToken || blacklistUser) {
         res.status(401).send("Expired token.");
         return;
     }
@@ -89,10 +92,12 @@ router.use(async (req, res, next) => {
     next();
 });
 
-router.route("/logout")
+router.route("/staff/logout")
 .post(async (req, res) => {
+    const token = jwt.decode(req.headers.token);
     const blacklistedToken = new jwtBlacklistModel({
-        token: req.headers.token
+        token: req.headers.token,
+        expiresAt: new Date(1000 * token.exp)
     });
 
     try {
@@ -105,7 +110,7 @@ router.route("/logout")
     }
 });
 
-router.route("/change-password")
+router.route("/staff/change-password")
 .put(async (req, res) => {
     if (!(req.body.oldPassword && req.body.newPassword)) {
         res.send("Not all the required fields are entered.");
@@ -136,10 +141,17 @@ router.route("/change-password")
 
     try {
         await user.save();
-        const blacklistedToken = new jwtBlacklistModel({
-            token: req.headers.token
-        });
-        await blacklistedToken.save();
+        let blacklistEntry = await userBlacklistModel.findOne({user: user.id});
+        if (blacklistEntry) {
+            blacklistEntry.blockedAt = new Date();
+        }
+        else {
+            blacklistEntry = new userBlacklistModel({
+                user: user.id,
+                blockedAt: new Date()
+            });
+        }
+        await blacklistEntry.save();
         res.redirect("login");
     }
     catch (error) {

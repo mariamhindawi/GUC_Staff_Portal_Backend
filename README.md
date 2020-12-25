@@ -1,67 +1,54 @@
 # GUC_Staff_Portal
 Web portal for GUC staff members
 
-Functionality: staff members view their profile
-Route: /general_staff_routes/view-profile
-Request type: GET
-Response:object containing academic member
-Example of how to call the route: /general_staff_routes/view-profile
 
-Functionality: staff members reset their password
-Route: /general_staff_routes/reset-password
+- File to launch the server: index.js
+
+
+- Port : "PORT" field in .env file in the root directory
+
+
+- Notes:
+    - The user id is known from the token, not entered in the request body.
+    - Authentication based on the token
+
+
+- Functionalities:
+
+Functionality: Reset the database
+Route: /reset
 Request type: POST
-Body:{"password":"123456", "newpassword":"123456789"}
-Response:success or failure message
+Request body: { "reset": true }
+Response: Message indicating if the reset was done or not.
+Example of response: "Reset done successfully."
+Notes: In order to have initial access to the system this route also saves a default user "hr-1" in the database, with email "user@guc.edu.eg" and the deafult password "123456". It also saves a room "C7.305" which is the users's office as it is a required field.
 
-Functionality: HOD assign a course instructor for each course in his department.
-Route: /hod/assign-course-instructor
+Functionality: Log in to the system
+Route: /staff/login
 Request type: POST
-Body:{"id":"ac-56","course":"CSEN401"}
-Response:success or failure message
+Request body: { "email": "user@guc.edu.eg", "password": "123456" }
+Response: Message indicating if the user entered the correct data and logged in successfully.
+Example of response: "Logged in successfully."
 
-Functionality: HOD delete a course instructor for each course in his department.
-Route: /hod/delete-course-instructor
+Functionality: Log out from the system
+Route: /staff/logout
 Request type: POST
-Body:{"id":"ac-56","course":"CSEN401"}
-Response:success or failure message
+Response: Message indicating that the user logged out successfully.
+Example of response: "Logged out successfully."
 
-Functionality: HOD update a course instructor for each course in his department.
-Route: /hod/update-course-instructor
-Request type: POST
-Body:{"idUpdate":"ac-56","idDelete":"ac-3",course":"CSEN401"}
-Response:success or failure message
+Functionality: Change the password of the user
+Route: /change-password
+Request type: PUT
+Request body: { "oldPassword": "123456", "newPassword": "guc" }
+Response: Redirect to the login page if the password changed successfully, if not then a message indicating the error that happened.
+Notes: This is used to change the user's password in general and also to reset the password on first login.
 
-Functionality: HOD view staff of his department.
-Route: /hod/view-all-staff
-Request type: GET
-Response:object containing academic members
-
-Functionality: HOD view one of the staff's day off.
-Route: /hod/view-one-staff-dayoff
-Request type: POST
-Body:{"id":"ac-2"}
-Response:object containing academic member's day off
-
-Functionality: HOD view all staff's day off.
-Route: /hod/view-all-staff-dayoff
-Request type: GET
-Response:object containing academic members's dayoff
-
-Functionality: Course instructor delete an academic member for each course in his department.
-Route: /ci/delete-academic-member
-Request type: POST
-Body:{"id":"ac-3"}
-Response:success or failure message
-
-Functionality: Course instructor assign an academic member for each course in his department.
-Route: /ci/assign-academic-member
-Request type: POST
-Body:{"id":"ac-3"}
-Response:success or failure message
-
-
-Functionality: Course instructor assign a course coordinator for each course in his department.
-Route: /ci/assign-course-coordinator
-Request type: POST
-Body:{"id":ac-56}
-Response:success or failure message
+Functionality: 
+Route: /
+Request type: 
+Parameters: 
+Example of how to call the route:
+Request body:  
+Response: 
+Example of response: 
+Notes: 

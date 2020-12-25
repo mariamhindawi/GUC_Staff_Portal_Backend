@@ -19,7 +19,7 @@ router.use((req, res, next) => {
     else {
         res.status(403).send("Unauthorized access.");
     }
-})
+});
 
 router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
@@ -55,7 +55,7 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     }
     request.save()
     res.send(request)
-})
+});
 
 router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
@@ -79,7 +79,7 @@ router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     })
     notification.save()
     res.send(request)
-})
+});
 
 router.get('/slot-linking-requests', async (req, res) => {
     const token = jwt.decode(req.headers.token)
@@ -116,6 +116,7 @@ router.route('/add-course-slot')
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
     if (slot) {
         res.send("This slot is occupied");
+        return;
     }
     const newSlot = new slotModel({
         day: req.body.day,
@@ -131,12 +132,10 @@ router.route('/add-course-slot')
     catch(error) {
         res.send(error);
     }
-
-    
-})
+});
 
 router.route('/update-course-slot')
-.put( async(req,res) => {
+.put( async(req, res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});
     let course = await courseModel.findOne({id: req.body.course});
@@ -151,14 +150,17 @@ router.route('/update-course-slot')
             res.send("The updated Room's name is incorrect");
             return;
         }
+        if (updatedRoom.type==="Office") {
+            res.send("This room is an Office");
+            return;
+        }
     }
     if (!room) {
         res.send("There is no room with this name");
         return; 
     }
     
-    let slot = await slotModel.findOne({day: req.body.day,room: room._id,slotNumber: req.body.slotNumber});
-    console.log(slot);
+    let slot = await slotModel.findOne({day: req.body.day,room: room._id, slotNumber: req.body.slotNumber});
     if (!slot) {
         res.send("No slot to update");
         return;
@@ -190,13 +192,14 @@ router.route('/update-course-slot')
     }
     try {
         await slot.save();
+        res.send(slot);
     }
     catch(error) {
-        res.body.send(error);
+        res.send(error);
     }
 })
 
-router.route('delete-course-slot')
+router.route('/delete-course-slot')
 .delete( async(req,res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});

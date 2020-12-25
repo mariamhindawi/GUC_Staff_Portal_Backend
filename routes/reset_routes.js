@@ -13,7 +13,7 @@ const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const {annualLeaveModel} = require('../models/request_model')
+const { requestModel } = require('../models/request_model')
 
 const router = express.Router();
 
@@ -33,16 +33,17 @@ router.route("")
     await courseModel.deleteMany({});
     await attendanceRecordModel.deleteMany({});
     await slotModel.deleteMany({});
+    await requestModel.deleteMany({});
     await notificationModel.deleteMany({});
 
     let newRoom = new roomModel({
-        name: "C7.201",
+        name: "C7.305",
         capacity: 10,
         remainingCapacity: 9,
         type: "Office"
     });
     await newRoom.save();
-    newRoom = await roomModel.findOne({name: "C7.201"});
+    newRoom = await roomModel.findOne({name: "C7.305"});
 
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
@@ -54,27 +55,23 @@ router.route("")
 
     const newUser = new hrMemberModel({
         id: "hr-" + newUserCount,
-        name: "Marwan",
-        email: "mm@gmail.com",
+        name: "user",
+        email: "user@guc.edu.eg",
         password: newPassword,
         gender: "Male",
         office: newRoom._id,
-        salary: 7000,
-        dayOff: "Saturday"
+        salary: 7000
     })
-
     await newUser.save();
 
-    resetRequests();
+    resetConfig();
     
-    res.send("Done.");
+    res.send("Reset done successfully.");
 });
 
-const resetRequests = async() => {  
-    await annualLeaveModel.deleteMany({});
+const resetConfig = async() => {  
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),'config.json')));
-    let id = "0";
-    config.requestCounter = id;
+    config.requestCounter = "0";
     fs.writeFileSync(path.join(path.dirname(__dirname),'config.json'), JSON.stringify(config));
 }
 

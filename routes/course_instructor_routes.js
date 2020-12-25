@@ -1,15 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
 const slotModel = require("../models/slot_model");
-const departmentModel = require("../models/department_model");
-const facultyModel = require("../models/faculty_model");
 
 const router = express.Router();
 
@@ -190,12 +186,17 @@ router.route('/assign-academic-member-to-slot')
         res.send("Slot already assigned.. try updating it");
         return;
     }
+    let otherSlot = await slotModel({day: req.body.day ,slotNumber: req.body.slotNumber,staffMember: academicMember.id});
+    if (otherSlot) {
+        res.send("This TA is assigned to another slot in the same time");
+        return;
+    }
     slot.staffMember = academicMember.id;
     try {
-        slot.save();
+        await slot.save();
+        res.send(slot);
     }
-    catch(error)
-    {
+    catch (error) {
         res.body.send(error);
     }
 })
@@ -215,13 +216,14 @@ router.route('/update-academic-member-to-slot')
     let room = await roomModel.findOne({name: req.body.room});
     let course = await courseModel.findOne({id: req.body.course});
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
-    if(! slot) {
+    if(!slot) {
         res.body.send("No such slot");
         return;
     }
     slot.staffMember = academicMember.id;
     try {
-        slot.save();
+        await slot.save();
+        res.send(slot);
     }
     catch(error)
     {
@@ -229,23 +231,25 @@ router.route('/update-academic-member-to-slot')
     }
 })
 
-router.route('/update-academic-member-to-slot')
+router.route('/delete-academic-member-to-slot')
 .delete( async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let room = await roomModel.findOne({name: req.body.room});
     let course = await courseModel.findOne({id: req.body.course});
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
     if(! slot) {
-        res.body.send("No such slot");
+        res.send("No such slot");
         return;
     }
     slot.staffMember = "UNASSIGNED";
     try {
         await slot.save();
+        res.send(slot);
+
     }
-    catch(error)
-    {
-        res.body.send(error);
+    catch (error) {
+        res.send(error);
     }
 })
+
 module.exports = router;
