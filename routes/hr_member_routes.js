@@ -85,7 +85,7 @@ function getNumberOfDaysInMonth(currMonth, currYear) {
     return expectedDaysToAttend;
 }
 
-async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
+async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
     let normalDaysAttended = [];
     let daysOffAttended = [];
@@ -117,7 +117,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
     for (let i = 0; i < missingDays.length; i++) {
         let date = missingDays[i];
         let request = await requestModel.findOne({ 
-            requestedBy: token.id, 
+            requestedBy: user.id, 
             day: date, 
             type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
             status:"Accepted" 
@@ -132,7 +132,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
         }
         else {
             request = await maternityLeaveModel.findOne({
-                requestedBy: token.id, 
+                requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]},
@@ -149,11 +149,11 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
     return { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
 }
 
-async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords) {
+async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords,user) {
     
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
     const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords).numberOfDaysWithExcuse;
+    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords,user).numberOfDaysWithExcuse;
     const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
 
     let timeDiffInSeconds = 0;
@@ -1100,7 +1100,8 @@ router.route("/delete-faculty")
 
 router.route("/view-staff-attendance-records")
 .get(async (req,res) => {
-    if (!req.body.month && req.body.year) {
+    
+    if (!req.body.month&& req.body.year) {
         res.send("No month specified");
         return;
     }
@@ -1118,7 +1119,7 @@ router.route("/view-staff-attendance-records")
         return;
     }
     
-    if (!req.body.month) {
+    if (req.body.month===null) {
         var userAttendanceRecords = await attendanceRecordModel.find({user: req.body.id});
     }
     else {
@@ -1132,7 +1133,6 @@ router.route("/view-staff-attendance-records")
             res.send("Not a valid year");
             return;
         }
-
         userAttendanceRecords = await attendanceRecordModel.find({ $or: [
             { user: req.body.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
             { user: req.body.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
@@ -1171,6 +1171,10 @@ router.route("/view-staff-missing-days")
         }
     }
     else {
+        if (!req.body.month instanceof Number || !req.body.year instanceof Number) {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -1201,7 +1205,7 @@ router.route("/view-staff-missing-days")
         let user = academicMembers[i];
         let dayOff = convertDay(user.dayOff);
         let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        let missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords).missingDays;
+        let missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords,user).missingDays;
         if (missingDays.length > 0) {
             membersWithMissingDays.push({id: user.id, missingDays: missingDays});
         }
@@ -1239,6 +1243,10 @@ router.route("/view-staff-missing-hours")
         }
     }
     else {
+        if (!req.body.month instanceof Number || !req.body.year instanceof Number) {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -1269,7 +1277,7 @@ router.route("/view-staff-missing-hours")
         let user = academicMembers[i];
         let dayOff = convertDay(user.dayOff);
         let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        const hours = await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords);
+        const hours = await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords,user);
         if (hours.missingHours > 0) {
             membersWithMissingHours.push({id: user.id, missingHours: hours.missingHours});
         }

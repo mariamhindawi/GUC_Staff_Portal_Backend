@@ -6,6 +6,7 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
+const { ConnectionStates } = require("mongoose");
 
 function convertDay(day) {
     switch (day) {
@@ -78,7 +79,7 @@ function getNumberOfDaysInMonth(currMonth, currYear) {
     return expectedDaysToAttend;
 }
 
-async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
+async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) {
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
     let normalDaysAttended = [];
     let daysOffAttended = [];
@@ -110,7 +111,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
     for (let i = 0; i < missingDays.length; i++) {
         let date = missingDays[i];
         let request = await requestModel.findOne({ 
-            requestedBy: token.id, 
+            requestedBy: user.id,
             day: date, 
             type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
             status:"Accepted" 
@@ -125,11 +126,11 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
         }
         else {
             request = await maternityLeaveModel.findOne({
-                requestedBy: token.id, 
+                requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
-                day: {$lte: missingDays[i]},
-                duration: "" //{$gt: (missingDays[i] - $day)}
+                day: {$lte: missingDays[i]}
+                // duration: "" //{$gt: (missingDays[i] - $day)}
             });
             if (request) {
                 missingDays.slice(i, i+1);
@@ -142,11 +143,11 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords) {
     return { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
 }
 
-async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords) {
+async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords,user) {
     
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
     const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords).numberOfDaysWithExcuse;
+    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords,user).numberOfDaysWithExcuse;
     const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
 
     let timeDiffInSeconds = 0;
@@ -219,25 +220,28 @@ router.route("/view-profile")
 
 router.route("/view-attendance-records")
 .get(async (req,res) => {
-    if (!req.body.month && req.body.year) {
+    if (req.body.month===null && req.body.year) {
         res.send("No month specified");
         return;
     }
-    if (req.body.month && !req.body.year) {
+    if (req.body.month && req.body.year===null) {
         res.send("No year specified");
         return;
     }
-
     const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id: token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
     }
     
-    if (!req.body.month) {
+    if (req.body.month===null) {
         var userAttendanceRecords = await attendanceRecordModel.find({user: token.id});
     }
     else {
+        if (!req.body.month instanceof Number || !req.body.year instanceof Number) {
+            res.send("Wrong data types entered.");
+            return;
+        }
         const month = req.body.month - 1;
         const year = req.body.year;
         if (month < 0 || month > 11) {
@@ -260,6 +264,7 @@ router.route("/view-attendance-records")
 
 router.route("/view-missing-days")
 .get(async (req,res) => {
+  
     if (!req.body.month && req.body.year) {
         res.send("No month specified");
         return;
@@ -268,7 +273,6 @@ router.route("/view-missing-days")
         res.send("No year specified");
         return;
     }
-    
     if (!req.body.month) {
         const currentDate = new Date();
         if (currentDate.getDate() >= 11) {
@@ -298,16 +302,14 @@ router.route("/view-missing-days")
             return;
         }
     }
-
     const token = jwt.decode(req.headers.token);
     let user = await hrMemberModel.findOne({id:token.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: token.id});
-    }
-    
+    }  
     const dayOff = convertDay(user.dayOff);
     const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-    const missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords).missingDays;
+    const missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords, user).missingDays;
 
     res.send(missingDays);
 });
@@ -322,7 +324,6 @@ router.route("/view-hours")
         res.send("No year specified");
         return;
     }
-    
     if (!req.body.month) {
         const currentDate = new Date();
         if (currentDate.getDate() >= 11) {

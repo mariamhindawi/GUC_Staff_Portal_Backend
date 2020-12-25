@@ -60,7 +60,7 @@ Example of response: Example of response: [{
 Notes:If the month and year are specified, the records of this month and year will be retrieved, if none are specified, the all the records will be retrieved,
 if only the month or only the year is specified, the response will be a message indicating that some of the fields are missing
 
-Functionality: View missing and extra hours
+Functionality: Add missing record
 Route: /hr/add-missing-record
 Request type: POST
 Request body: {"missingRecordType":signIn,"signInYear":2020, "signInMonth":12, "signInDay":25, "signInHour":15, "signInMinute":20,
@@ -74,3 +74,16 @@ Example of response:  {
         "__v": 0
     }
 Notes: missingRecordType is the record that is missing and is currently null
+
+Functionality: View staff with missing days 
+Route: /hr/view-staff-missing-days
+Request type: GET
+Request body: {"user":"hr-1","month":12,"year":2020} or {"user":"hr-1"}
+Response: get array of objects of staffs with their missing days
+
+Functionality: View staff with missing hours 
+Route: /hr/view-staff-missing-hours
+Request type: GET
+Request body: {"user":"hr-1","month":12,"year":2020,} or{"user":"hr-1"}
+Response: get array of objects of staffs with their missing hours
+
