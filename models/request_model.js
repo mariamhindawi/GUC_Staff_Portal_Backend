@@ -18,7 +18,6 @@ const requestSchema = new mongoose.Schema({
         required: true,
         default: "Under review",
         enum: ["Under review", "Accepted", "Rejected"],
-
     }
 });
 
@@ -290,12 +289,12 @@ const slotLinkingRequestSchema = new mongoose.Schema({
     }
 });
 
-module.exports.requestModel = mongoose.model("request", requestSchema, "request");
-module.exports.replacementModel = mongoose.model("replacementRequest", replacementSchema, "request");
-module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "request");
-module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "request");
-module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "request");
-module.exports.slotLinkingModel = mongoose.model("slotLinkingRequest", slotLinkingRequestSchema, "request");
-module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "request");
-module.exports.dayOffChangeModel = mongoose.model("dayOffChangeRequest", dayOffChangeRequestSchema, "request");
-module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "request");
+module.exports.requestModel = mongoose.model("request", requestSchema, "requests");
+module.exports.replacementModel = mongoose.model("replacementRequest", replacementSchema, "requests");
+module.exports.annualLeaveModel = mongoose.model("annualLeave", annualLeaveSchema, "requests");
+module.exports.accidentalLeaveModel = mongoose.model("accidentalLeave", accidentalLeaveSchema, "requests");
+module.exports.sickLeaveModel = mongoose.model("sickLeave", sickLeaveSchema, "requests");
+module.exports.slotLinkingModel = mongoose.model("slotLinkingRequest", slotLinkingRequestSchema, "requests");
+module.exports.compensationLeaveModel = mongoose.model("compensationLeave", compensationRequestSchema, "requests");
+module.exports.dayOffChangeModel = mongoose.model("dayOffChangeRequest", dayOffChangeRequestSchema, "requests");
+module.exports.maternityLeaveModel = mongoose.model("maternityLeave", maternityLeaveSchema, "requests");
