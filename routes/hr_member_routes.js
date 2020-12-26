@@ -112,7 +112,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
             missingDays.push(date);
         }
     }
-    
+    let finalMissingDays=[];
     let numberOfDaysWithExcuse = 0;
     for (let i = 0; i < missingDays.length; i++) {
         let date = missingDays[i];
@@ -125,28 +125,31 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
 
         if (request) {
             if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                missingDays.slice(i, i+1);
-                i--;
+               
                 numberOfDaysWithExcuse++;
             }
         }
         else {
+
             request = await maternityLeaveModel.findOne({
                 requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]},
-                duration: "" //{$gt: (missingDays[i] - $day)}
+                //duration
+              
             });
-            if (request) {
-                missingDays.slice(i, i+1);
-                i--;
+            
+            if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
                 numberOfDaysWithExcuse++;
+            }
+            else{
+                finalMissingDays.push(missingDays[i]);
             }
         }
     }
 
-    return { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+    return { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
 }
 
 async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords,user) {
@@ -1101,7 +1104,7 @@ router.route("/delete-faculty")
 router.route("/view-staff-attendance-records")
 .get(async (req,res) => {
     
-    if (!req.body.month&& req.body.year) {
+    if (!req.body.month && req.body.year) {
         res.send("No month specified");
         return;
     }
@@ -1119,7 +1122,7 @@ router.route("/view-staff-attendance-records")
         return;
     }
     
-    if (req.body.month===null) {
+    if (!req.body.month) {
         var userAttendanceRecords = await attendanceRecordModel.find({user: req.body.id});
     }
     else {
@@ -1208,17 +1211,18 @@ router.route("/view-staff-missing-days")
     
         let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
         if (expectedDaysToAttend === normalDaysAttended.length) {
-            return {missingDays: [], numberOfDaysWithExcuse: 0};
+            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
+            return;
         }
     
         let missingDays = [];
         for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 + i);
+            let date = new Date(year, month, 11 + i+1,0,0,0,0);
             if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
                 missingDays.push(date);
             }
         }
-        
+        let finalMissingDays=[];
         let numberOfDaysWithExcuse = 0;
         for (let i = 0; i < missingDays.length; i++) {
             let date = missingDays[i];
@@ -1231,10 +1235,9 @@ router.route("/view-staff-missing-days")
     
             if (request) {
                 if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    missingDays.slice(i, i+1);
-                    i--;
                     numberOfDaysWithExcuse++;
                 }
+               
             }
             else {
                 request = await maternityLeaveModel.findOne({
@@ -1244,14 +1247,15 @@ router.route("/view-staff-missing-days")
                     day: {$lte: missingDays[i]}
                     // duration: "" //{$gt: (missingDays[i] - $day)}
                 });
-                if (request) {
-                    missingDays.slice(i, i+1);
-                    i--;
+                if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
                     numberOfDaysWithExcuse++;
+                }
+                else{
+                    finalMissingDays.push(missingDays[i]);
                 }
             }
         }
-        var x={missingDays:missingDays,numberOfDaysWithExcuse,numberOfDaysWithExcuse}
+        var x={missingDays:finalMissingDays,numberOfDaysWithExcuse,numberOfDaysWithExcuse}
         if (x.missingDays.length > 0) {
             membersWithMissingDays.push({id: user.id, missingDays: x.missingDays});
         }
@@ -1261,12 +1265,71 @@ router.route("/view-staff-missing-days")
         let user = academicMembers[i];
         let dayOff = convertDay(user.dayOff);
         let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        let missingDays = await getMissingDays(month, year, dayOff, userAttendanceRecords,user).missingDays;
-        if (missingDays.length > 0) {
-            membersWithMissingDays.push({id: user.id, missingDays: missingDays});
+        const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+        let normalDaysAttended = [];
+        let daysOffAttended = [];
+    
+        for (let i = 0; i < userAttendanceRecords.length; i++) {
+            let date = userAttendanceRecords[i].signInTime;
+            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                normalDaysAttended.push(date.getDate());
+            }
+            else if (!daysOffAttended.includes(date.getDate())) {
+                daysOffAttended.push(date.getDate());
+            }
+        }
+    
+        let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+        if (expectedDaysToAttend === normalDaysAttended.length) {
+            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
+            return;
+        }
+    
+        let missingDays = [];
+        for (let i = 0; i < numberOfDaysInMonth; i++) {
+            let date = new Date(year, month, 11 + i+1,0,0,0,0);
+            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                missingDays.push(date);
+            }
+        }
+        let finalMissingDays=[];
+        let numberOfDaysWithExcuse = 0;
+        for (let i = 0; i < missingDays.length; i++) {
+            let date = missingDays[i];
+            let request = await requestModel.findOne({ 
+                requestedBy: user.id,
+                day: date, 
+                type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
+                status:"Accepted" 
+            });
+    
+            if (request) {
+                if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
+                    numberOfDaysWithExcuse++;
+                }
+               
+            }
+            else {
+                request = await maternityLeaveModel.findOne({
+                    requestedBy: user.id, 
+                    type: "maternityLeave", 
+                    status: "Accepted",
+                    day: {$lte: missingDays[i]}
+                    // duration: "" //{$gt: (missingDays[i] - $day)}
+                });
+                if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
+                    numberOfDaysWithExcuse++;
+                }
+                else{
+                    finalMissingDays.push(missingDays[i]);
+                }
+            }
+        }
+        var x={missingDays:finalMissingDays,numberOfDaysWithExcuse,numberOfDaysWithExcuse}
+        if (x.missingDays.length > 0) {
+            membersWithMissingDays.push({id: user.id, missingDays: x.missingDays});
         }
     }
-
     res.send(membersWithMissingDays);
 });
 
@@ -1336,17 +1399,18 @@ router.route("/view-staff-missing-hours")
     
         let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
         if (expectedDaysToAttend === normalDaysAttended.length) {
-            return {missingDays: [], numberOfDaysWithExcuse: 0};
+            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
+            return;
         }
     
         let missingDays = [];
         for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 + i);
+            let date = new Date(year, month, 11 + i+1,0,0,0,0);
             if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
                 missingDays.push(date);
             }
         }
-        
+        let finalMissingDays=[];
         let numberOfDaysWithExcuse = 0;
         for (let i = 0; i < missingDays.length; i++) {
             let date = missingDays[i];
@@ -1359,8 +1423,6 @@ router.route("/view-staff-missing-hours")
     
             if (request) {
                 if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    missingDays.slice(i, i+1);
-                    i--;
                     numberOfDaysWithExcuse++;
                 }
             }
@@ -1370,17 +1432,18 @@ router.route("/view-staff-missing-hours")
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]},
-                    duration: "" //{$gt: (missingDays[i] - $day)}
+                    //duration: "" //{$gt: (missingDays[i] - $day)}
                 });
-                if (request) {
-                    missingDays.slice(i, i+1);
-                    i--;
+                if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
                     numberOfDaysWithExcuse++;
+                }
+                else{
+                    finalMissingDays.push(missingDays[i]);
                 }
             }
         }
     
-        var y= { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+        var y= { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
         const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
     
         let timeDiffInSeconds = 0;
@@ -1422,12 +1485,6 @@ router.route("/view-staff-missing-hours")
             
             timeDiffInSeconds += (signOutTime - signInTime) / 1000;
         }
-        
-        // const spentHours = Math.floor(timeDiffInSeconds / 3600);
-        // timeDiffInSeconds %= 3600;
-        // const spentMinutes = Math.floor(timeDiffInSeconds / 60);
-        // timeDiffInSeconds %= 60;
-        // const spentSeconds = timeDiffInSeconds;
     
         const spentHours = timeDiffInSeconds / 3600;
         if (spentHours > requiredHours) {
@@ -1461,17 +1518,17 @@ router.route("/view-staff-missing-hours")
     
         let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
         if (expectedDaysToAttend === normalDaysAttended.length) {
-            return {missingDays: [], numberOfDaysWithExcuse: 0};
+            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
         }
     
         let missingDays = [];
         for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 + i);
+            let date = new Date(year, month, 11 + i+1,0,0,0,0);
             if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
                 missingDays.push(date);
             }
         }
-        
+        let finalMissingDays=[];
         let numberOfDaysWithExcuse = 0;
         for (let i = 0; i < missingDays.length; i++) {
             let date = missingDays[i];
@@ -1484,8 +1541,6 @@ router.route("/view-staff-missing-hours")
     
             if (request) {
                 if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    missingDays.slice(i, i+1);
-                    i--;
                     numberOfDaysWithExcuse++;
                 }
             }
@@ -1495,17 +1550,17 @@ router.route("/view-staff-missing-hours")
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]},
-                    duration: "" //{$gt: (missingDays[i] - $day)}
+                    //duration: "" //{$gt: (missingDays[i] - $day)}
                 });
-                if (request) {
-                    missingDays.slice(i, i+1);
-                    i--;
+                if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
                     numberOfDaysWithExcuse++;
+                }
+                else{
+                    finalMissingDays.push(missingDays[i]);
                 }
             }
         }
-    
-        var y= { missingDays: missingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+        var y= { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
         const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
     
         let timeDiffInSeconds = 0;
@@ -1548,12 +1603,6 @@ router.route("/view-staff-missing-hours")
             timeDiffInSeconds += (signOutTime - signInTime) / 1000;
         }
         
-        // const spentHours = Math.floor(timeDiffInSeconds / 3600);
-        // timeDiffInSeconds %= 3600;
-        // const spentMinutes = Math.floor(timeDiffInSeconds / 60);
-        // timeDiffInSeconds %= 60;
-        // const spentSeconds = timeDiffInSeconds;
-    
         const spentHours = timeDiffInSeconds / 3600;
         if (spentHours > requiredHours) {
             var x= {missingHours: 0, extraHours: spentHours - requiredHours};
@@ -1630,11 +1679,11 @@ router.route("/add-missing-record")
             res.send("Cannot match these records together ");
             return;
     }
-    if(signInHour>signOuHour){
+    if(signInHour>signOutHour){
         res.send("Cannot have the sign in hour that is greater than the sign out hour.");
         return;
     }   
-    if(signInHour===signOuHour && signInMinute>signOutMinute){
+    if(signInHour===signOutHour && signInMinute>signOutMinute){
         res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
         return;
     }  
@@ -1665,7 +1714,7 @@ router.route("/add-missing-record")
         signInDate=new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,0,0);
         signOutDate=new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,0,0);
 
-        userRecord=await attendance_record_model.findOne({user:user.id,signInTime:{$gte:signInDate,
+        userRecord=await attendanceRecordModel.findOne({user:user.id,signInTime:{$gte:signInDate,
         $lte:new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,59,0)},signOutTime:null})
 
         if(!userRecord){
