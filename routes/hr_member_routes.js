@@ -132,15 +132,19 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
         }
         else {
 
-            request = await maternityLeaveModel.findOne({
+            request = await maternityLeaveModel.find({
                 requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]},
-            }).sort({day:-1});
+            }).sort({day:1});
                 
-            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                numberOfDaysWithExcuse++;
+            if (request.length!==0){        
+                    request=request[request.length-1]
+                if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                    numberOfDaysWithExcuse++;
+                } 
+                
             }
             else{
                 finalMissingDays.push(missingDays[i]);
@@ -1125,6 +1129,10 @@ router.route("/view-staff-attendance-records")
         var userAttendanceRecords = await attendanceRecordModel.find({user: req.body.id});
     }
     else {
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+            res.send("Wrong data types entered.");
+            return;
+        }
         const month = req.body.month - 1;
         const year = req.body.year;
         if (month < 0 || month > 11) {
@@ -1173,7 +1181,10 @@ router.route("/view-staff-missing-days")
         }
     }
     else {
-     
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -1240,16 +1251,21 @@ router.route("/view-staff-missing-days")
                
             }
             else {
-                request = await maternityLeaveModel.findOne({
+                request = await maternityLeaveModel.find({
                     requestedBy: user.id, 
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]}
-                }).sort({day:-1});
+                }).sort({day:1});
                 
-                if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                    numberOfDaysWithExcuse++;
+                if (request.length!==0){        
+                        request=request[request.length-1]
+                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                        numberOfDaysWithExcuse++;
+                    } 
+                    
                 }
+                
                 else{
                     finalMissingDays.push(missingDays[i]);
                 }
@@ -1311,15 +1327,19 @@ router.route("/view-staff-missing-days")
                
             }
             else {
-                request = await maternityLeaveModel.findOne({
+                request = await maternityLeaveModel.find({
                     requestedBy: user.id, 
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]}
-                }).sort({day:-1});
+                }).sort({day:1});
                 
-                if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                    numberOfDaysWithExcuse++;
+                if (request.length!==0){        
+                        request=request[request.length-1]
+                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                        numberOfDaysWithExcuse++;
+                    } 
+                    
                 }
                 else{
                     finalMissingDays.push(missingDays[i]);
@@ -1363,7 +1383,10 @@ router.route("/view-staff-missing-hours")
         }
     }
     else {
-   
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -1434,10 +1457,14 @@ router.route("/view-staff-missing-hours")
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]},
-                }).sort({day:-1});
+                }).sort({day:1});
                 
-                if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                    numberOfDaysWithExcuse++;
+                if (request.length!==0){        
+                        request=request[request.length-1]
+                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                        numberOfDaysWithExcuse++;
+                    } 
+                    
                 }
                 else{
                     finalMissingDays.push(missingDays[i]);
@@ -1501,7 +1528,7 @@ router.route("/view-staff-missing-hours")
     }
     
     for (let i = 0; i < academicMembers.length ; i++) {
-        let user = hrMembers[i];
+        let user = academicMembers[i];
         let dayOff = convertDay(user.dayOff);
         let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
         const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
@@ -1548,17 +1575,20 @@ router.route("/view-staff-missing-hours")
                 }
             }
             else {
-                request = await maternityLeaveModel.findOne({
+                request = await maternityLeaveModel.find({
                     requestedBy: user.id, 
                     type: "maternityLeave", 
                     status: "Accepted",
                     day: {$lte: missingDays[i]},
-                   
-                }).sort({day:-1});
+                }).sort({day:1});
                 
-            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                numberOfDaysWithExcuse++;
-            }
+                if (request.length!==0){        
+                        request=request[request.length-1]
+                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                        numberOfDaysWithExcuse++;
+                    } 
+                    
+                }
                 else{
                     finalMissingDays.push(missingDays[i]);
                 }
@@ -1654,6 +1684,13 @@ router.route("/add-missing-record")
     let signOutDate;
     let userRecord;
 
+    if (typeof signInYear !== "number" || typeof signOutYear !== "number"||typeof signInMonth !== "number" || typeof signOutMonth !== "number"
+    || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
+    || typeof signInMinute !== "number" || typeof signOutMinute !== "number"|| typeof missingRecordType !== "string") {
+        res.send("Wrong data types entered.");
+        return;
+    }
+
     if (missingRecordType!=="signOut"&& missingRecordType!=="SignIn") {
         res.send("Inavalid missing record type.");
         return;
@@ -1667,7 +1704,7 @@ router.route("/add-missing-record")
         res.send("Invalid year.");
         return;
     }
-    if(signInMonth<0 || signInMonth>11 || signOutMonth<0 || signOutMonth>11){
+    if(signInMonth<=0 || signInMonth>12 || signOutMonth<=0 || signOutMonth>12){
         res.send("Invalid month.");
         return;
     }
@@ -1692,11 +1729,11 @@ router.route("/add-missing-record")
         return;
     }  
     if(missingRecordType==="signIn"){
-        signInDate=new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,0,0);
-        signOutDate=new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,0,0);
+        signInDate=new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,0,0);
+        signOutDate=new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,0,0);
 
         userRecord=await attendance_record_model.findOne({user:user.id,signOutTime:{$gte:signOutDate,
-        $lte:new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,59,0)},signInTime:null})
+        $lte:new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,59,0)},signInTime:null})
 
         if(!userRecord){
             res.send("Could not find specified sign out time.");
@@ -1715,11 +1752,11 @@ router.route("/add-missing-record")
         }
     }
     else if(missingRecordType==="signOut"){
-        signInDate=new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,0,0);
-        signOutDate=new Date(signOutYear,signOutMonth,signOutDay,signOutHour,signOutMinute,0,0);
+        signInDate=new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,0,0);
+        signOutDate=new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,0,0);
 
         userRecord=await attendanceRecordModel.findOne({user:user.id,signInTime:{$gte:signInDate,
-        $lte:new Date(signInYear,signInMonth,signInDay,signInHour,signInMinute,59,0)},signOutTime:null})
+        $lte:new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,59,0)},signOutTime:null})
 
         if(!userRecord){
             res.send("Could not find specified sign in time.");

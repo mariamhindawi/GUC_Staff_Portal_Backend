@@ -125,15 +125,19 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) 
             }
         }
         else {
-            request = await maternityLeaveModel.findOne({
+            request = await maternityLeaveModel.find({
                 requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-            }).sort({day:-1});
+            }).sort({day:1});
                 
-            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                numberOfDaysWithExcuse++;
+            if (request.length!==0){        
+                    request=request[request.length-1]
+                if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                    numberOfDaysWithExcuse++;
+                } 
+                
             }
             else{
                 finalMissingDays.push(missingDays[i]);
@@ -239,7 +243,7 @@ router.route("/view-attendance-records")
         var userAttendanceRecords = await attendanceRecordModel.find({user: token.id});
     }
     else {
-        if (!req.body.month instanceof Number || !req.body.year instanceof Number) {
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
             res.send("Wrong data types entered.");
             return;
         }
@@ -292,6 +296,10 @@ router.route("/view-missing-days")
         }
     }
     else {
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -358,16 +366,21 @@ router.route("/view-missing-days")
             }
         }
         else {
-            request = await maternityLeaveModel.findOne({
+            request = await maternityLeaveModel.find({
                 requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-            }).sort({day:-1});
+            }).sort({day:1});
                 
-            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                numberOfDaysWithExcuse++;
+            if (request.length!==0){        
+                    request=request[request.length-1]
+                if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                    numberOfDaysWithExcuse++;
+                } 
+                
             }
+            
             else{
                 finalMissingDays.push(missingDays[i]);
             }
@@ -407,6 +420,10 @@ router.route("/view-hours")
         }
     }
     else {
+        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+            res.send("Wrong data types entered.");
+            return;
+        }
         month = req.body.month - 1;
         year = req.body.year;
         if (month < 0 || month > 11) {
@@ -474,15 +491,19 @@ router.route("/view-hours")
             }
         }
         else {
-            request = await maternityLeaveModel.findOne({
+            request = await maternityLeaveModel.find({
                 requestedBy: user.id, 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-            }).sort({day:-1});
+            }).sort({day:1});
                 
-            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
-                numberOfDaysWithExcuse++;
+            if (request.length!==0){        
+                    request=request[request.length-1]
+                if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                    numberOfDaysWithExcuse++;
+                } 
+                
             }
             else{
                 finalMissingDays.push(missingDays[i]);
