@@ -6,7 +6,6 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
-const { ConnectionStates } = require("mongoose");
 
 function convertDay(day) {
     switch (day) {
@@ -511,7 +510,7 @@ router.route("/view-hours")
         }
     }
 
-    var x= { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+    var x = { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
     const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
    
 
