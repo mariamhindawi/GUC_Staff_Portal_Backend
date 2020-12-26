@@ -102,6 +102,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) 
     let missingDays = [];
     for (let i = 0; i < numberOfDaysInMonth; i++) {
         let date = new Date(year, month, 11 + i);
+        date.setTime(date.getTime()+(1000*60*60*2));
         if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
             missingDays.push(date);
         }
@@ -129,9 +130,9 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) 
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-                // duration: "" //{$gt: (missingDays[i] - $day)}
-            });
-            if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
+            }).sort({day:-1});
+                
+            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
                 numberOfDaysWithExcuse++;
             }
             else{
@@ -330,7 +331,8 @@ router.route("/view-missing-days")
     }
     let missingDays = [];
     for (let i = 0; i < numberOfDaysInMonth; i++) {
-        let date = new Date(year, month, 11 + i+1,0,0,0,0);
+        let date = new Date(year, month, 11 + i);
+        date.setTime(date.getTime()+(1000*60*60*2));
       
         if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
             missingDays.push(date);
@@ -361,9 +363,9 @@ router.route("/view-missing-days")
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-                // duration: "" //{$gt: (missingDays[i] - $day)}
-            });
-            if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
+            }).sort({day:-1});
+                
+            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
                 numberOfDaysWithExcuse++;
             }
             else{
@@ -449,7 +451,8 @@ router.route("/view-hours")
 
     let missingDays = [];
     for (let i = 0; i < numberOfDaysInMonth; i++) {
-        let date = new Date(year, month, 11 + i+1,0,0,0,0);
+        let date = new Date(year, month, 11 + i);
+        date.setTime(date.getTime()+(1000*60*60*2));
         if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
             missingDays.push(date);
         }
@@ -476,9 +479,9 @@ router.route("/view-hours")
                 type: "maternityLeave", 
                 status: "Accepted",
                 day: {$lte: missingDays[i]}
-                // duration: "" //{$gt: (missingDays[i] - $day)}
-            });
-            if (request && missingDays[i]<request.day.setDate(request.day.getDate()+request.duration)) {
+            }).sort({day:-1});
+                
+            if (request && missingDays[i]<request[0].day.setDate(request[0].day.getDate()+request.duration)) {
                 numberOfDaysWithExcuse++;
             }
             else{
