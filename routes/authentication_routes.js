@@ -21,8 +21,7 @@ router.route("/staff/login")
         return;
     }
 
-    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (!req.body.email.match(mailFormat)) {
+    if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
         res.send("Invalid email address.");
         return;
     }

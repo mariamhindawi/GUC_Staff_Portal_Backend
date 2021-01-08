@@ -236,8 +236,7 @@ router.route("/add-hr-member")
         return;
     }
 
-    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (!req.body.email.match(mailFormat)) {
+    if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
         res.send("Invalid email address.");
         return;
     }
@@ -301,8 +300,7 @@ router.route("/add-academic-member")
         return;
     }
 
-    const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (!req.body.email.match(mailFormat)) {
+    if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
         res.send("Invalid email address.");
         return;
     }
@@ -403,8 +401,7 @@ router.route("/update-hr-member")
     }
 
     if (req.body.email) {
-        const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-        if (!req.body.email.match(mailFormat)) {
+        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
             res.send("Invalid email address.");
             return;
         }
@@ -497,8 +494,7 @@ router.route("/update-academic-member")
     }
 
     if (req.body.email) {
-        const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-        if (!req.body.email.match(mailFormat)) {
+        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
             res.send("Invalid email address.");
             return;
         }

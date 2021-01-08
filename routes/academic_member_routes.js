@@ -36,8 +36,7 @@ router.route("/update-profile")
     let user = await academicMemberModel.findOne({id: token.id});
     
     if (req.body.email) {
-        const mailFormat = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-        if (!req.body.email.match(mailFormat)) {
+        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
             res.send("Invalid email address.");
             return;
         }
@@ -103,7 +102,7 @@ router.post('/send-replacement-request', async (req, res) => {
         res.send('Insufficient leave balance')
         return
     }
-    if(!req.body.day || !req.body.day.match(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/)){
+    if(!req.body.day || !(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/).test(req.body.day)){
         res.send('Please enter the date in a valid format (dd-mm-yyyy)')
         return
     }
@@ -324,7 +323,7 @@ router.post('/send-leave-request', async (req, res) => {
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
-    if(!req.body.day || !req.body.day.match(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/)){
+    if(!req.body.day || !(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/).test(req.body.day)){
         res.send('Please enter the date in a valid format (dd-mm-yyyy)')
         return
     }
