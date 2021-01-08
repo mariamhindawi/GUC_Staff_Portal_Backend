@@ -13,10 +13,16 @@ const courseCoordinatorRoutes = require('./routes/course_coordinator_routes')
 
 const app = express();
 
-app.use(cors({
+const corsOptions = {
     origin: process.env.FRONTEND_BASE_URL,
-    exposedHeaders: "token"
-}));
+    methods: "GET,PUT,POST,DELETE",
+    exposedHeaders: "token",
+    credentials: true,
+    maxAge: 5
+};
+
+//app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/reset",resetRoutes);
 app.use("/campus",campusRoutes);
