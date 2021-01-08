@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require('cors');
 
 const resetRoutes = require("./routes/reset_routes");
 const campusRoutes = require("./routes/campus_routes");
@@ -12,6 +13,10 @@ const courseCoordinatorRoutes = require('./routes/course_coordinator_routes')
 
 const app = express();
 
+app.use(cors({
+    origin: process.env.FRONTEND_BASE_URL,
+    exposedHeaders: "token"
+}));
 app.use(express.json());
 app.use("/reset",resetRoutes);
 app.use("/campus",campusRoutes);

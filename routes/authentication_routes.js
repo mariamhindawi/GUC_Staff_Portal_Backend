@@ -52,7 +52,6 @@ router.route("/staff/login")
 
     if (!user.loggedIn) {
         res.header("token", token).send("First login, reset password.");
-        // res.header("token", token).redirect("change-password");
     }
     else {
         res.header("token", token).send("Logged in successfully.");
