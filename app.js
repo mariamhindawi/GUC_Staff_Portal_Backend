@@ -9,7 +9,8 @@ const hrMemberRoutes = require("./routes/hr_member_routes");
 const academicMemberRoutes = require("./routes/academic_member_routes");
 const headOfDepartmentRoutes = require("./routes/head_of_department_routes");
 const courseInstructorRoutes = require("./routes/course_instructor_routes");
-const courseCoordinatorRoutes = require('./routes/course_coordinator_routes')
+const courseCoordinatorRoutes = require('./routes/course_coordinator_routes');
+const frontEndRoutes = require('./routes/frontend_routes');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/hr", hrMemberRoutes);
 app.use("/academic", academicMemberRoutes);
 app.use("/hod", headOfDepartmentRoutes);
 app.use("/ci", courseInstructorRoutes);
-app.use('/cc',courseCoordinatorRoutes)
+app.use('/cc',courseCoordinatorRoutes);
+app.use('/fr',frontEndRoutes);
 
 module.exports.app = app;
