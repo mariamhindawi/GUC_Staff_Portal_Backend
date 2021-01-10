@@ -9,11 +9,10 @@ const hrMemberRoutes = require("./routes/hr_member_routes");
 const academicMemberRoutes = require("./routes/academic_member_routes");
 const headOfDepartmentRoutes = require("./routes/head_of_department_routes");
 const courseInstructorRoutes = require("./routes/course_instructor_routes");
-const courseCoordinatorRoutes = require('./routes/course_coordinator_routes');
-const frontEndRoutes = require('./routes/frontend_routes');
+const courseCoordinatorRoutes = require("./routes/course_coordinator_routes");
+const frontEndRoutes = require("./routes/frontend_routes");
 
 const app = express();
-
 const corsOptions = {
     origin: process.env.FRONTEND_BASE_URL,
     methods: "GET,PUT,POST,DELETE",
@@ -22,7 +21,6 @@ const corsOptions = {
     maxAge: 5
 };
 
-//app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use("/reset",resetRoutes);
@@ -33,7 +31,7 @@ app.use("/hr", hrMemberRoutes);
 app.use("/academic", academicMemberRoutes);
 app.use("/hod", headOfDepartmentRoutes);
 app.use("/ci", courseInstructorRoutes);
-app.use('/cc',courseCoordinatorRoutes);
-app.use('/fr',frontEndRoutes);
+app.use("/cc",courseCoordinatorRoutes);
+app.use("/fe",frontEndRoutes);
 
 module.exports.app = app;

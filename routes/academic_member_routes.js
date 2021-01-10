@@ -506,6 +506,21 @@ router.delete('/cancel-request/:id', async (req, res) => {
     }
 })
 
+router.get("/schedule", async (req, res) => {
+    const token = jwt.decode(req.headers.token);
+    let schedule = await slotModel.find({ staffMember: token.id })
+    let date = new Date()
+    let replacementRequests = await annualLeaveModel.find({ type:'annualLeave',replacementIDs: token.id, status:'Accepted', day: { $lt: date.addDays(7), $gte: date } })
+    for (let i = 0; i < replacementRequests.length; i++) {
+        for(let j=0;j<replacementRequests[i].replacementIDs.length;j++){
+            if(replacementRequests[i].replacementIDs[j]===token.id){
+                schedule.push(replacementRequests[i].slots[j])
+            }
+        }
+    }
+    res.send(schedule)
+});
+
 Date.prototype.addDays = function (days) {
     var date = new Date(this.valueOf());
     date.setDate(date.getDate() + days);
