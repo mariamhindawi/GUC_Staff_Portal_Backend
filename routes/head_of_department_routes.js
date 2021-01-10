@@ -247,7 +247,7 @@ router.route("/update-course-instructor")
     });
 
 router.put('/staff-requests/:reqId/accept', async (req, res) => {
-    if (isNaN(req.params.id)) {
+    if (isNaN(req.params.reqId)) {
         res.send('Invalid request id')
         return
     }
@@ -308,7 +308,7 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
 })
 
 router.put('/staff-requests/:reqId/reject', async (req, res) => {
-    if (isNaN(req.params.id)) {
+    if (isNaN(req.params.reqId)) {
         res.send('Invalid request id')
         return
     }
