@@ -223,8 +223,10 @@ router.route("/view-profile")
     let office = await roomModel.findOne({_id: user.office});
     let department = await departmentModel.findOne({_id:user.department})
     let faculty = await facultyModel.findOne({_id:user.faculty})
-    user.department=department.name
-    user.faculty=faculty
+    if(department)
+        user.department=department.name
+    if(faculty)
+        user.faculty=faculty
     res.send({user: user, office: office});
 });
 
