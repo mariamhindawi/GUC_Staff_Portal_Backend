@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model");
 const academicMemberModel = require("../models/academic_member_model");
+const roomModel = require('../models/room_model');
 
 const router = express.Router();
 
@@ -26,5 +27,11 @@ router.route("/get-courses-by-academic")
     const courses = await courseModel.find({$or: [{courseInstructors: req.query.id}, {teachingAssistants: req.query.id}]});
     res.send(courses);
 });
+
+router.route("/get-rooms")
+.get(async(req,res)=>{
+    const rooms = await roomModel.find();
+    res.send(rooms);
+})
 
 module.exports = router;
