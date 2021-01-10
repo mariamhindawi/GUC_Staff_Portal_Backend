@@ -6,6 +6,8 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
+const departmentModel = require('../models/department_model');
+const facultyModel = require('../models/faculty_model')
 
 function convertDay(day) {
     switch (day) {
@@ -219,6 +221,10 @@ router.route("/view-profile")
         user = await academicMemberModel.findOne({id: token.id});
     }
     let office = await roomModel.findOne({_id: user.office});
+    let department = await departmentModel.findOne({_id:user.department})
+    let faculty = await facultyModel.findOne({_id:user.faculty})
+    user.department=department.name
+    user.faculty=faculty
     res.send({user: user, office: office});
 });
 
