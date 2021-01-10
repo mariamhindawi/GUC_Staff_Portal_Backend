@@ -102,8 +102,8 @@ router.post('/send-replacement-request', async (req, res) => {
         res.send('Insufficient leave balance')
         return
     }
-    if(!req.body.day || !(/^([0-2][0-9]|(3)[0-1])(\-)(((0)[0-9])|((1)[0-2]))(\-)\d{4}$/).test(req.body.day)){
-        res.send('Please enter the date in a valid format (dd-mm-yyyy)')
+    if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
+        res.send('Please enter the date in a valid format (yyyy-mm-dd)')
         return
     }
     let parts = req.body.day.split('-')
@@ -324,7 +324,7 @@ router.post('/send-leave-request', async (req, res) => {
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
     if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
-        res.send('Please enter the date in a valid format (dd-mm-yyyy)')
+        res.send('Please enter the date in a valid format (yyyy-mm-dd)')
         return
     }
     let parts = req.body.day.split('-')
