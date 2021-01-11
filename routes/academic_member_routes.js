@@ -393,7 +393,7 @@ router.post('/send-leave-request', async (req, res) => {
             return
         }
         let parts = req.body.day.split('-')
-        let myDate = new Date(parts[0], parts[1] - 1, parts[2], 23);
+        let myDate = new Date(parts[0], parts[1] - 1, parts[2]);
         if (myDate.addDays(3) >= new Date())
             request = new sickLeaveModel({
                 id: id,
