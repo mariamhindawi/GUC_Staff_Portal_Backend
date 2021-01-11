@@ -739,14 +739,14 @@ router.route("/add-room")
 
 router.route("/update-room")
 .put(async (req,res) => {
-    let room = await roomModel.findOne({name: req.body.name});
+    let room = await roomModel.findOne({name: req.body.oldName});
     if (!room) {
         res.send("No room with such name.");
         return;
     }
 
-    if (req.body.newName) {
-        room.name = req.body.newName;
+    if (req.body.name) {
+        room.name = req.body.name;
     }
 
     let personsAssigned = room.capacity - room.remainingCapacity;
