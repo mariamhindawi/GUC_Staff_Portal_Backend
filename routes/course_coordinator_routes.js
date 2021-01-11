@@ -23,7 +23,7 @@ router.use((req, res, next) => {
 
 router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    if(isNaN(req.params.id)){
+    if(isNaN(req.params.reqId)){
         res.send('Invalid request id')
         return
     }
@@ -63,7 +63,7 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
 
 router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    if(isNaN(req.params.id)){
+    if(isNaN(req.params.reqId)){
         res.send('Invalid request id')
         return
     }
