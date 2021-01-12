@@ -13,6 +13,8 @@ const notificationModel = require("../models/notification_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
 const userBlacklistModel = require("../models/user_blacklist_model");
 
+const router = express.Router();
+
 function convertDay(day) {
     switch (day) {
         case "Sunday": return 0;
@@ -221,8 +223,6 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
         return { missingHours: requiredHours - spentHours, extraHours: 0 };
     }
 }
-
-const router = express.Router();
 
 router.use((req, res, next) => {
     const token = jwt.decode(req.headers.token);
