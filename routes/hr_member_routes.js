@@ -11,7 +11,7 @@ const facultyModel = require("../models/faculty_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const { requestModel,maternityLeaveModel } = require("../models/request_model");
+const { requestModel, maternityLeaveModel } = require("../models/request_model");
 const userBlacklistModel = require("../models/user_blacklist_model");
 
 function convertDay(day) {
@@ -53,39 +53,39 @@ function getNumberOfDaysInMonth(currMonth, currYear) {
     return -1;
 }
 
- function getExpectedDaysToAttend(dayOff, firstDay, numberOfDaysInMonth) {
-    let expectedDaysToAttend = 20;  
+function getExpectedDaysToAttend(dayOff, firstDay, numberOfDaysInMonth) {
+    let expectedDaysToAttend = 20;
     if (numberOfDaysInMonth === 31) {
         expectedDaysToAttend = 23;
-        if (firstDay % 7 === 5 || (firstDay+1) % 7 === 5 || (firstDay+2) % 7 === 5) {
-           expectedDaysToAttend--;
+        if (firstDay % 7 === 5 || (firstDay + 1) % 7 === 5 || (firstDay + 2) % 7 === 5) {
+            expectedDaysToAttend--;
         }
-        if (firstDay % 7 === dayOff || (firstDay+1) % 7 === dayOff || (firstDay+2) % 7 === dayOff) {
+        if (firstDay % 7 === dayOff || (firstDay + 1) % 7 === dayOff || (firstDay + 2) % 7 === dayOff) {
             expectedDaysToAttend--;
         }
     }
-    else if (numberOfDaysInMonth === 30){
+    else if (numberOfDaysInMonth === 30) {
         expectedDaysToAttend = 22;
-        if (firstDay % 7 === 5 || (firstDay+1) % 7 === 5) {
+        if (firstDay % 7 === 5 || (firstDay + 1) % 7 === 5) {
             expectedDaysToAttend--;
-         }
-         if (firstDay % 7 === dayOff || (firstDay+1) % 7 === dayOff) {
-             expectedDaysToAttend--;
-         }
+        }
+        if (firstDay % 7 === dayOff || (firstDay + 1) % 7 === dayOff) {
+            expectedDaysToAttend--;
+        }
     }
     else if (numberOfDaysInMonth === 29) {
         expectedDaysToAttend = 21;
         if (firstDay % 7 === 5) {
             expectedDaysToAttend--;
-         }
-         if (firstDay % 7 === dayOff){
-             expectedDaysToAttend--;
-         }
+        }
+        if (firstDay % 7 === dayOff) {
+            expectedDaysToAttend--;
+        }
     }
     return expectedDaysToAttend;
 }
 
-async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
+async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) {
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
     let normalDaysAttended = [];
     let daysOffAttended = [];
@@ -102,51 +102,51 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
 
     let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
     if (expectedDaysToAttend === normalDaysAttended.length) {
-        return {missingDays: [], numberOfDaysWithExcuse: 0};
+        return { missingDays: [], numberOfDaysWithExcuse: 0 };
     }
 
     let missingDays = [];
     for (let i = 0; i < numberOfDaysInMonth; i++) {
         let date = new Date(year, month, 11 + i);
-        date.setTime(date.getTime()+(1000*60*60*2));
+        date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
         if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
             missingDays.push(date);
         }
     }
-    let finalMissingDays=[];
+    let finalMissingDays = [];
     let numberOfDaysWithExcuse = 0;
     for (let i = 0; i < missingDays.length; i++) {
         let date = missingDays[i];
-        let request = await requestModel.findOne({ 
-            requestedBy: user.id, 
-            day: date, 
-            type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
-            status:"Accepted" 
+        let request = await requestModel.findOne({
+            requestedBy: user.id,
+            day: date,
+            type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
+            status: "Accepted"
         });
 
         if (request) {
             if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-               
+
                 numberOfDaysWithExcuse++;
             }
         }
         else {
 
             request = await maternityLeaveModel.find({
-                requestedBy: user.id, 
-                type: "maternityLeave", 
+                requestedBy: user.id,
+                type: "maternityLeave",
                 status: "Accepted",
-                day: {$lte: missingDays[i]},
-            }).sort({day:1});
-                
-            if (request.length!==0){        
-                    request=request[request.length-1]
-                if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+                day: { $lte: missingDays[i] },
+            }).sort({ day: 1 });
+
+            if (request.length !== 0) {
+                request = request[request.length - 1]
+                if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
                     numberOfDaysWithExcuse++;
-                } 
-                
+                }
+
             }
-            else{
+            else {
                 finalMissingDays.push(missingDays[i]);
             }
         }
@@ -155,11 +155,11 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords,user) {
     return { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
 }
 
-async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords,user) {
-    
+async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user) {
+
     const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
     const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords,user).numberOfDaysWithExcuse;
+    const numberOfDaysWithExcuse = await getMissingDays(month, year, dayOff, userAttendanceRecords, user).numberOfDaysWithExcuse;
     const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
 
     let timeDiffInSeconds = 0;
@@ -198,10 +198,10 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
         else {
             signOutTime.setMilliseconds(0);
         }
-        
+
         timeDiffInSeconds += (signOutTime - signInTime) / 1000;
     }
-    
+
     // const spentHours = Math.floor(timeDiffInSeconds / 3600);
     // timeDiffInSeconds %= 3600;
     // const spentMinutes = Math.floor(timeDiffInSeconds / 60);
@@ -210,10 +210,10 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
 
     const spentHours = timeDiffInSeconds / 3600;
     if (spentHours > requiredHours) {
-        return {missingHours: 0, extraHours: spentHours - requiredHours};
+        return { missingHours: 0, extraHours: spentHours - requiredHours };
     }
     else {
-        return {missingHours: requiredHours - spentHours, extraHours: 0};
+        return { missingHours: requiredHours - spentHours, extraHours: 0 };
     }
 }
 
@@ -230,1543 +230,1545 @@ router.use((req, res, next) => {
 });
 
 router.route("/add-hr-member")
-.post(async (req, res) => {
-    if (!req.body.email) {
-        res.send("Must enter an email.");
-        return;
-    }
+    .post(async (req, res) => {
+        if (!req.body.email) {
+            res.status(400).send("Email is required");
+            return;
+        }
 
-    if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-        res.send("Invalid email address.");
-        return;
-    }
+        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
+            res.status(400).send("Invalid email address");
+            return;
+        }
 
-    let user = await hrMemberModel.findOne({email: req.body.email});
-    if (!user) {
-        user = await academicMemberModel.findOne({email: req.body.email});
-    }
-    if (user) {
-        res.send("Email already exists.");
-        return;
-    }
+        let user = await hrMemberModel.findOne({ email: req.body.email });
+        if (!user) {
+            user = await academicMemberModel.findOne({ email: req.body.email });
+        }
+        if (user) {
+            res.status(409).send("Email already exists");
+            return;
+        }
 
-    const office = await roomModel.findOne({name: req.body.office});
-    if (!office) {
-        res.send("Invalid Office Name.");
-        return;
-    }
-    if (office.type !== "Office") {
-        res.send("Room is not an Office.");
-        return;
-    }
-    if (office.remainingCapacity === 0) {
-        res.send("Office has full capacity.");
-        return;
-    }
-    office.remainingCapacity--;
+        const office = await roomModel.findOne({ name: req.body.office });
+        if (!office) {
+            res.status(422).send("Incorrect Office Name");
+            return;
+        }
+        if (office.type !== "Office") {
+            res.status(422).send("Room must be an office");
+            return;
+        }
+        if (office.remainingCapacity === 0) {
+            res.status(409).send("Office has full capacity");
+            return;
+        }
+        office.remainingCapacity--;
 
-    const salt = await bcrypt.genSalt(10);
-    const newPassword = await bcrypt.hash("123456", salt);
-    
-    let newUserCount;
-    await hrMemberModel.nextCount().then(count => {
-        newUserCount = count;
+        const salt = await bcrypt.genSalt(10);
+        const newPassword = await bcrypt.hash("123456", salt);
+
+        let newUserCount;
+        await hrMemberModel.nextCount().then(count => {
+            newUserCount = count;
+        });
+
+        const newUser = new hrMemberModel({
+            id: "hr-" + newUserCount,
+            name: req.body.name,
+            email: req.body.email,
+            password: newPassword,
+            gender: req.body.gender,
+            office: office._id,
+            salary: req.body.salary
+        });
+
+        try {
+            await newUser.save();
+            await office.save();
+            res.send("User added successfully");
+        }
+        catch (error) {
+            console.log(error.message)
+            res.status(400).send(error.messages);
+        }
     });
-
-    const newUser = new hrMemberModel({
-        id: "hr-" + newUserCount,
-        name: req.body.name,
-        email: req.body.email,
-        password: newPassword,
-        gender: req.body.gender,
-        office: office._id,
-        salary: req.body.salary
-    });
-    try {
-        await newUser.save();
-        await office.save();
-        res.send({user: newUser, office: office});
-    }
-    catch (error) {
-        console.log(error.message)
-        res.send(error);
-    }
-});
 
 router.route("/add-academic-member")
-.post(async (req, res) => {
-    if (!req.body.email) {
-        res.send("Must enter an email.");
-        return;
-    }
-
-    if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-        res.send("Invalid email address.");
-        return;
-    }
-
-    let user = await hrMemberModel.findOne({email: req.body.email});
-    if (!user) {
-        user = await academicMemberModel.findOne({email: req.body.email});
-    }
-    if (user) {
-        res.send("Email already exists.");
-        return;
-    }
-
-    if (req.body.department) {
-        var department  = await departmentModel.findOne({name: req.body.department});
-        if (!department) {
-            res.send("Invalid department name.");
+    .post(async (req, res) => {
+        if (!req.body.email) {
+            res.status(400).send("Email is required");
             return;
         }
-    }
 
-    if (req.body.role === "Course Coordinator") {
-        res.status(403).send("Cannot assign an academic member to be a course coordinator.");
-        return;
-    }
-    else if (req.body.role === "Head of Department") {
-        if (!department) {
-            res.send("Cannot assign an academic member to be a head of department without specifying the department.");
-            return;
-        }
-        if (department.headOfDepartment !== "UNASSIGNED") {
-            res.send("Department already has a head.");
-            return;
-        }
-    }
-
-    const office = await roomModel.findOne({name: req.body.office});
-    if (!office) {
-        res.send("Invalid office name.");
-        return;
-    }
-    if (office.type !== "Office") {
-        res.send("Room is not an office.");
-        return;
-    }
-    if (office.remainingCapacity === 0) {
-        res.send("Office has full capacity.");
-        return;
-    }
-    office.remainingCapacity--;
-
-    const salt = await bcrypt.genSalt(10);
-    const newPassword = await bcrypt.hash("123456", salt);
-    
-    let newUserCount;
-    await academicMemberModel.nextCount().then(count => {
-        newUserCount = count;
-    });
-
-    const newUser = new academicMemberModel({
-        id: "ac-" + newUserCount,
-        name: req.body.name,
-        email: req.body.email,
-        password: newPassword,
-        gender: req.body.gender,
-        role: req.body.role,
-        department: department? department._id: "UNASSIGNED",
-        office: office._id,
-        salary: req.body.salary,
-        dayOff: req.body.dayOff
-    });
-
-    try {
-        await newUser.save();
-        await office.save();
-        if (req.body.role === "Head of Department") {
-            department.headOfDepartment = newUser.id;
-            await department.save();
-        }
-        res.send(newUser);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-})
-
-router.route("/update-hr-member")
-.put(async (req, res) => {
-    const user = await hrMemberModel.findOne({id: req.body.id});
-    if (!user) {
-        res.send("Invalid hr member id.");
-        return;
-    }
-    
-    if (req.body.name) {
-        user.name = req.body.name;
-    }
-
-    if (req.body.email) {
         if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-            res.send("Invalid email address.");
-            return;
-        }
-        
-        let otherUser = await hrMemberModel.findOne({email: req.body.email});
-        if (!otherUser) {
-            otherUser = await academicMemberModel.findOne({email: req.body.email});
-        }
-        if (otherUser) {
-            res.send("Email already exists.");
+            res.status(400).send("Invalid email address");
             return;
         }
 
-        user.email = req.body.email;
-    }
-
-    if (req.body.password) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(req.body.password, salt);
-        user.password = hashedPassword;
-    }
-
-    if (req.body.gender) {
-        user.gender = req.body.gender;
-    }
-
-    if (req.body.office) {
-        var newOffice = await roomModel.findOne({name: req.body.office});
-        if (!newOffice) {
-            res.send("Invalid office name.");
-            return;
+        let user = await hrMemberModel.findOne({ email: req.body.email });
+        if (!user) {
+            user = await academicMemberModel.findOne({ email: req.body.email });
         }
-        if (newOffice.type !== "Office") {
-            res.send("Room is not an office.");
-            return;
-        }
-        if (newOffice.remainingCapacity === 0) {
-            res.send("Office has full capacity.");
-            return;
-        }
-        var oldOffice = await roomModel.findOne({_id: user.office});
-        if (oldOffice._id.toString() !== newOffice._id.toString()) {
-            oldOffice.remainingCapacity++;
-            newOffice.remainingCapacity--;
-            user.office = newOffice._id;
-        }
-    }
-
-    if (req.body.salary) {
-        user.salary = req.body.salary;
-    }
-
-    try {
-        await user.save();
-        if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
-            await newOffice.save();
-            await oldOffice.save();
-        }
-        if (req.body.password) {
-            let blacklistEntry = await userBlacklistModel.findOne({user: user.id});
-            if (blacklistEntry) {
-                blacklistEntry.blockedAt = new Date();
-            }
-            else {
-                blacklistEntry = new userBlacklistModel({
-                    user: user.id,
-                    blockedAt: new Date()
-                });
-            }
-            await blacklistEntry.save();
-        }
-        res.send(user);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
-
-router.route("/update-academic-member")
-.put(async (req,res) => {
-    const user = await academicMemberModel.findOne({id: req.body.id});
-    if (!user) {
-        res.send("Invalid academic member id.");
-        return;
-    }
-
-    if (req.body.name) {
-        user.name = req.body.name;
-    }
-
-    if (req.body.email) {
-        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-            res.send("Invalid email address.");
+        if (user) {
+            res.status(409).send("Email already exists");
             return;
         }
 
-        let otherUser = await hrMemberModel.findOne({email: req.body.email});
-        if (!otherUser) {
-            otherUser = await academicMemberModel.findOne({email: req.body.email});
-        }
-        if (otherUser) {
-            res.send("Email already exists.");
-            return;
-        }
-        
-        user.email = req.body.email;
-    }
-
-    if (req.body.password) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(req.body.password, salt);
-        user.password = hashedPassword;
-    }
-
-    if (req.body.gender) {
-        user.gender = req.body.gender;
-    }
-
-    if (req.body.department) {
-        var department  = await departmentModel.findOne({name: req.body.department});
-        if (!department) {
-            res.send("Invalid department name.");
-            return;
-        }
-        var oldDepartment = await departmentModel.findOne({_id: user.department});
-        if (oldDepartment.name === department.name) {
-            res.send("User is already assigned to this department.");
-            return;
-        }
-        if (!req.body.role && user.role === "Head of Department") {
-            if (department.headOfDepartment !== "UNASSIGNED") {
-                res.send("Department already has a head.");
+        if (req.body.department) {
+            var department = await departmentModel.findOne({ name: req.body.department });
+            if (!department) {
+                res.status(422).send("Incorrect department name");
                 return;
             }
-            oldDepartment.headOfDepartment = "UNASSIGNED";
-            department.headOfDepartment = user.id;
         }
-        if (req.body.role === "Head of Department") {
-            if (department.headOfDepartment !== "UNASSIGNED") {
-                res.send("Department already has a head.");
-                return;
-            }
-            if (user.role === "Head of Department") {
-                oldDepartment.headOfDepartment = "UNASSIGNED";
-            }
-            department.headOfDepartment = user.id;
-        }
-        user.department = department._id;
-    }
 
-    if (req.body.role) {
         if (req.body.role === "Course Coordinator") {
-            res.status(403).send("You cannot assign an academic member to be a course coordinator");
+            res.status(403).send("Cannot assign an academic member to be a course coordinator");
             return;
         }
-        if (req.body.role === "Head of Department" && !req.body.department) {
-            department = await departmentModel.findOne({_id: user.department});
-            if (department.headOfDepartment !== "UNASSIGNED") {
-                res.send("Department already has a head.");
+        else if (req.body.role === "Head of Department") {
+            if (!department) {
+                res.status(422).send("Cannot assign an academic member to be a head of department without specifying the department");
                 return;
             }
-            department.headOfDepartment = user.id;
+            if (department.headOfDepartment !== "UNASSIGNED") {
+                res.status(409).send("Department already has a head");
+                return;
+            }
         }
-        else if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
-            if (req.body.department) {
+
+        const office = await roomModel.findOne({ name: req.body.office });
+        if (!office) {
+            res.status(422).send("Incorrect office name");
+            return;
+        }
+        if (office.type !== "Office") {
+            res.status(422).send("Room must be an office");
+            return;
+        }
+        if (office.remainingCapacity === 0) {
+            res.status(409).send("Office has full capacity");
+            return;
+        }
+        office.remainingCapacity--;
+
+        const salt = await bcrypt.genSalt(10);
+        const newPassword = await bcrypt.hash("123456", salt);
+
+        let newUserCount;
+        await academicMemberModel.nextCount().then(count => {
+            newUserCount = count;
+        });
+
+        const newUser = new academicMemberModel({
+            id: "ac-" + newUserCount,
+            name: req.body.name,
+            email: req.body.email,
+            password: newPassword,
+            gender: req.body.gender,
+            role: req.body.role,
+            department: department ? department._id : "UNASSIGNED",
+            office: office._id,
+            salary: req.body.salary,
+            dayOff: req.body.dayOff
+        });
+
+        try {
+            await newUser.save();
+            await office.save();
+            if (req.body.role === "Head of Department") {
+                department.headOfDepartment = newUser.id;
+                await department.save();
+            }
+            res.send("User added successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    })
+
+router.route("/update-hr-member/:id")
+    .put(async (req, res) => {
+        const user = await hrMemberModel.findOne({ id: req.params.id });
+        if (!user) {
+            res.status(404).send("Incorrect user id");
+            return;
+        }
+
+        if (req.body.name) {
+            user.name = req.body.name;
+        }
+
+        if (req.body.email) {
+            if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
+                res.status(400).send("Invalid email address");
+                return;
+            }
+
+            let otherUser = await hrMemberModel.findOne({ email: req.body.email });
+            if (!otherUser) {
+                otherUser = await academicMemberModel.findOne({ email: req.body.email });
+            }
+            if (otherUser) {
+                res.status(409).send("Email already exists.");
+                return;
+            }
+
+            user.email = req.body.email;
+        }
+
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(req.body.password, salt);
+            user.password = hashedPassword;
+        }
+
+        if (req.body.gender) {
+            user.gender = req.body.gender;
+        }
+
+        if (req.body.office) {
+            var newOffice = await roomModel.findOne({ name: req.body.office });
+            if (!newOffice) {
+                res.status(422).send("Incorrect office name");
+                return;
+            }
+            if (newOffice.type !== "Office") {
+                res.status(422).send("Room must be an office");
+                return;
+            }
+            if (newOffice.remainingCapacity === 0) {
+                res.status(409).send("Office has full capacity");
+                return;
+            }
+            var oldOffice = await roomModel.findOne({ _id: user.office });
+            if (oldOffice._id.toString() !== newOffice._id.toString()) {
+                oldOffice.remainingCapacity++;
+                newOffice.remainingCapacity--;
+                user.office = newOffice._id;
+            }
+        }
+
+        if (req.body.salary) {
+            user.salary = req.body.salary;
+        }
+
+        try {
+            await user.save();
+            if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
+                await newOffice.save();
+                await oldOffice.save();
+            }
+            if (req.body.password) {
+                let blacklistEntry = await userBlacklistModel.findOne({ user: user.id });
+                if (blacklistEntry) {
+                    blacklistEntry.blockedAt = new Date();
+                }
+                else {
+                    blacklistEntry = new userBlacklistModel({
+                        user: user.id,
+                        blockedAt: new Date()
+                    });
+                }
+                await blacklistEntry.save();
+            }
+            res.send("User updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
+
+router.route("/update-academic-member/:id")
+    .put(async (req, res) => {
+        const user = await academicMemberModel.findOne({ id: req.params.id });
+        if (!user) {
+            res.status(404).send("Incorrect user id");
+            return;
+        }
+
+        if (req.body.name) {
+            user.name = req.body.name;
+        }
+
+        if (req.body.email) {
+            if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
+                res.status(400).send("Invalid email address");
+                return;
+            }
+
+            let otherUser = await hrMemberModel.findOne({ email: req.body.email });
+            if (!otherUser) {
+                otherUser = await academicMemberModel.findOne({ email: req.body.email });
+            }
+            if (otherUser) {
+                res.status(409).send("Email already exists");
+                return;
+            }
+
+            user.email = req.body.email;
+        }
+
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(req.body.password, salt);
+            user.password = hashedPassword;
+        }
+
+        if (req.body.gender) {
+            user.gender = req.body.gender;
+        }
+
+        if (req.body.department) {
+            var department = await departmentModel.findOne({ name: req.body.department });
+            if (!department) {
+                res.status(422).send("Incorrect department name");
+                return;
+            }
+            var oldDepartment = await departmentModel.findOne({ _id: user.department });
+            if (oldDepartment.name === department.name) {
+                res.status(422).send("User is already assigned to this department");
+                return;
+            }
+            if (!req.body.role && user.role === "Head of Department") {
+                if (department.headOfDepartment !== "UNASSIGNED") {
+                    res.status(409).send("Department already has a head");
+                    return;
+                }
                 oldDepartment.headOfDepartment = "UNASSIGNED";
+                department.headOfDepartment = user.id;
             }
-            else {
-                department = await departmentModel.findOne({_id: user.department});
-                department.headOfDepartment = "UNASSIGNED";
+            if (req.body.role === "Head of Department") {
+                if (department.headOfDepartment !== "UNASSIGNED") {
+                    res.status(409).send("Department already has a head");
+                    return;
+                }
+                if (user.role === "Head of Department") {
+                    oldDepartment.headOfDepartment = "UNASSIGNED";
+                }
+                department.headOfDepartment = user.id;
+            }
+            user.department = department._id;
+        }
+
+        if (req.body.role) {
+            if (req.body.role === "Course Coordinator") {
+                res.status(403).send("You cannot assign an academic member to be a course coordinator");
+                return;
+            }
+            if (req.body.role === "Head of Department" && !req.body.department) {
+                department = await departmentModel.findOne({ _id: user.department });
+                if (department.headOfDepartment !== "UNASSIGNED") {
+                    res.status(409).send("Department already has a head");
+                    return;
+                }
+                department.headOfDepartment = user.id;
+            }
+            else if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
+                if (req.body.department) {
+                    oldDepartment.headOfDepartment = "UNASSIGNED";
+                }
+                else {
+                    department = await departmentModel.findOne({ _id: user.department });
+                    department.headOfDepartment = "UNASSIGNED";
+                }
+            }
+            user.role = req.body.role;
+        }
+
+        if (req.body.office) {
+            var newOffice = await roomModel.findOne({ name: req.body.office });
+            if (!newOffice) {
+                res.status(422).send("Incorrect office name");
+                return;
+            }
+            if (newOffice.type !== "Office") {
+                res.status(422).send("Room must be an office");
+                return;
+            }
+            if (newOffice.remainingCapacity === 0) {
+                res.status(409).send("Office has full capacity");
+                return;
+            }
+            var oldOffice = await roomModel.findOne({ _id: user.office });
+            if (oldOffice._id.toString() !== newOffice._id.toString()) {
+                oldOffice.remainingCapacity++;
+                newOffice.remainingCapacity--;
+                user.office = newOffice._id;
             }
         }
-        user.role = req.body.role;
-    }
 
-    if (req.body.office) {
-        var newOffice = await roomModel.findOne({name: req.body.office});
-        if (!newOffice) {
-            res.send("Invalid office name.");
+        if (req.body.salary) {
+            user.salary = req.body.salary;
+        }
+
+        if (req.body.dayOff) {
+            user.dayOff = req.body.dayOff;
+        }
+
+        try {
+            await user.save();
+            if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
+                await newOffice.save();
+                await oldOffice.save();
+            }
+            if (department) {
+                await department.save();
+            }
+            if (oldDepartment) {
+                await oldDepartment.save();
+            }
+            if (req.body.password) {
+                let blacklistEntry = await userBlacklistModel.findOne({ user: user.id });
+                if (blacklistEntry) {
+                    blacklistEntry.blockedAt = new Date();
+                }
+                else {
+                    blacklistEntry = new userBlacklistModel({
+                        user: user.id,
+                        blockedAt: new Date()
+                    });
+                }
+                await blacklistEntry.save();
+            }
+            res.send("User updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
+
+router.route("/delete-hr-member/:id")
+    .delete(async (req, res) => {
+        const user = await hrMemberModel.findOneAndDelete({ id: req.params.id });
+        if (!user) {
+            res.status(404).send("Incorrect user id");
             return;
         }
-        if (newOffice.type !== "Office") {
-            res.send("Room is not an office.");
+
+        const office = await roomModel.findOne({ _id: user.office });
+        office.remainingCapacity++;
+        await office.save();
+
+        await attendanceRecordModel.deleteMany({ user: user.id });
+
+        res.send("User deleted successfully");
+    });
+
+router.route("/delete-academic-member/:id")
+    .delete(async (req, res) => {
+        const user = await academicMemberModel.findOne({ id: req.params.id });
+        if (!user) {
+            res.status(404).send("Incorrect user id");
             return;
         }
-        if (newOffice.remainingCapacity === 0) {
-            res.send("Office has full capacity.");
+
+        const slots = await slotModel.find({ staffMember: user.id });
+        if (slots.length !== 0) {
+            res.status(409).send("Cannot delete user. Reassign his slots first");
             return;
         }
-        var oldOffice = await roomModel.findOne({_id: user.office});
-        if (oldOffice._id.toString() !== newOffice._id.toString()) {
-            oldOffice.remainingCapacity++;
-            newOffice.remainingCapacity--;
-            user.office = newOffice._id;
-        }
-    }
 
-    if (req.body.salary) {
-        user.salary = req.body.salary;
-    }
+        await academicMemberModel.findOneAndDelete({ id: user.id });
 
-    if (req.body.dayOff) {
-        user.dayOff = req.body.dayOff;
-    }
-    
-    try {
-        await user.save();
-        if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
-            await newOffice.save();
-            await oldOffice.save();
+        const office = await roomModel.findOne({ _id: user.office });
+        office.remainingCapacity++;
+        await office.save();
+
+        if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
+            let courses = await courseModel.find({ teachingAssistants: user.id });
+            for (let i = 0; i < courses.length; i++) {
+                let course = courses[i];
+                let userIndex = course.teachingAssistants.indexOf(user.id);
+                course.teachingAssistants.splice(userIndex, 1);
+                await course.save();
+            }
         }
-        if (department) {
+        else {
+            let courses = await courseModel.find({ courseInstructors: user.id });
+            for (let i = 0; i < courses.length; i++) {
+                let course = courses[i];
+                let userIndex = course.courseInstructors.indexOf(user.id);
+                course.courseInstructors.splice(userIndex, 1);
+                await course.save();
+            }
+        }
+
+        if (user.role === "Course Coordinator") {
+            let courses = await courseModel.find({ courseCoordinator: user.id });
+            for (let i = 0; i < courses.length; i++) {
+                let course = courses[i];
+                course.courseCoordinator = "UNASSIGNED";
+                await course.save();
+            }
+        }
+        else if (user.role === "Head of Department") {
+            let department = await departmentModel.findOne({ headOfDepartment: user.id });
+            department.headOfDepartment = "UNASSIGNED";
             await department.save();
         }
-        if (oldDepartment) {
-            await oldDepartment.save();
-        }
-        if (req.body.password) {
-            let blacklistEntry = await userBlacklistModel.findOne({user: user.id});
-            if (blacklistEntry) {
-                blacklistEntry.blockedAt = new Date();
-            }
-            else {
-                blacklistEntry = new userBlacklistModel({
-                    user: user.id,
-                    blockedAt: new Date()
-                });
-            }
-            await blacklistEntry.save();
-        }
-        res.send(user);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
 
-router.route("/delete-hr-member")
-.delete(async (req, res) => {
-    const user = await hrMemberModel.findOneAndDelete({id: req.body.id});
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
-    }
-    
-    const office = await roomModel.findOne({_id: user.office});
-    office.remainingCapacity++;
-    await office.save();
+        await attendanceRecordModel.deleteMany({ user: user.id });
+        await notificationModel.deleteMany({ user: user.id });
+        await requestModel.deleteMany({ requestedBy: user.id });
 
-    await attendanceRecordModel.deleteMany({user: user.id});
-
-    res.send(user);
-});
-
-router.route("/delete-academic-member")
-.delete(async (req,res) => {
-    const user = await academicMemberModel.findOne({id: req.body.id});
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
-    }
-    
-    const slots = await slotModel.find({staffMember: user.id});
-    if (slots.length !== 0) {
-        res.send("Cannot delete academic member. Must reassign his slots first.");
-        return;
-    }
-
-    await academicMemberModel.findOneAndDelete({id: user.id});
-
-    const office = await roomModel.findOne({_id: user.office});
-    office.remainingCapacity++;
-    await office.save();
-
-    if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
-        let courses = await courseModel.find({teachingAssistants: user.id});
-        for (let i = 0; i < courses.length; i++) {
-            let course = courses[i];
-            let userIndex = course.teachingAssistants.indexOf(user.id);
-            course.teachingAssistants.splice(userIndex, 1);
-            await course.save();
-        }
-    }
-    else {
-        let courses = await courseModel.find({courseInstructors: user.id});
-        for (let i = 0; i < courses.length; i++) {
-            let course = courses[i];
-            let userIndex = course.courseInstructors.indexOf(user.id);
-            course.courseInstructors.splice(userIndex, 1);
-            await course.save();
-        }
-    }
-
-    if (user.role === "Course Coordinator") {
-        let courses = await courseModel.find({courseCoordinator: user.id});
-        for (let i = 0; i < courses.length; i++) {
-            let course = courses[i];
-            course.courseCoordinator = "UNASSIGNED";
-            await course.save();
-        }
-    }
-    else if (user.role === "Head of Department") {
-        let department = await departmentModel.findOne({headOfDepartment: user.id});
-        department.headOfDepartment = "UNASSIGNED";
-        await department.save();
-    }
-    
-    await attendanceRecordModel.deleteMany({user: user.id});
-    await notificationModel.deleteMany({user: user.id});
-    await requestModel.deleteMany({requestedBy: user.id});
-
-    res.send(user);
-});
+        res.send("User deleted successfully");
+    });
 
 router.route("/add-room")
-.post(async (req,res) => {
-    const newRoom = new roomModel({
-        name: req.body.name,
-        capacity: req.body.capacity,
-        remainingCapacity: req.body.capacity,
-        type: req.body.type
+    .post(async (req, res) => {
+        const newRoom = new roomModel({
+            name: req.body.name,
+            capacity: req.body.capacity,
+            remainingCapacity: req.body.capacity,
+            type: req.body.type
+        });
+
+        try {
+            await newRoom.save();
+            res.send("Room added successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
     });
 
-    try {
-       await newRoom.save();
-       res.send(newRoom);   
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
-
-router.route("/update-room")
-.put(async (req,res) => {
-    let room = await roomModel.findOne({name: req.body.oldName});
-    if (!room) {
-        res.send("No room with such name.");
-        return;
-    }
-
-    if (req.body.name) {
-        room.name = req.body.name;
-    }
-
-    let personsAssigned = room.capacity - room.remainingCapacity;
-    if (req.body.capacity) {
-        if (personsAssigned > req.body.capacity) {
-            res.send("Cannot update capacity. Reassign people in office first.");
-            return;
-        }
-        room.capacity = req.body.capacity;
-        room.remainingCapacity = req.body.capacity - personsAssigned;
-    }
-
-    if (req.body.type) {
-        if (room.type === "Office" && req.body.type !== "Office" && personsAssigned > 0) {
-            res.send("Cannot update type. Reassign people in office first.");
-            return;
-        }
-        
-        const slot = await slotModel.findOne({room: room._id});
-        if (slot && room.type !== req.body.type) {
-            res.send("Cannot update type. Reassign slots first.");
+router.route("/update-room/:room")
+    .put(async (req, res) => {
+        let room = await roomModel.findOne({ name: req.params.room });
+        if (!room) {
+            res.status(404).send("Incorrect room name");
             return;
         }
 
-        room.type = req.body.type;
-    }
-    
-    try {
-        await room.save();
-        res.send(room);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
+        if (req.body.name) {
+            room.name = req.body.name;
+        }
 
-router.route("/delete-room")
-.delete(async(req,res) => {
-    let room = await roomModel.findOne({name: req.body.name});
-    if (!room) {
-        res.send("No room to delete.");
-        return;
-    }
+        let personsAssigned = room.capacity - room.remainingCapacity;
+        if (req.body.capacity) {
+            if (personsAssigned > req.body.capacity) {
+                res.status(409).send("Cannot update capacity, Reassign people in office first");
+                return;
+            }
+            room.capacity = req.body.capacity;
+            room.remainingCapacity = req.body.capacity - personsAssigned;
+        }
 
-    const slot = await slotModel.findOne({room: room._id});
-    if (slot) {
-        res.send("Cannot delete room. Reassign slots first.");
-        return;
-    }
+        if (req.body.type) {
+            if (room.type === "Office" && req.body.type !== "Office" && personsAssigned > 0) {
+                res.status(409).send("Cannot update type. Reassign people in office first");
+                return;
+            }
 
-    if (room.type === "Office" && room.capacity !== room.remainingCapacity) {
-        res.send("Cannot delete room. Reassign people in it first.");
-        return;
-    }
-    
-    await roomModel.findOneAndDelete({name: req.body.name});
+            const slot = await slotModel.findOne({ room: room._id });
+            if (slot && room.type !== req.body.type) {
+                res.status(409).send("Cannot update type. Reassign slots first");
+                return;
+            }
 
-    res.send(room);
-});
+            room.type = req.body.type;
+        }
+
+        try {
+            await room.save();
+            res.send("Room updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
+
+router.route("/delete-room/:room")
+    .delete(async (req, res) => {
+        let room = await roomModel.findOne({ name: req.params.room });
+        if (!room) {
+            res.status(404).send("Incorrect room name");
+            return;
+        }
+
+        const slot = await slotModel.findOne({ room: room._id });
+        if (slot) {
+            res.status(409).send("Cannot delete room. Reassign slots first");
+            return;
+        }
+
+        if (room.type === "Office" && room.capacity !== room.remainingCapacity) {
+            res.status(409).send("Cannot delete room. Reassign people in it first");
+            return;
+        }
+
+        await roomModel.findOneAndDelete({ name: req.params.room });
+
+        res.send("Room deleted successfully");
+    });
 
 router.route("/add-course")
-.post(async (req,res) => {
-    if (req.body.department) {
-        var department = await departmentModel.findOne({name: req.body.department});
-        if (!department) {
-            res.send("Invalid department name.");
-            return;
+    .post(async (req, res) => {
+        if (req.body.department) {
+            var department = await departmentModel.findOne({ name: req.body.department });
+            if (!department) {
+                res.status(422).send("Incorrect department name");
+                return;
+            }
         }
-    }
-    
-    const newCourse = new courseModel({
-        id: req.body.id,
-        name: req.body.name,
-        department: department? department._id: "UNASSIGNED",
-        totalSlotsNumber: req.body.totalSlotsNumber
+
+        const newCourse = new courseModel({
+            id: req.body.id,
+            name: req.body.name,
+            department: department ? department._id : "UNASSIGNED",
+        });
+
+        try {
+            await newCourse.save();
+            res.send("Course added successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
     });
 
-    try {
-       await newCourse.save();
-       res.send(newCourse);   
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
-
-router.route("/update-course")
-.put(async (req,res) => {
-    let course = await courseModel.findOne({id: req.body.id});
-    if (!course) {
-        res.send("No course with such ID.");
-        return;
-    }
-
-    if (req.body.newId) {
-        course.id = req.body.newId;
-    }
-    if (req.body.name) {
-        course.name = req.body.name;
-    }
-    if (req.body.totalSlotsNumber) {
-        course.totalSlotsNumber = req.body.totalSlotsNumber;
-    }
-    if (req.body.department) {
-        const department = await departmentModel.findOne({name: req.body.department});
-        if (!department) {
-            res.send("Invalid department name.");
+router.route("/update-course/:id")
+    .put(async (req, res) => {
+        let course = await courseModel.findOne({ id: req.params.id });
+        if (!course) {
+            res.status(404).send("Incorrect course id");
             return;
         }
-        course.department = department._id;
-    }
 
-    try {
-        await course.save();
-        res.send(course);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
+        if (req.body.id) {
+            course.id = req.body.id;
+        }
+        if (req.body.name) {
+            course.name = req.body.name;
+        }
+        if (req.body.department) {
+            const department = await departmentModel.findOne({ name: req.body.department });
+            if (!department) {
+                res.status(422).send("Incorrect department name");
+                return;
+            }
+            course.department = department._id;
+        }
 
-router.route("/delete-course")
-.delete(async(req,res) => {
-    let course = await courseModel.findOneAndDelete({id: req.body.id});
-    if (!course) {
-        res.send("No course to delete.");
-        return;
-    }
-    
-    let otherCourse = await courseModel.findOne({courseCoordinator: course.courseCoordinator});
-    if (!otherCourse) {
-        let courseCoordinator = await academicMemberModel.findOne({id: course.courseCoordinator});
-        courseCoordinator.role = "Teaching Assistant";
-        await courseCoordinator.save();
-    }
+        try {
+            await course.save();
+            res.send("Course updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
 
-    await slotModel.deleteMany({course: course._id});
-    // TODO: delete requests
+router.route("/delete-course/:id")
+    .delete(async (req, res) => {
+        let course = await courseModel.findOneAndDelete({ id: req.params.id });
+        if (!course) {
+            res.status(404).send("Incorrect course id");
+            return;
+        }
 
-    res.send(course);
-});
+        let otherCourse = await courseModel.findOne({ courseCoordinator: course.courseCoordinator });
+        if (!otherCourse) {
+            let courseCoordinator = await academicMemberModel.findOne({ id: course.courseCoordinator });
+            courseCoordinator.role = "Teaching Assistant";
+            await courseCoordinator.save();
+        }
+
+        await slotModel.deleteMany({ course: course._id });
+        // TODO: delete requests
+
+        res.send("Course deleted successfully");
+    });
 
 router.route("/add-department")
-.post(async (req,res) => {
-    if (req.body.faculty) {
-        var faculty = await facultyModel.findOne({name: req.body.faculty});
-        if (!faculty) {
-            res.send("Cannot add department. No faculty with such name.");
-            return;
+    .post(async (req, res) => {
+        if (req.body.faculty) {
+            var faculty = await facultyModel.findOne({ name: req.body.faculty });
+            if (!faculty) {
+                res.status(422).send("Incorrect faculty name");
+                return;
+            }
         }
-    }
 
-    if (req.body.headOfDepartment) {
-        var headOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
-        if (!headOfDepartment) {
-            res.send("No academic member with such id to be head of this department.");
-            return;
+        if (req.body.headOfDepartment) {
+            var headOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
+            if (!headOfDepartment) {
+                res.status(422).send("Incorrect academic member id");
+                return;
+            }
+            if (headOfDepartment.role === "Head of Department") {
+                res.status(409).send("Academic member is already the head of another department");
+                return;
+            }
+            if (headOfDepartment.role !== "Course Instructor") {
+                res.status(409).send("Academic member is not an instructor");
+                return;
+            }
+            if (headOfDepartment.department !== "UNASSIGNED") {
+                res.status(409).send("Academic member is in another department");
+                return;
+            }
         }
-        if (headOfDepartment.role === "Head of Department") {
-            res.send("Cannot add this instructor as a head of department as he/she is already a head of another department.");
-            return;
-        }
-        if (headOfDepartment.role !== "Course Instructor") {
-            res.send("Cannot assign this member to be head department as he/she is not a course instructor.");
-            return;
-        }
-        if (headOfDepartment.department !== "UNASSIGNED") {
-            res.send("Cannot assign this member to be head department as he/she is in another department.");
-            return;
-        }
-    }
 
-    let newDepartment = new departmentModel({
-        name: req.body.name,
-        faculty: faculty? faculty._id: "UNASSIGNED",
-        headOfDepartment: headOfDepartment? headOfDepartment.id: "UNASSIGNED"
+        let newDepartment = new departmentModel({
+            name: req.body.name,
+            faculty: faculty ? faculty._id : "UNASSIGNED",
+            headOfDepartment: headOfDepartment ? headOfDepartment.id : "UNASSIGNED"
+        });
+
+        try {
+            await newDepartment.save();
+            if (headOfDepartment) {
+                newDepartment = await departmentModel.findOne({ name: req.body.name });
+                headOfDepartment.role = "Head of Department";
+                headOfDepartment.department = newDepartment._id;
+                await headOfDepartment.save();
+            }
+            res.send("Department added successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
     });
-    
-    try {
-        await newDepartment.save();
-        if (headOfDepartment) {
-            newDepartment = await departmentModel.findOne({name: req.body.name});
-            headOfDepartment.role = "Head of Department";
-            headOfDepartment.department = newDepartment._id;
+
+router.route("/update-department/:department")
+    .put(async (req, res) => {
+        let department = await departmentModel.findOne({ name: req.params.department });
+        if (!department) {
+            res.status(404).send("Incorrect department name");
+            return;
+        }
+
+        if (req.body.name) {
+            department.name = req.body.name;
+        }
+        if (req.body.faculty) {
+            const faculty = await facultyModel.findOne({ name: req.body.faculty });
+            if (!faculty) {
+                res.status(422).send("Incorrect faculty name");
+                return;
+            }
+            department.faculty = faculty._id;
+        }
+        if (req.body.headOfDepartment) {
+            var newHeadOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
+            if (!newHeadOfDepartment) {
+                res.status(422).send("Incorrect academic member id");
+                return;
+            }
+            if (newHeadOfDepartment.role === "Head of Department") {
+                res.status(409).send("Academic member is already the head of another department");
+                return;
+            }
+            if (newHeadOfDepartment.role !== "Course Instructor") {
+                res.status(409).send("Academic member is not an instructor");
+                return;
+            }
+            if (newHeadOfDepartment.department !== department._id.toString() && newHeadOfDepartment.department !== "UNASSIGNED") {
+                res.status(409).send("Academic member is in another department");
+                return;
+            }
+            var oldHeadOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
+            if (oldHeadOfDepartment) {
+                oldHeadOfDepartment.role = "Course Instructor";
+            }
+            newHeadOfDepartment.role = "Head of Department";
+            newHeadOfDepartment.department = department._id;
+            department.headOfDepartment = newHeadOfDepartment.id;
+        }
+
+        try {
+            await department.save();
+            if (newHeadOfDepartment) {
+                await newHeadOfDepartment.save();
+
+            }
+            if (oldHeadOfDepartment) {
+                await oldHeadOfDepartment.save();
+            }
+            res.send("Department updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+
+    });
+
+router.route("/delete-department/:department")
+    .delete(async (req, res) => {
+        let department = await departmentModel.findOneAndDelete({ name: req.params.department });
+        if (!department) {
+            res.status(404).send("Incorrect department name");
+            return;
+        }
+
+        let courses = await courseModel.find({ department: department._id });
+        for (i = 0; i < courses.length; i++) {
+            let course = courses[i];
+            course.department = "UNASSIGNED";
+            await course.save();
+        }
+
+        let academicMembers = await academicMemberModel.find({ department: department._id });
+        for (i = 0; i < academicMembers.length; i++) {
+            let academicMember = academicMembers[i];
+            academicMember.department = "UNASSIGNED";
+            await academicMember.save();
+        }
+
+        if (department.headOfDepartment !== "UNASSIGNED") {
+            let headOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
+            headOfDepartment.role = "Course Instructor";
             await headOfDepartment.save();
         }
-        res.send(newDepartment);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
 
-router.route("/update-department")
-.put(async (req,res) => {
-    let department = await departmentModel.findOne({name: req.body.name});
-    if (!department) {
-        res.send("No department with such name.");
-        return;
-    }
-
-    if (req.body.newName) {
-        department.name = req.body.newName;
-    }
-    if (req.body.faculty) {
-        const faculty = await facultyModel.findOne({name: req.body.faculty});
-        if (!faculty) {
-            res.send("Invalid faculty name.");
-            return;
-        }
-        department.faculty = faculty._id;
-    }
-    if (req.body.headOfDepartment) {
-        var newHeadOfDepartment = await academicMemberModel.findOne({id: req.body.headOfDepartment});
-        if (!newHeadOfDepartment) {
-            res.send("No academic member with such id to be head of this department.");
-            return;
-        }
-        if (newHeadOfDepartment.role === "Head of Department") {
-            res.send("Cannot add this instructor as a head of department as he/she is already a head of another department.");
-            return;
-        }
-        if (newHeadOfDepartment.role !== "Course Instructor") {
-            res.send("Cannot assign this member to be head department as he/she is not a course instructor.");
-            return;
-        }
-        if (newHeadOfDepartment.department !== department._id.toString() && newHeadOfDepartment.department !== "UNASSIGNED") {
-            res.send("Cannot assign this member to be head department as he/she is in another department.");
-            return;
-        }
-        var oldHeadOfDepartment = await academicMemberModel.findOne({id: department.headOfDepartment});
-        if (oldHeadOfDepartment) {
-            oldHeadOfDepartment.role = "Course Instructor";
-        }
-        newHeadOfDepartment.role = "Head of Department";
-        newHeadOfDepartment.department = department._id;
-        department.headOfDepartment = newHeadOfDepartment.id;
-    }
-    
-    try {
-        await department.save();
-        if (newHeadOfDepartment) {
-            await newHeadOfDepartment.save();
-            
-        }
-        if (oldHeadOfDepartment) {
-            await oldHeadOfDepartment.save();
-        }
-        res.send(department);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-
-});
-
-router.route("/delete-department")
-.delete(async(req,res) => {
-    let department = await departmentModel.findOneAndDelete({name: req.body.name});
-    if (!department) {
-        res.send("No department to delete.");
-        return;
-    }
-
-    let courses = await courseModel.find({department: department._id});
-    for (i = 0; i < courses.length; i++) {
-        let course =  courses[i];
-        course.department = "UNASSIGNED";
-        await course.save();
-    }
-
-    let academicMembers = await academicMemberModel.find({department: department._id});
-    for (i = 0; i < academicMembers.length; i++) {
-        let academicMember =  academicMembers[i];
-        academicMember.department = "UNASSIGNED";
-        await academicMember.save();
-    }
-
-    if (department.headOfDepartment !== "UNASSIGNED") {
-        let headOfDepartment = await academicMemberModel.findOne({id: department.headOfDepartment});
-        headOfDepartment.role = "Course Instructor";
-        await headOfDepartment.save();
-    }
-
-    res.send(department);
-});
-
-router.route("/add-faculty")
-.post(async (req,res) => {
-    const newFaculty = new facultyModel({
-        name: req.body.name,
+        res.send("Department deleted successfully");
     });
 
-    try {
-       await newFaculty.save();
-       res.send(newFaculty);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
+router.route("/add-faculty")
+    .post(async (req, res) => {
+        const newFaculty = new facultyModel({
+            name: req.body.name,
+        });
 
-router.route("/update-faculty")
-.put(async (req,res) => {
-    let faculty = await facultyModel.findOne({name: req.body.name});
-    if (!faculty) {
-        res.send("No faculty with such name.");
-        return;
-    }
+        try {
+            await newFaculty.save();
+            res.send("Faculty added successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
 
-    if (!req.body.newName) {
-        res.send("Must enter faculty name.");
-        return;
-    }
-    faculty.name = req.body.newName;
+router.route("/update-faculty/:faculty")
+    .put(async (req, res) => {
+        let faculty = await facultyModel.findOne({ name: req.params.faculty });
+        if (!faculty) {
+            res.status(404).send("Incorrect faculty name");
+            return;
+        }
 
-    try {
-        await faculty.save();
-        res.send(faculty);
-    }
-    catch (error) {
-        console.log(error.message);
-        res.send(error);
-    }
-});
+        faculty.name = req.body.name;
+        try {
+            await faculty.save();
+            res.send("Faculty updated successfully");
+        }
+        catch (error) {
+            console.log(error.message);
+            res.status(400).send(error.message);
+        }
+    });
 
-router.route("/delete-faculty")
-.delete(async(req,res) => {
-    let faculty = await facultyModel.findOneAndDelete({name: req.body.name});
-    if (!faculty) {
-        res.send("No faculty to delete");
-        return;
-    }
+router.route("/delete-faculty/:faculty")
+    .delete(async (req, res) => {
+        let faculty = await facultyModel.findOneAndDelete({ name: req.params.faculty });
+        if (!faculty) {
+            res.status(404).send("Incorrect faculty name");
+            return;
+        }
 
-    let departments = await departmentModel.find({faculty: faculty._id});
-    for (i = 0; i < departments.length; i++) {
-        let department =  departments[i];
-        department.faculty = "UNASSIGNED";
-        department.save();
-    }
+        let departments = await departmentModel.find({ faculty: faculty._id });
+        for (i = 0; i < departments.length; i++) {
+            let department = departments[i];
+            department.faculty = "UNASSIGNED";
+            department.save();
+        }
 
-    res.send(faculty);
-});
+        res.send("Faculty deleted successfully");
+    });
 
 router.route("/view-staff-attendance-records")
-.get(async (req,res) => {
-    
-    if (!req.body.month && req.body.year) {
-        res.send("No month specified");
-        return;
-    }
-    if (req.body.month && !req.body.year) {
-        res.send("No year specified");
-        return;
-    }
+    .get(async (req, res) => {
 
-    let user = await hrMemberModel.findOne({id: req.body.id});
-    if (!user) {
-        user = await academicMemberModel.findOne({id: req.body.id});
-    }
-    if (!user) {
-        res.send("Invalid user id.")
-        return;
-    }
-    
-    if (!req.body.month) {
-        var userAttendanceRecords = await attendanceRecordModel.find({user: req.body.id});
-    }
-    else {
-        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
-            res.send("Wrong data types entered.");
+        if (!req.body.month && req.body.year) {
+            res.send("No month specified");
             return;
         }
-        const month = req.body.month - 1;
-        const year = req.body.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
+        if (req.body.month && !req.body.year) {
+            res.send("No year specified");
             return;
         }
-        if (year < 2000) {
-            res.send("Not a valid year");
+
+        let user = await hrMemberModel.findOne({ id: req.body.id });
+        if (!user) {
+            user = await academicMemberModel.findOne({ id: req.body.id });
+        }
+        if (!user) {
+            res.send("Invalid user id.")
             return;
         }
-        userAttendanceRecords = await attendanceRecordModel.find({ $or: [
-            { user: req.body.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
-            { user: req.body.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
-        ] });
-    }
-    
-    res.send(userAttendanceRecords);
-})
+
+        if (!req.body.month) {
+            var userAttendanceRecords = await attendanceRecordModel.find({ user: req.body.id });
+        }
+        else {
+            if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+                res.send("Wrong data types entered.");
+                return;
+            }
+            const month = req.body.month - 1;
+            const year = req.body.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
+            }
+            userAttendanceRecords = await attendanceRecordModel.find({
+                $or: [
+                    { user: req.body.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
+                    { user: req.body.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
+                ]
+            });
+        }
+
+        res.send(userAttendanceRecords);
+    })
 
 router.route("/view-staff-missing-days")
-.get(async (req, res) => {
-    if (!req.body.month && req.body.year) {
-        res.send("No month specified");
-        return;
-    }
-    if (req.body.month && !req.body.year) {
-        res.send("No year specified");
-        return;
-    }
-    
-    if (!req.body.month) {
-        const currentDate = new Date();
-        if (currentDate.getDate() >= 11) {
-            var month = currentDate.getMonth();
-            var year = currentDate.getFullYear();
+    .get(async (req, res) => {
+        if (!req.body.month && req.body.year) {
+            res.send("No month specified");
+            return;
+        }
+        if (req.body.month && !req.body.year) {
+            res.send("No year specified");
+            return;
+        }
+
+        if (!req.body.month) {
+            const currentDate = new Date();
+            if (currentDate.getDate() >= 11) {
+                var month = currentDate.getMonth();
+                var year = currentDate.getFullYear();
+            }
+            else {
+                if (currentDate.getMonth() === 0) {
+                    month = 11;
+                    year = currentDate.getFullYear() - 1;
+                }
+                else {
+                    month = currentDate.getMonth() - 1;
+                    year = currentDate.getFullYear();
+                }
+            }
         }
         else {
-            if (currentDate.getMonth() === 0){
-                month = 11;
-                year = currentDate.getFullYear() - 1;
+            if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+                res.send("Wrong data types entered.");
+                return;
             }
-            else {
-                month = currentDate.getMonth() - 1;
-                year = currentDate.getFullYear();
+            month = req.body.month - 1;
+            year = req.body.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
             }
         }
-    }
-    else {
-        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
-            res.send("Wrong data types entered.");
-            return;
-        }
-        month = req.body.month - 1;
-        year = req.body.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
-            return;
-        }
-        if (year < 2000) {
-            res.send("Not a valid year");
-            return;
-        }
-    }
 
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingDays = [];
+        let hrMembers = await hrMemberModel.find({});
+        let academicMembers = await academicMemberModel.find({});
+        let membersWithMissingDays = [];
 
-    for (let i = 0; i < hrMembers.length ; i++) {
-        let user = hrMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
-        let normalDaysAttended = [];
-        let daysOffAttended = [];
-    
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let date = userAttendanceRecords[i].signInTime;
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                normalDaysAttended.push(date.getDate());
-            }
-            else if (!daysOffAttended.includes(date.getDate())) {
-                daysOffAttended.push(date.getDate());
-            }
-        }
-    
-        let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-        if (expectedDaysToAttend === normalDaysAttended.length) {
-            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
-            return;
-        }
-    
-        let missingDays = [];
-        for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 +i);
-            date.setTime(date.getTime()+(1000*60*60*2));
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                missingDays.push(date);
-            }
-        }
-        let finalMissingDays=[];
-        let numberOfDaysWithExcuse = 0;
-        for (let i = 0; i < missingDays.length; i++) {
-            let date = missingDays[i];
-            let request = await requestModel.findOne({ 
-                requestedBy: user.id,
-                day: date, 
-                type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
-                status:"Accepted" 
-            });
-    
-            if (request) {
-                if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    numberOfDaysWithExcuse++;
+        for (let i = 0; i < hrMembers.length; i++) {
+            let user = hrMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+            let normalDaysAttended = [];
+            let daysOffAttended = [];
+
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let date = userAttendanceRecords[i].signInTime;
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    normalDaysAttended.push(date.getDate());
                 }
-               
+                else if (!daysOffAttended.includes(date.getDate())) {
+                    daysOffAttended.push(date.getDate());
+                }
             }
-            else {
-                request = await maternityLeaveModel.find({
-                    requestedBy: user.id, 
-                    type: "maternityLeave", 
-                    status: "Accepted",
-                    day: {$lte: missingDays[i]}
-                }).sort({day:1});
-                
-                if (request.length!==0){        
-                        request=request[request.length-1]
-                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+
+            let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+            if (expectedDaysToAttend === normalDaysAttended.length) {
+                res.send({ missingDays: [], numberOfDaysWithExcuse: 0 });
+                return;
+            }
+
+            let missingDays = [];
+            for (let i = 0; i < numberOfDaysInMonth; i++) {
+                let date = new Date(year, month, 11 + i);
+                date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    missingDays.push(date);
+                }
+            }
+            let finalMissingDays = [];
+            let numberOfDaysWithExcuse = 0;
+            for (let i = 0; i < missingDays.length; i++) {
+                let date = missingDays[i];
+                let request = await requestModel.findOne({
+                    requestedBy: user.id,
+                    day: date,
+                    type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
+                    status: "Accepted"
+                });
+
+                if (request) {
+                    if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
                         numberOfDaysWithExcuse++;
-                    } 
-                    
+                    }
+
                 }
-                
-                else{
-                    finalMissingDays.push(missingDays[i]);
+                else {
+                    request = await maternityLeaveModel.find({
+                        requestedBy: user.id,
+                        type: "maternityLeave",
+                        status: "Accepted",
+                        day: { $lte: missingDays[i] }
+                    }).sort({ day: 1 });
+
+                    if (request.length !== 0) {
+                        request = request[request.length - 1]
+                        if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
+                            numberOfDaysWithExcuse++;
+                        }
+
+                    }
+
+                    else {
+                        finalMissingDays.push(missingDays[i]);
+                    }
                 }
             }
-        }
-        var x={missingDays:finalMissingDays,numberOfDaysWithExcuse,numberOfDaysWithExcuse}
-        if (x.missingDays.length > 0) {
-            membersWithMissingDays.push({id: user.id, missingDays: x.missingDays});
-        }
-    }
-    
-    for (let i = 0; i < academicMembers.length ; i++) {
-        let user = academicMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
-        let normalDaysAttended = [];
-        let daysOffAttended = [];
-    
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let date = userAttendanceRecords[i].signInTime;
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                normalDaysAttended.push(date.getDate());
-            }
-            else if (!daysOffAttended.includes(date.getDate())) {
-                daysOffAttended.push(date.getDate());
+            var x = { missingDays: finalMissingDays, numberOfDaysWithExcuse, numberOfDaysWithExcuse }
+            if (x.missingDays.length > 0) {
+                membersWithMissingDays.push({ id: user.id, missingDays: x.missingDays });
             }
         }
-    
-        let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-        if (expectedDaysToAttend === normalDaysAttended.length) {
-            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
-            return;
-        }
-    
-        let missingDays = [];
-        for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 + i);
-            date.setTime(date.getTime()+(1000*60*60*2));
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                missingDays.push(date);
-            }
-        }
-        let finalMissingDays=[];
-        let numberOfDaysWithExcuse = 0;
-        for (let i = 0; i < missingDays.length; i++) {
-            let date = missingDays[i];
-            let request = await requestModel.findOne({ 
-                requestedBy: user.id,
-                day: date, 
-                type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
-                status:"Accepted" 
-            });
-    
-            if (request) {
-                if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    numberOfDaysWithExcuse++;
+
+        for (let i = 0; i < academicMembers.length; i++) {
+            let user = academicMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+            let normalDaysAttended = [];
+            let daysOffAttended = [];
+
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let date = userAttendanceRecords[i].signInTime;
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    normalDaysAttended.push(date.getDate());
                 }
-               
+                else if (!daysOffAttended.includes(date.getDate())) {
+                    daysOffAttended.push(date.getDate());
+                }
             }
-            else {
-                request = await maternityLeaveModel.find({
-                    requestedBy: user.id, 
-                    type: "maternityLeave", 
-                    status: "Accepted",
-                    day: {$lte: missingDays[i]}
-                }).sort({day:1});
-                
-                if (request.length!==0){        
-                        request=request[request.length-1]
-                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
+
+            let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+            if (expectedDaysToAttend === normalDaysAttended.length) {
+                res.send({ missingDays: [], numberOfDaysWithExcuse: 0 });
+                return;
+            }
+
+            let missingDays = [];
+            for (let i = 0; i < numberOfDaysInMonth; i++) {
+                let date = new Date(year, month, 11 + i);
+                date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    missingDays.push(date);
+                }
+            }
+            let finalMissingDays = [];
+            let numberOfDaysWithExcuse = 0;
+            for (let i = 0; i < missingDays.length; i++) {
+                let date = missingDays[i];
+                let request = await requestModel.findOne({
+                    requestedBy: user.id,
+                    day: date,
+                    type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
+                    status: "Accepted"
+                });
+
+                if (request) {
+                    if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
                         numberOfDaysWithExcuse++;
-                    } 
-                    
+                    }
+
                 }
-                else{
-                    finalMissingDays.push(missingDays[i]);
+                else {
+                    request = await maternityLeaveModel.find({
+                        requestedBy: user.id,
+                        type: "maternityLeave",
+                        status: "Accepted",
+                        day: { $lte: missingDays[i] }
+                    }).sort({ day: 1 });
+
+                    if (request.length !== 0) {
+                        request = request[request.length - 1]
+                        if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
+                            numberOfDaysWithExcuse++;
+                        }
+
+                    }
+                    else {
+                        finalMissingDays.push(missingDays[i]);
+                    }
                 }
             }
+            var x = { missingDays: finalMissingDays, numberOfDaysWithExcuse, numberOfDaysWithExcuse }
+            if (x.missingDays.length > 0) {
+                membersWithMissingDays.push({ id: user.id, missingDays: x.missingDays });
+            }
         }
-        var x={missingDays:finalMissingDays,numberOfDaysWithExcuse,numberOfDaysWithExcuse}
-        if (x.missingDays.length > 0) {
-            membersWithMissingDays.push({id: user.id, missingDays: x.missingDays});
-        }
-    }
-    res.send(membersWithMissingDays);
-});
+        res.send(membersWithMissingDays);
+    });
 
 router.route("/view-staff-missing-hours")
-.get(async(req, res) => {
-    if (!req.body.month && req.body.year) {
-        res.send("No month specified");
-        return;
-    }
-    if (req.body.month && !req.body.year) {
-        res.send("No year specified");
-        return;
-    }
-    
-    if (!req.body.month) {
-        const currentDate = new Date();
-        if (currentDate.getDate() >= 11) {
-            var month = currentDate.getMonth();
-            var year = currentDate.getFullYear();
+    .get(async (req, res) => {
+        if (!req.body.month && req.body.year) {
+            res.send("No month specified");
+            return;
         }
-        else {
-            if (currentDate.getMonth() === 0){
-                month = 11;
-                year = currentDate.getFullYear() - 1;
+        if (req.body.month && !req.body.year) {
+            res.send("No year specified");
+            return;
+        }
+
+        if (!req.body.month) {
+            const currentDate = new Date();
+            if (currentDate.getDate() >= 11) {
+                var month = currentDate.getMonth();
+                var year = currentDate.getFullYear();
             }
             else {
-                month = currentDate.getMonth() - 1;
-                year = currentDate.getFullYear();
+                if (currentDate.getMonth() === 0) {
+                    month = 11;
+                    year = currentDate.getFullYear() - 1;
+                }
+                else {
+                    month = currentDate.getMonth() - 1;
+                    year = currentDate.getFullYear();
+                }
             }
         }
-    }
-    else {
-        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+        else {
+            if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+                res.send("Wrong data types entered.");
+                return;
+            }
+            month = req.body.month - 1;
+            year = req.body.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
+            }
+        }
+
+        let hrMembers = await hrMemberModel.find({});
+        let academicMembers = await academicMemberModel.find({});
+        let membersWithMissingHours = [];
+
+        for (let i = 0; i < hrMembers.length; i++) {
+            let user = hrMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+            let normalDaysAttended = [];
+            let daysOffAttended = [];
+
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let date = userAttendanceRecords[i].signInTime;
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    normalDaysAttended.push(date.getDate());
+                }
+                else if (!daysOffAttended.includes(date.getDate())) {
+                    daysOffAttended.push(date.getDate());
+                }
+            }
+
+            let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+            if (expectedDaysToAttend === normalDaysAttended.length) {
+                res.send({ missingDays: [], numberOfDaysWithExcuse: 0 });
+                return;
+            }
+
+            let missingDays = [];
+            for (let i = 0; i < numberOfDaysInMonth; i++) {
+                let date = new Date(year, month, 11 + i);
+                date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    missingDays.push(date);
+                }
+            }
+            let finalMissingDays = [];
+            let numberOfDaysWithExcuse = 0;
+            for (let i = 0; i < missingDays.length; i++) {
+                let date = missingDays[i];
+                let request = await requestModel.findOne({
+                    requestedBy: user.id,
+                    day: date,
+                    type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
+                    status: "Accepted"
+                });
+
+                if (request) {
+                    if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
+                        numberOfDaysWithExcuse++;
+                    }
+                }
+                else {
+                    request = await maternityLeaveModel.find({
+                        requestedBy: user.id,
+                        type: "maternityLeave",
+                        status: "Accepted",
+                        day: { $lte: missingDays[i] },
+                    }).sort({ day: 1 });
+
+                    if (request.length !== 0) {
+                        request = request[request.length - 1]
+                        if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
+                            numberOfDaysWithExcuse++;
+                        }
+
+                    }
+                    else {
+                        finalMissingDays.push(missingDays[i]);
+                    }
+                }
+            }
+
+            var y = { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+            const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
+
+            let timeDiffInSeconds = 0;
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let signInTime = userAttendanceRecords[i].signInTime;
+                let signOutTime = userAttendanceRecords[i].signOutTime;
+
+                if (signInTime.getHours() < 7) {
+                    signInTime.setHours(7);
+                    signInTime.setMinutes(0);
+                    signInTime.setSeconds(0);
+                    signInTime.setMilliseconds(0);
+                }
+                else if (signInTime.getHours() > 18) {
+                    signInTime.setHours(19);
+                    signInTime.setMinutes(0);
+                    signInTime.setSeconds(0);
+                    signInTime.setMilliseconds(0);
+                }
+                else {
+                    signInTime.setMilliseconds(0);
+                }
+
+                if (signOutTime.getHours() < 7) {
+                    signOutTime.setHours(7);
+                    signOutTime.setMinutes(0);
+                    signOutTime.setSeconds(0);
+                    signOutTime.setMilliseconds(0);
+                }
+                else if (signOutTime.getHours() > 18) {
+                    signOutTime.setHours(19);
+                    signOutTime.setMinutes(0);
+                    signOutTime.setSeconds(0);
+                    signOutTime.setMilliseconds(0);
+                }
+                else {
+                    signOutTime.setMilliseconds(0);
+                }
+
+                timeDiffInSeconds += (signOutTime - signInTime) / 1000;
+            }
+
+            const spentHours = timeDiffInSeconds / 3600;
+            if (spentHours > requiredHours) {
+                var x = { missingHours: 0, extraHours: spentHours - requiredHours };
+            }
+            else {
+                var x = { missingHours: requiredHours - spentHours, extraHours: 0 };
+            }
+            if (x.missingHours > 0) {
+                membersWithMissingHours.push({ id: user.id, missingHours: x.missingHours });
+            }
+        }
+
+        for (let i = 0; i < academicMembers.length; i++) {
+            let user = academicMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
+            let normalDaysAttended = [];
+            let daysOffAttended = [];
+
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let date = userAttendanceRecords[i].signInTime;
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    normalDaysAttended.push(date.getDate());
+                }
+                else if (!daysOffAttended.includes(date.getDate())) {
+                    daysOffAttended.push(date.getDate());
+                }
+            }
+
+            let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
+            if (expectedDaysToAttend === normalDaysAttended.length) {
+                res.send({ missingDays: [], numberOfDaysWithExcuse: 0 });
+            }
+
+            let missingDays = [];
+            for (let i = 0; i < numberOfDaysInMonth; i++) {
+                let date = new Date(year, month, 11 + i);
+                date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
+                if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
+                    missingDays.push(date);
+                }
+            }
+            let finalMissingDays = [];
+            let numberOfDaysWithExcuse = 0;
+            for (let i = 0; i < missingDays.length; i++) {
+                let date = missingDays[i];
+                let request = await requestModel.findOne({
+                    requestedBy: user.id,
+                    day: date,
+                    type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
+                    status: "Accepted"
+                });
+
+                if (request) {
+                    if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
+                        numberOfDaysWithExcuse++;
+                    }
+                }
+                else {
+                    request = await maternityLeaveModel.find({
+                        requestedBy: user.id,
+                        type: "maternityLeave",
+                        status: "Accepted",
+                        day: { $lte: missingDays[i] },
+                    }).sort({ day: 1 });
+
+                    if (request.length !== 0) {
+                        request = request[request.length - 1]
+                        if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
+                            numberOfDaysWithExcuse++;
+                        }
+
+                    }
+                    else {
+                        finalMissingDays.push(missingDays[i]);
+                    }
+                }
+            }
+            var y = { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
+            const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
+
+            let timeDiffInSeconds = 0;
+            for (let i = 0; i < userAttendanceRecords.length; i++) {
+                let signInTime = userAttendanceRecords[i].signInTime;
+                let signOutTime = userAttendanceRecords[i].signOutTime;
+
+                if (signInTime.getHours() < 7) {
+                    signInTime.setHours(7);
+                    signInTime.setMinutes(0);
+                    signInTime.setSeconds(0);
+                    signInTime.setMilliseconds(0);
+                }
+                else if (signInTime.getHours() > 18) {
+                    signInTime.setHours(19);
+                    signInTime.setMinutes(0);
+                    signInTime.setSeconds(0);
+                    signInTime.setMilliseconds(0);
+                }
+                else {
+                    signInTime.setMilliseconds(0);
+                }
+
+                if (signOutTime.getHours() < 7) {
+                    signOutTime.setHours(7);
+                    signOutTime.setMinutes(0);
+                    signOutTime.setSeconds(0);
+                    signOutTime.setMilliseconds(0);
+                }
+                else if (signOutTime.getHours() > 18) {
+                    signOutTime.setHours(19);
+                    signOutTime.setMinutes(0);
+                    signOutTime.setSeconds(0);
+                    signOutTime.setMilliseconds(0);
+                }
+                else {
+                    signOutTime.setMilliseconds(0);
+                }
+
+                timeDiffInSeconds += (signOutTime - signInTime) / 1000;
+            }
+
+            const spentHours = timeDiffInSeconds / 3600;
+            if (spentHours > requiredHours) {
+                var x = { missingHours: 0, extraHours: spentHours - requiredHours };
+            }
+            else {
+                var x = { missingHours: requiredHours - spentHours, extraHours: 0 };
+            }
+            if (x.missingHours > 0) {
+                membersWithMissingHours.push({ id: user.id, missingHours: x.missingHours });
+            }
+        }
+
+        res.send(membersWithMissingHours);
+    });
+
+router.route("/add-missing-record")
+    .post(async (req, res) => {
+        const token = jwt.decode(req.headers.token);
+        if (req.body.id === token.id) {
+            res.send("Cannot add missing record for yourself");
+            return;
+        }
+
+        let user = await hrMemberModel.findOne({ id: req.body.id });
+        if (!user) {
+            user = await academicMemberModel.findOne({ id: req.body.id });
+        }
+        if (!user) {
+            res.send("Invalid user id.");
+            return;
+        }
+
+        let missingRecordType = req.body.missingRecordType;
+        let signInYear = req.body.signInYear;
+        let signInMonth = req.body.signInMonth;
+        let signInDay = req.body.signInDay;
+        let signInHour = req.body.signInHour;
+        let signInMinute = req.body.signInMinute;
+        let signOutYear = req.body.signOutYear;
+        let signOutMonth = req.body.signOutMonth;
+        let signOutDay = req.body.signOutDay;
+        let signOutHour = req.body.signOutHour;
+        let signOutMinute = req.body.signOutMinute;
+        let signInDate;
+        let signOutDate;
+        let userRecord;
+
+        if (typeof signInYear !== "number" || typeof signOutYear !== "number" || typeof signInMonth !== "number" || typeof signOutMonth !== "number"
+            || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
+            || typeof signInMinute !== "number" || typeof signOutMinute !== "number" || typeof missingRecordType !== "string") {
             res.send("Wrong data types entered.");
             return;
         }
-        month = req.body.month - 1;
-        year = req.body.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
+
+        if (missingRecordType !== "signOut" && missingRecordType !== "SignIn") {
+            res.send("Inavalid missing record type.");
             return;
         }
-        if (year < 2000) {
-            res.send("Not a valid year");
+        if (signInYear === null || signOutYear === null || signInMonth === null || signOutMonth === null || signInDay === null || signOutDay === null
+            || signInHour === null || signOutHour === null || signInMinute === null || signOutMinute === null) {
+            res.send("Not all fields are entered.");
             return;
         }
-    }
-
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingHours = [];
-
-    for (let i = 0; i < hrMembers.length ; i++) {
-        let user = hrMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
-        let normalDaysAttended = [];
-        let daysOffAttended = [];
-    
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let date = userAttendanceRecords[i].signInTime;
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                normalDaysAttended.push(date.getDate());
-            }
-            else if (!daysOffAttended.includes(date.getDate())) {
-                daysOffAttended.push(date.getDate());
-            }
-        }
-    
-        let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-        if (expectedDaysToAttend === normalDaysAttended.length) {
-            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
+        if (signInYear < 2000 || signOutYear < 2000) {
+            res.send("Invalid year.");
             return;
         }
-    
-        let missingDays = [];
-        for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11 + i);
-            date.setTime(date.getTime()+(1000*60*60*2));
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                missingDays.push(date);
-            }
+        if (signInMonth <= 0 || signInMonth > 12 || signOutMonth <= 0 || signOutMonth > 12) {
+            res.send("Invalid month.");
+            return;
         }
-        let finalMissingDays=[];
-        let numberOfDaysWithExcuse = 0;
-        for (let i = 0; i < missingDays.length; i++) {
-            let date = missingDays[i];
-            let request = await requestModel.findOne({ 
-                requestedBy: user.id, 
-                day: date, 
-                type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
-                status:"Accepted" 
-            });
-    
-            if (request) {
-                if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    numberOfDaysWithExcuse++;
-                }
-            }
-            else {
-                request = await maternityLeaveModel.find({
-                    requestedBy: user.id, 
-                    type: "maternityLeave", 
-                    status: "Accepted",
-                    day: {$lte: missingDays[i]},
-                }).sort({day:1});
-                
-                if (request.length!==0){        
-                        request=request[request.length-1]
-                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
-                        numberOfDaysWithExcuse++;
-                    } 
-                    
-                }
-                else{
-                    finalMissingDays.push(missingDays[i]);
-                }
-            }
+        if (signInHour < 0 || signInHour > 23 || signOutHour < 0 || signOutHour > 23) {
+            res.send("Invalid hour.");
+            return;
         }
-    
-        var y= { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
-        const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
-    
-        let timeDiffInSeconds = 0;
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let signInTime = userAttendanceRecords[i].signInTime;
-            let signOutTime = userAttendanceRecords[i].signOutTime;
-    
-            if (signInTime.getHours() < 7) {
-                signInTime.setHours(7);
-                signInTime.setMinutes(0);
-                signInTime.setSeconds(0);
-                signInTime.setMilliseconds(0);
-            }
-            else if (signInTime.getHours() > 18) {
-                signInTime.setHours(19);
-                signInTime.setMinutes(0);
-                signInTime.setSeconds(0);
-                signInTime.setMilliseconds(0);
-            }
-            else {
-                signInTime.setMilliseconds(0);
-            }
-    
-            if (signOutTime.getHours() < 7) {
-                signOutTime.setHours(7);
-                signOutTime.setMinutes(0);
-                signOutTime.setSeconds(0);
-                signOutTime.setMilliseconds(0);
-            }
-            else if (signOutTime.getHours() > 18) {
-                signOutTime.setHours(19);
-                signOutTime.setMinutes(0);
-                signOutTime.setSeconds(0);
-                signOutTime.setMilliseconds(0);
-            }
-            else {
-                signOutTime.setMilliseconds(0);
-            }
-            
-            timeDiffInSeconds += (signOutTime - signInTime) / 1000;
+        if (signInMinute < 0 || signInMinute > 59 || signOutMinute < 0 || signOutMinute > 59) {
+            res.send("Invalid hour.");
+            return;
         }
-    
-        const spentHours = timeDiffInSeconds / 3600;
-        if (spentHours > requiredHours) {
-            var x= {missingHours: 0, extraHours: spentHours - requiredHours};
-        }
-        else {
-            var x= {missingHours: requiredHours - spentHours, extraHours: 0};
-        }
-        if (x.missingHours > 0) {
-            membersWithMissingHours.push({id: user.id, missingHours: x.missingHours});
-        }
-    }
-    
-    for (let i = 0; i < academicMembers.length ; i++) {
-        let user = academicMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
-        let normalDaysAttended = [];
-        let daysOffAttended = [];
-    
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let date = userAttendanceRecords[i].signInTime;
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                normalDaysAttended.push(date.getDate());
-            }
-            else if (!daysOffAttended.includes(date.getDate())) {
-                daysOffAttended.push(date.getDate());
-            }
-        }
-    
-        let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-        if (expectedDaysToAttend === normalDaysAttended.length) {
-            res.send( {missingDays: [], numberOfDaysWithExcuse: 0});
-        }
-    
-        let missingDays = [];
-        for (let i = 0; i < numberOfDaysInMonth; i++) {
-            let date = new Date(year, month, 11+i);
-            date.setTime(date.getTime()+(1000*60*60*2));
-            if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-                missingDays.push(date);
-            }
-        }
-        let finalMissingDays=[];
-        let numberOfDaysWithExcuse = 0;
-        for (let i = 0; i < missingDays.length; i++) {
-            let date = missingDays[i];
-            let request = await requestModel.findOne({ 
-                requestedBy: user.id, 
-                day: date, 
-                type: {$ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne:"replacementRequest", $ne: "maternityLeave"}, 
-                status:"Accepted" 
-            });
-    
-            if (request) {
-                if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-                    numberOfDaysWithExcuse++;
-                }
-            }
-            else {
-                request = await maternityLeaveModel.find({
-                    requestedBy: user.id, 
-                    type: "maternityLeave", 
-                    status: "Accepted",
-                    day: {$lte: missingDays[i]},
-                }).sort({day:1});
-                
-                if (request.length!==0){        
-                        request=request[request.length-1]
-                    if(missingDays[i]< request.day.setTime(request.day.getTime()+(request.duration*24*60*60*1000))) {
-                        numberOfDaysWithExcuse++;
-                    } 
-                    
-                }
-                else{
-                    finalMissingDays.push(missingDays[i]);
-                }
-            }
-        }
-        var y= { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
-        const requiredHours = (expectedDaysToAttend - y.numberOfDaysWithExcuse) * 8.4;
-    
-        let timeDiffInSeconds = 0;
-        for (let i = 0; i < userAttendanceRecords.length; i++) {
-            let signInTime = userAttendanceRecords[i].signInTime;
-            let signOutTime = userAttendanceRecords[i].signOutTime;
-    
-            if (signInTime.getHours() < 7) {
-                signInTime.setHours(7);
-                signInTime.setMinutes(0);
-                signInTime.setSeconds(0);
-                signInTime.setMilliseconds(0);
-            }
-            else if (signInTime.getHours() > 18) {
-                signInTime.setHours(19);
-                signInTime.setMinutes(0);
-                signInTime.setSeconds(0);
-                signInTime.setMilliseconds(0);
-            }
-            else {
-                signInTime.setMilliseconds(0);
-            }
-    
-            if (signOutTime.getHours() < 7) {
-                signOutTime.setHours(7);
-                signOutTime.setMinutes(0);
-                signOutTime.setSeconds(0);
-                signOutTime.setMilliseconds(0);
-            }
-            else if (signOutTime.getHours() > 18) {
-                signOutTime.setHours(19);
-                signOutTime.setMinutes(0);
-                signOutTime.setSeconds(0);
-                signOutTime.setMilliseconds(0);
-            }
-            else {
-                signOutTime.setMilliseconds(0);
-            }
-            
-            timeDiffInSeconds += (signOutTime - signInTime) / 1000;
-        }
-        
-        const spentHours = timeDiffInSeconds / 3600;
-        if (spentHours > requiredHours) {
-            var x= {missingHours: 0, extraHours: spentHours - requiredHours};
-        }
-        else {
-            var x= {missingHours: requiredHours - spentHours, extraHours: 0};
-        }
-        if (x.missingHours > 0) {
-            membersWithMissingHours.push({id: user.id, missingHours: x.missingHours});
-        }
-    }
-    
-    res.send(membersWithMissingHours);
-});
-
-router.route("/add-missing-record")
-.post(async (req,res) =>{
-    const token = jwt.decode(req.headers.token);
-    if (req.body.id === token.id) {
-        res.send("Cannot add missing record for yourself");
-        return;
-    }
-
-    let user = await hrMemberModel.findOne({id: req.body.id});
-    if (!user) {
-        user = await academicMemberModel.findOne({id: req.body.id});
-    }
-    if (!user) {
-        res.send("Invalid user id.");
-        return;
-    }
-
-    let missingRecordType = req.body.missingRecordType;
-    let signInYear = req.body.signInYear;
-    let signInMonth = req.body.signInMonth;
-    let signInDay = req.body.signInDay;
-    let signInHour = req.body.signInHour;
-    let signInMinute = req.body.signInMinute;
-    let signOutYear = req.body.signOutYear;
-    let signOutMonth = req.body.signOutMonth;
-    let signOutDay = req.body.signOutDay;
-    let signOutHour = req.body.signOutHour;
-    let signOutMinute = req.body.signOutMinute;
-    let signInDate;
-    let signOutDate;
-    let userRecord;
-
-    if (typeof signInYear !== "number" || typeof signOutYear !== "number"||typeof signInMonth !== "number" || typeof signOutMonth !== "number"
-    || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
-    || typeof signInMinute !== "number" || typeof signOutMinute !== "number"|| typeof missingRecordType !== "string") {
-        res.send("Wrong data types entered.");
-        return;
-    }
-
-    if (missingRecordType!=="signOut"&& missingRecordType!=="SignIn") {
-        res.send("Inavalid missing record type.");
-        return;
-    }
-    if(signInYear===null || signOutYear===null || signInMonth===null || signOutMonth===null || signInDay===null || signOutDay===null
-    || signInHour===null|| signOutHour===null || signInMinute===null || signOutMinute===null ){
-        res.send("Not all fields are entered.");
-        return;
-    }
-    if(signInYear<2000 || signOutYear<2000){
-        res.send("Invalid year.");
-        return;
-    }
-    if(signInMonth<=0 || signInMonth>12 || signOutMonth<=0 || signOutMonth>12){
-        res.send("Invalid month.");
-        return;
-    }
-    if(signInHour<0 || signInHour>23 || signOutHour<0 || signOutHour>23 ){
-        res.send("Invalid hour.");
-        return;
-    }
-    if(signInMinute<0 || signInMinute>59 || signOutMinute<0 || signOutMinute>59 ){
-        res.send("Invalid hour.");
-        return;
-    }
-    if(signInDay!==signOutDay ||signInMonth!==signOutMonth || signInYear!==signOutYear){
+        if (signInDay !== signOutDay || signInMonth !== signOutMonth || signInYear !== signOutYear) {
             res.send("Cannot match these records together ");
             return;
-    }
-    if(signInHour>signOutHour){
-        res.send("Cannot have the sign in hour that is greater than the sign out hour.");
-        return;
-    }   
-    if(signInHour===signOutHour && signInMinute>signOutMinute){
-        res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
-        return;
-    }  
-    if(missingRecordType==="signIn"){
-        signInDate=new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,0,0);
-        signOutDate=new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,0,0);
-
-        userRecord=await attendance_record_model.findOne({user:user.id,signOutTime:{$gte:signOutDate,
-        $lte:new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,59,0)},signInTime:null})
-
-        if(!userRecord){
-            res.send("Could not find specified sign out time.");
+        }
+        if (signInHour > signOutHour) {
+            res.send("Cannot have the sign in hour that is greater than the sign out hour.");
             return;
         }
-        else{
-            userRecord.signInTime=signInDate;
-            try {
-                await userRecord.save();
-                res.send(userRecord);
-            }
-            catch (error) {
-                console.log(error.message)
-                res.send(error);
-            }
-        }
-    }
-    else if(missingRecordType==="signOut"){
-        signInDate=new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,0,0);
-        signOutDate=new Date(signOutYear,signOutMonth-1,signOutDay,signOutHour,signOutMinute,0,0);
-
-        userRecord=await attendanceRecordModel.findOne({user:user.id,signInTime:{$gte:signInDate,
-        $lte:new Date(signInYear,signInMonth-1,signInDay,signInHour,signInMinute,59,0)},signOutTime:null})
-
-        if(!userRecord){
-            res.send("Could not find specified sign in time.");
+        if (signInHour === signOutHour && signInMinute > signOutMinute) {
+            res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
             return;
         }
-        else{
-            userRecord.signOutTime=signOutDate;
-            try {
-                await userRecord.save();
-                res.send(userRecord);
+        if (missingRecordType === "signIn") {
+            signInDate = new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 0, 0);
+            signOutDate = new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 0, 0);
+
+            userRecord = await attendance_record_model.findOne({
+                user: user.id, signOutTime: {
+                    $gte: signOutDate,
+                    $lte: new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 59, 0)
+                }, signInTime: null
+            })
+
+            if (!userRecord) {
+                res.send("Could not find specified sign out time.");
+                return;
             }
-            catch (error) {
-                console.log(error.message)
-                res.send(error);
+            else {
+                userRecord.signInTime = signInDate;
+                try {
+                    await userRecord.save();
+                    res.send(userRecord);
+                }
+                catch (error) {
+                    console.log(error.message)
+                    res.send(error);
+                }
             }
         }
-    }
-});
+        else if (missingRecordType === "signOut") {
+            signInDate = new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 0, 0);
+            signOutDate = new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 0, 0);
+
+            userRecord = await attendanceRecordModel.findOne({
+                user: user.id, signInTime: {
+                    $gte: signInDate,
+                    $lte: new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 59, 0)
+                }, signOutTime: null
+            })
+
+            if (!userRecord) {
+                res.send("Could not find specified sign in time.");
+                return;
+            }
+            else {
+                userRecord.signOutTime = signOutDate;
+                try {
+                    await userRecord.save();
+                    res.send(userRecord);
+                }
+                catch (error) {
+                    console.log(error.message)
+                    res.send(error);
+                }
+            }
+        }
+    });
 
 module.exports = router;

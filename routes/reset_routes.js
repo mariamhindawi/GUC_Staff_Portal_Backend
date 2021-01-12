@@ -66,7 +66,7 @@ router.route("")
 
     resetConfig();
     
-    res.send("Reset done successfully.");
+    res.status(418).send("Reset done successfully.");
 });
 
 const resetConfig = async() => {  
