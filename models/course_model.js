@@ -29,8 +29,7 @@ const courseSchema = new mongoose.Schema({
         default: "UNASSIGNED"
     },
     totalSlotsNumber: {
-        type: Number,
-        required: true
+        type: Number
     }
 });
 

@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model");
 const academicMemberModel = require("../models/academic_member_model");
+const hrMemberModel = require("../models/hr_member_model");
 const roomModel = require('../models/room_model');
 const facultyModel = require('../models/faculty_model');
 
@@ -55,6 +56,17 @@ router.route("/get-academics")
     }
 
     res.send({academics: academics, departments: departments, rooms: rooms});
+})
+
+router.route("/get-hr-members")
+.get(async(req,res)=>{
+    const hrmembers = await hrMemberModel.find();
+    let rooms = [];
+    for (let i = 0; i<hrmembers.length; i++) {
+        const room = await roomModel.findOne({_id: hrmembers[i].office});
+        rooms.push(room.name);
+    }
+    res.send({hrmembers: hrmembers, rooms: rooms});
 })
 
 router.route("/get-faculties")

@@ -396,6 +396,7 @@ router.route("/add-academic-member")
 
 router.route("/update-hr-member/:id")
     .put(async (req, res) => {
+        console.log("Here");
         const user = await hrMemberModel.findOne({ id: req.params.id });
         if (!user) {
             res.status(404).send("Incorrect user id");
@@ -417,8 +418,10 @@ router.route("/update-hr-member/:id")
                 otherUser = await academicMemberModel.findOne({ email: req.body.email });
             }
             if (otherUser) {
-                res.status(409).send("Email already exists.");
-                return;
+                if(otherUser.id!==user.id) {
+                    res.status(409).send("Email already exists.");
+                    return;
+                }
             }
 
             user.email = req.body.email;
@@ -510,8 +513,10 @@ router.route("/update-academic-member/:id")
                 otherUser = await academicMemberModel.findOne({ email: req.body.email });
             }
             if (otherUser) {
-                res.status(409).send("Email already exists");
-                return;
+                if (otherUser.id!==user.id) {
+                    res.status(409).send("Email already exists");
+                    return;
+                }
             }
 
             user.email = req.body.email;
@@ -533,11 +538,7 @@ router.route("/update-academic-member/:id")
                 res.status(422).send("Incorrect department name");
                 return;
             }
-            var oldDepartment = await departmentModel.findOne({ _id: user.department });
-            if (oldDepartment.name === department.name) {
-                res.status(422).send("User is already assigned to this department");
-                return;
-            }
+            var oldDepartment  = await departmentModel.findOne({ name: req.body.department });
             if (!req.body.role && user.role === "Head of Department") {
                 if (department.headOfDepartment !== "UNASSIGNED") {
                     res.status(409).send("Department already has a head");
@@ -862,6 +863,7 @@ router.route("/update-course/:id")
             }
             course.department = department._id;
         }
+        
 
         try {
             await course.save();
