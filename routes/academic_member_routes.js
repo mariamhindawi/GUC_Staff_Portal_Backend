@@ -521,53 +521,6 @@ router.get("/schedule", async (req, res) => {
     res.send(schedule)
 });
 
-router.route("/view-salary")
-.get(async (req,res) =>{
-    //Get last month's salary
-    const token = jwt.decode(req.headers.token);
-    const user = await academicMemberModel.find({id:token.id});
-    const salary = user.salary;
-    const currentDate = new Date();
-    const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-
-    
-
-    if (currentDate.getDate() >= 11 && currentDate.getMonth() >= 1) {
-        var month = currentDate.getMonth() - 1;
-        var year = currentDate.getFullYear();
-    }
-    else if (currentDate.getDate() < 11 && currentDate.getMonth() >= 2) {
-        month = currentDate.getMonth() - 2;
-        year = currentDate.getFullYear();
-    }
-    else if(currentDate.getDate() >= 11 && currentDate.getMonth() === 0) {
-        month=11;
-        year=currentDate.getFullYear()-1;
-    }
-    else if (currentDate.getDate() < 11 && currentDate.getMonth() < 2) {
-        month = 12 - currentDate.getMonth();
-        year = currentDate.getFullYear()-1;
-    }
-    await getMissingDays(month,year,dayOff,userAttendanceRecords,user).then(result => {
-        var missingDays=result.missingDays.length;
-    }).catch(err => {
-        console.log(err);
-        res.status(500).send("Error");
-    }); 
-    await getMissingAndExtraHours(month,year,dayOff,userAttendanceRecords,user).then(result => {
-        var missingHours= result.missingHours;
-    }).catch(err => {
-        console.log(err);
-        res.status(500).send("Error");
-    }) 
-    if (missingHours < 3.0){
-        missingHours=0;
-    }
-    var deductedSalary=salary-(missingDays*(salary/60)) -(missingHours*(salary/180));
-    res.send(deductedSalary); 
-});
-
 Date.prototype.addDays = function (days) {
     var date = new Date(this.valueOf());
     date.setDate(date.getDate() + days);
