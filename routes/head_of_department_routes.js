@@ -25,27 +25,31 @@ router.route("/view-all-staff")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
-        let output = await academicMemberModel.find({ department: user.department }, { name: 1, _id: 0, email: 1, role: 1, faculty: 1, department: 1, office: 1, salary: 1 })
-        try {
-            res.send(output)
-        }
-        catch (error) {
-            res.send("error")
-        }
+        let output = await academicMemberModel.find({ department: user.department })
+        res.send(output);
     });
 
 router.route("/view-all-staff-per-course")
-    .post(async (req, res) => {
+    .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
-        if (typeof req.body.course !== 'string') {
-            res.send('Please enter a valid course id')
-            return
+        if(!req.body.course){
+            res.send('Not all fields are entered.');
+            return;
         }
-        let course = await courseModel.findOne({ department: user.department, name: req.body.course })
-        let output = []
+        if (typeof req.body.course !== 'string') {
+            res.send('Wrong data types entered.');
+            return;
+        }
+        let course = await courseModel.findOne({ department: user.department, name: req.body.course });
+        if(!course){
+            res.send('No suuch course in your department.');
+            return;
+        }
+        let output = [];
         let instructors = await course.courseInstructors;
         let tas = await course.teachingAssistants;
+
         for (let i = 0; i < instructors.length; i++) {
             let user = await academicMemberModel.findOne({ id: instructors[i] });
             output.push(user)
@@ -54,100 +58,88 @@ router.route("/view-all-staff-per-course")
             let user = await academicMemberModel.findOne({ id: tas[i] });
             output.push(user)
         }
-        try {
-            res.send(output)
-        }
-        catch (error) {
-            res.send("error")
-        }
+        res.send(output);
     });
 
 router.route("/view-all-staff-dayoff")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
-        let output = await academicMemberModel.find({ department: user.department }, { dayoff: 1, _id: 0 })
-        res.send(output)
+        let output = await academicMemberModel.find({ department: user.department }, {id: 1,  dayoff: 1 });
+        res.send(output);
     });
 
 router.route("/view-one-staff-dayoff")
-    .post(async (req, res) => {
+    .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
+        if(!req.body.id){
+            res.send("Not all fields are entered.");
+            return;
+        }
         if (typeof req.body.id !== 'string') {
-            res.send('Please enter a valid id')
-            return
+            res.send('Wrong data types entered.')
+            return;
         }
         let user = await academicMemberModel.findOne({ id: token.id });
-        let output = await academicMemberModel.findOne({ department: user.department, id: req.body.id }, { dayoff: 1, _id: 0 })
-        try {
-            res.send(output)
-        }
-        catch (error) {
-            res.send("error")
-        }
+        let output = await academicMemberModel.findOne({ department: user.department, id: req.body.id }, { id: 1,  dayoff: 1 });
+        res.send(output);
     });
 
 router.route("/assign-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if (typeof req.body.id !== 'string') {
-            res.send('Please enter a valid id')
-            return
+        if(!req.body.course || !req.body.id){
+            res.send("Not all fields are entered.");
+            return;
         }
-        if (typeof req.body.course !== 'string') {
-            res.send('Please enter a valid course id')
-            return
+        if (typeof req.body.id !== 'string'|| typeof req.body.course !== 'string' ) {
+            res.send('Wrong data types entered.');
+            return;
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course })
-        if (instructor.role === "Course Instructor" || instructor.role === "Head of Department") {
-            if (instructor) {
-                if (course) {
-                    if (user.department === course.department) {
-                        if (user.department === instructor.department) {
-                            try {
-                                let inst = req.body.id
-                                let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: inst } })
-                                res.send("Instructor assigned to course")
-                            }
-                            catch (error) {
-                                res.send("Cannot assign instructor")
-                            }
-                        }
-                        else {
-                            res.send("Cannot assign instructor that is not in your department")
-                        }
-
+        let course = await courseModel.findOne({ name: req.body.course });
+        if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
+            res.send('No such instructor exists.');
+            return;
+        }
+        if (course) {
+            if (user.department === course.department) {
+                if (user.department === instructor.department) {
+                    try {
+                        await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instructor } })
+                        res.send("Instructor assigned to course");
                     }
-                    else {
-                        res.send("Cannot assign instructor to a course not in your department")
+                    catch (error) {
+                        res.send("Cannot assign instructor");
                     }
                 }
                 else {
-                    res.send("Course does not exist")
+                    res.send("Cannot assign instructor that is not in your department");
                 }
             }
             else {
-                res.send("Instructor does not exist")
+                res.send("Cannot assign instructor to a course not in your department");
             }
-
         }
         else {
-            res.send("Cannot assign TA to be a course instructor")
+            res.send("Course does not exist");
         }
+    
+        
+           
     });
 
 router.route("/delete-course-instructor")
-    .post(async (req, res) => {
+    .delete(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if (typeof req.body.id !== 'string') {
-            res.send('Please enter a valid id')
-            return
+        if(!req.body.id || !req.body.course){
+            res.send("Not all fields are entered.");
+            return;
         }
-        if (typeof req.body.course !== 'string') {
-            res.send('Please enter a valid course id')
-            return
+        if (typeof req.body.id !== 'string' || typeof req.body.course !== 'string') {
+            res.send('Wrong data types entered.');
+            return;
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
@@ -157,48 +149,42 @@ router.route("/delete-course-instructor")
                 if (user.department === course.department) {
                     if (user.department === instructor.department) {
                         try {
-                            let inst = req.body.id
-                            let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
-                            res.send("Instructor deleted from course")
+                            await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: instructor } })
+                            res.send("Instructor deleted from course");
                         }
                         catch (error) {
-                            res.send("Cannot delete instructor")
+                            res.send("Cannot delete instructor");
                         }
                     }
                     else {
-                        res.send("Cannot delete instructor that is not in your department")
+                        res.send("Cannot delete instructor that is not in your department");
                     }
-
                 }
                 else {
-                    res.send("Cannot delete instructor from a course not in your department")
+                    res.send("Cannot delete instructor from a course not in your department");
                 }
             }
             else {
-                res.send("Course does not exist")
+                res.send("Course does not exist");
             }
         }
         else {
-            res.send("Instructor does not exist")
+            res.send("Instructor does not exist");
         }
-
     });
 
 router.route("/update-course-instructor")
-    .post(async (req, res) => {
+    .put(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if (typeof req.body.idUpdate !== 'string') {
-            res.send('Please enter a valid id')
-            return
+        if(!req.body.idUpdate || !req.body.idDelete || !req.body.course){
+            res.send("Not all fields are entered");
+            return;
         }
-        if (typeof req.body.idDelete !== 'string') {
-            res.send('Please enter a valid course id')
-            return
+        if (typeof req.body.idUpdate !== 'string' || typeof req.body.idDelete !== 'string'||typeof req.body.course !== 'string') {
+            res.send('Wrong data types entered.');
+            return;
         }
-        if (typeof req.body.course !== 'string') {
-            res.send('Please enter a valid course id')
-            return
-        }
+        
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
         let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
@@ -206,42 +192,36 @@ router.route("/update-course-instructor")
         if (instructorupdate.role === "Course Instructor" || instructor.role === "Head of Department") {
             if (instructorupdate && instructordelete) {
                 if (course) {
-                    let departmentCourse = await departmentModel.findOne({ _id: course.department })
-                    let departmentUser = await departmentModel.findOne({ _id: user.department })
-                    let departmentInstructorup = await departmentModel.findOne({ _id: instructorupdate.department })
-                    let departmentInstructordelete = await departmentModel.findOne({ _id: instructordelete.department })
                     if (user.department === course.department) {
                         if (user.department === instructorupdate.department && user.department === instructordelete.department) {
-                            try {
-                                let inst = req.body.idDelete
-                                let instupdate = req.body.idUpdate
-                                let course = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: inst } })
-                                let courseupdated = await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instupdate } })
-                                res.send("Instructor updated")
+                            try {  
+                                await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: instructordelete } })
+                                await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instructorupdate } })
+                                res.send("Instructor updated");
                             }
                             catch (error) {
-                                res.send("Cannot update instructor")
+                                res.send("Cannot update instructor");
                             }
                         }
                         else {
-                            res.send("Cannot update instructor that is not in your department")
+                            res.send("Cannot update instructor that is not in your department");
                         }
 
                     }
                     else {
-                        res.send("Cannot update instructor in a course not in your department")
+                        res.send("Cannot update instructor in a course not in your department");
                     }
                 }
                 else {
-                    res.send("Course does not exist")
+                    res.send("Course does not exist");
                 }
             }
             else {
-                res.send("Instructor does not exist")
+                res.send("Instructor does not exist");
             }
         }
         else {
-            res.send("Cannot assign TA to be a course instructor")
+            res.send("Cannot assign TA to be a course instructor");
         }
 
     });
