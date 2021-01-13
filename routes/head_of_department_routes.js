@@ -355,12 +355,20 @@ router.route('/view-coverage').get(async (req, res) => {
     let hod = await academicMemberModel.findOne({ id: token.id });
     let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
     let courses = await courseModel.find({ department: dep._id });
+    let coverages = [];
     for (let i = 0; i < courses.length; i++) {
         let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
         let totalSlots = await slotModel.find({ course: courses[i]._id });
-        let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-        res.send(courses[i].name + "Course: " + "'s coverage = " + coverage + "%");
+        if (totalSlots.length==0) {
+            coverages.push("0%");
+        }
+        else {
+            let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+            coverages.push(Math.round(coverage)+"%");
+        }
+        
     }
+    res.send({courses: courses, coverages: coverages});
 
 })
 

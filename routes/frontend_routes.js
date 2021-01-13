@@ -100,6 +100,6 @@ router.route("/get-departments")
     }
     
     res.send({departments: departments, faculties: faculties, heads: heads});
-})
+});
 
 module.exports = router;

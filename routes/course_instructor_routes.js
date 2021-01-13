@@ -142,12 +142,20 @@ router.route('/view-coverage')
     const token = jwt.decode(req.headers.token);
     let courseInstructor = await academicMemberModel.findOne({id: token.id});
     let courses = await courseModel.find({courseInstructors: courseInstructor.id});
+    let coverages = [];
     for( let i = 0; i<courses.length; i++) {
         let unassignedSlots = await slotModel.find({course: courses[i]._id,staffMember: "UNASSIGNED"});
         let totalSlots = await slotModel.find({course: courses[i]._id});
-        let coverage = (totalSlots.length-unassignedSlots.length)/(totalSlots.length);
-        res.send(courses[i].name+"Course: "+"'s coverage = "+coverage+"%");
+        if (totalSlots.length==0) {
+            coverages.push("0%");
+        }
+        else {
+            let coverage = ((totalSlots.length-unassignedSlots.length)/(totalSlots.length))*100;
+            coverages.push(Math.round(coverage)+"%");
+        }
+        
     }
+    res.send({courses: courses, coverages: coverages});
 })
 
 router.route('/view-teaching-assignments')
