@@ -106,6 +106,13 @@ router.get('/slot-linking-requests', async (req, res) => {
         myRequests[i].slot= await slotModel.findOne({_id:myRequests[i].slot})
     }
     res.send(myRequests)
+});
+
+router.route("/get-courses-of-cc")
+.get(async(req,res)=>{
+    const token = jwt.decode(req.headers.token);
+    let courses = await courseModel.find({courseCoordinator: token.id});
+    res.send(courses);
 })
 
 router.route('/add-course-slot')
@@ -160,27 +167,27 @@ router.route('/add-course-slot')
     })
     try {
         await newSlot.save();
-        res.send(newSlot);
+        res.send("Slot added successfully");
     }
     catch(error) {
         res.send(error);
     }
 });
 
-router.route('/update-course-slot')
+router.route('/update-course-slot/:day/:slotNumber/:room/:course')
 .put( async(req, res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});
-    if (typeof req.body.course !== 'string') {
+    if (typeof req.params.course !== 'string') {
         res.send('Please enter a valid course id')
         return
     }
-    let course = await courseModel.findOne({id: req.body.course});
+    let course = await courseModel.findOne({id: req.params.course});
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");
         return;
     }
-    let room = await roomModel.findOne({name: req.body.room});
+    let room = await roomModel.findOne({name: req.params.room});
     if (typeof req.body.updatedRoom !== 'string') {
         res.send('Please enter a room name')
         return
@@ -201,11 +208,11 @@ router.route('/update-course-slot')
         return; 
     }
     
-    if (isNaN(req.body.slotNumber)) {
+    if (isNaN(req.params.slotNumber)) {
         res.send('Please enter a valid slot number')
         return
     }
-    let slot = await slotModel.findOne({day: req.body.day,room: room._id, slotNumber: req.body.slotNumber});
+    let slot = await slotModel.findOne({day: req.params.day,room: room._id, slotNumber: req.params.slotNumber});
     if (!slot) {
         res.send("No slot to update");
         return;
@@ -242,9 +249,13 @@ router.route('/update-course-slot')
     if (req.body.updatedType) {
         slot.type = req.body.updatedType;
     }
+    if (req.body.updatedCourse) {
+        const course = await courseModel.findOne({id: req.body.updatedCourse});
+        slot.course = course._id;
+    }
     try {
         await slot.save();
-        res.send(slot);
+        res.send("Slot updated successfully");
     }
     catch(error) {
         res.send(error);

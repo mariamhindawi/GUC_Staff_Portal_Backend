@@ -396,7 +396,6 @@ router.route("/add-academic-member")
 
 router.route("/update-hr-member/:id")
     .put(async (req, res) => {
-        console.log("Here");
         const user = await hrMemberModel.findOne({ id: req.params.id });
         if (!user) {
             res.status(404).send("Incorrect user id");
