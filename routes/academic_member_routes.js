@@ -258,7 +258,7 @@ router.post('/send-slot-linking-request', async (req, res) => {
         res.send("Slot doesn't exist")
         return
     }
-    if (slot.staffMember !== 'Unassigned') {
+    if (slot.staffMember !== 'UNASSIGNED') {
         res.send("Slot isn't free")
         return
     }
@@ -477,7 +477,7 @@ router.delete('/cancel-request/:id', async (req, res) => {
         res.send('Invalid request ID')
         return
     }
-    let request = await requestModel.findOne({ requestedBy: token.id, id: req.params.id })
+    let request = await annualLeaveModel.findOne({ requestedBy: token.id, id: req.params.id })
     if(!request){
         res.send("Request doesn't exist")
         return
@@ -491,6 +491,7 @@ router.delete('/cancel-request/:id', async (req, res) => {
             let requester = await academicMemberModel.findOne({id:token.id})
             requester.annualLeaveBalance+=1
             requester.save()
+            await replacementModel.deleteMany({requestedBy:token.id, type:'replacementRequest',day: { $lt: request.day.addDays(1), $gte: request.day }})
         }
         if(request.type ==='accidentalLeave'){
             let requester = await academicMemberModel.findOne({id:token.id})
@@ -517,6 +518,12 @@ router.get("/schedule", async (req, res) => {
                 schedule.push(replacementRequests[i].slots[j])
             }
         }
+    }
+    for(let i=0;i<schedule.length;i++){
+        let room= await roomModel.findById(schedule[i].room)
+        schedule[i].room= room.name
+        let course= await courseModel.findById(schedule[i].course)
+        schedule[i].course= course.name  
     }
     res.send(schedule)
 });

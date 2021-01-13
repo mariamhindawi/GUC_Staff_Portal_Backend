@@ -63,11 +63,12 @@ router.route("/assign-course-coordinator")
 .post(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
-    let course=await courseModel.findOne({name:req.body.course})
+    let course=await courseModel.findOne({id:req.body.course})
     let instructors=course.instructors
     let ta=req.body.id
     if(user.department===course.department){
-        let course=await courseModel.findOneAndUpdate({name:req.body.course}, { courseCoordinator: ta })
+        courseModel.findOneAndUpdate({id:req.body.course}, { courseCoordinator: ta }, {new:true}).then(res=>console.log(res))
+        academicMemberModel.findOneAndUpdate({id:ta},{role:"Course Coordinator"}).then(res=>console.log(course))
     }
     try{
         res.send("Course coordinator assigned to course")

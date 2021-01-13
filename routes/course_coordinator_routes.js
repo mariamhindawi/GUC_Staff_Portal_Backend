@@ -38,7 +38,7 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
         res.send('Already replied to request')
         return
     }
-    if (slot.staffMember !== 'Unassigned') {
+    if (slot.staffMember !== 'UNASSIGNED') {
         request.status = 'Rejected'
         request.ccComment = 'Slot was assigned to another staff member'
         let notification = new notificationModel({

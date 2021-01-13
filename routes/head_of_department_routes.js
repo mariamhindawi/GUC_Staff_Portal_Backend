@@ -312,12 +312,14 @@ router.put('/staff-requests/:reqId/reject', async (req, res) => {
         res.send('Invalid request id')
         return
     }
-    let request = await requestModel.findOne({ id: req.params.reqId })
+    let request = await annualLeaveModel.findOne({ id: req.params.reqId })
     if (request.status !== 'Under review') {
         res.send('Already responded')
         return
     }
     request.HODComment = req.body.HODComment
+    console.log(request)
+    console.log(req.body.HODComment)
     request.status = 'Rejected'
     try {
         await request.save()
