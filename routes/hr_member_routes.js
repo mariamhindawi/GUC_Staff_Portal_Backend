@@ -396,7 +396,6 @@ router.route("/add-academic-member")
 
 router.route("/update-hr-member/:id")
     .put(async (req, res) => {
-        console.log("Here");
         const user = await hrMemberModel.findOne({ id: req.params.id });
         if (!user) {
             res.status(404).send("Incorrect user id");
@@ -418,8 +417,8 @@ router.route("/update-hr-member/:id")
                 otherUser = await academicMemberModel.findOne({ email: req.body.email });
             }
             if (otherUser) {
-                if(otherUser.id!==user.id) {
-                    res.status(409).send("Email already exists.");
+                if (otherUser.id !== user.id) {
+                    res.status(409).send("Email already exists");
                     return;
                 }
             }
@@ -513,7 +512,7 @@ router.route("/update-academic-member/:id")
                 otherUser = await academicMemberModel.findOne({ email: req.body.email });
             }
             if (otherUser) {
-                if (otherUser.id!==user.id) {
+                if (otherUser.id !== user.id) {
                     res.status(409).send("Email already exists");
                     return;
                 }
