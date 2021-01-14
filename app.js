@@ -21,17 +21,18 @@ const corsOptions = {
     maxAge: 5
 };
 
+app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use("/reset",resetRoutes);
-app.use("/campus",campusRoutes);
+app.use("/reset", resetRoutes);
+app.use("/campus", campusRoutes);
 app.use(authenticationRoutes);
 app.use("/staff", generalStaffRoutes);
 app.use("/hr", hrMemberRoutes);
 app.use("/academic", academicMemberRoutes);
 app.use("/hod", headOfDepartmentRoutes);
 app.use("/ci", courseInstructorRoutes);
-app.use("/cc",courseCoordinatorRoutes);
-app.use("/fe",frontEndRoutes);
+app.use("/cc", courseCoordinatorRoutes);
+app.use("/fe", frontEndRoutes);
 
 module.exports.app = app;

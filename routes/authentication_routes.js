@@ -47,7 +47,7 @@ router.route("/staff/login")
     else {
         var role = user.role;
     }
-    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
+    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { });
 
     if (!user.loggedIn) {
         res.header("token", token).send("First login, reset password.");

@@ -6,6 +6,8 @@ const academicMemberModel = require("../models/academic_member_model");
 const hrMemberModel = require("../models/hr_member_model");
 const roomModel = require('../models/room_model');
 const facultyModel = require('../models/faculty_model');
+const notification_model = require("../models/notification_model");
+const slot_model = require("../models/slot_model");
 
 const router = express.Router();
 
@@ -27,6 +29,13 @@ router.route("/get-courses-by-department")
 router.route("/get-courses-by-academic")
 .get(async (req, res) => {
     const courses = await courseModel.find({$or: [{courseInstructors: req.query.id}, {teachingAssistants: req.query.id}]});
+    res.send(courses);
+});
+
+router.route("/get-my-courses")
+.get(async (req, res) => {
+    let token=jwt.decode(req.headers.token)
+    const courses = await courseModel.find({$or: [{courseInstructors: token.id}, {teachingAssistants: token.id}]});
     res.send(courses);
 });
 
@@ -102,4 +111,32 @@ router.route("/get-departments")
     res.send({departments: departments, faculties: faculties, heads: heads});
 });
 
+router.get('/academic/notifications',async(req,res)=>{
+    let token = jwt.decode(req.headers.token)
+    let notifications = await notification_model.find({user:token.id}).sort({createdAt:-1})
+    res.send(notifications)
+})
+
+router.put('/academic/mark-notifications-seen', async(req,res)=>{
+    let token = jwt.decode(req.headers.token)
+    let seenNotifications = req.body.seenNotifications
+    for(let i=0;i<seenNotifications.length;i++){
+        let noti = await notification_model.findOne({_id:seenNotifications[i]._id})
+        noti.seen=true;
+        noti.save()
+    }
+    console.log(seenNotifications)
+    res.send('Done')
+})
+router.get('/course-slots',async(req,res)=>{
+    let course = await courseModel.findOne({id:req.query.id})
+    let slots = await slot_model.find({course:course._id})
+    for(let i=0;i<slots.length;i++){
+        let room= await roomModel.findById(slots[i].room)
+        slots[i].room= room.name 
+        let course= await courseModel.findById(slots[i].course)
+        slots[i].course= course.name 
+    }
+    res.send(slots)
+})
 module.exports = router;
