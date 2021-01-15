@@ -891,7 +891,7 @@ router.route("/delete-course/:id")
 
         await slotModel.deleteMany({ course: course._id });
         // TODO: delete requests
-
+        console.log("Here");
         res.send("Course deleted successfully");
     });
 
@@ -959,13 +959,19 @@ router.route("/update-department/:department")
             department.name = req.body.name;
         }
         if (req.body.faculty) {
-            const faculty = await facultyModel.findOne({ name: req.body.faculty });
+            if(req.body.faculty==="UNASSIGNED") {
+                department.faculty = "UNASSIGNED"; 
+            }
+            else {
+                const faculty = await facultyModel.findOne({ name: req.body.faculty });
             if (!faculty) {
                 res.status(422).send("Incorrect faculty name");
                 return;
             }
             department.faculty = faculty._id;
-        }
+        
+            }
+            }
         if (req.body.headOfDepartment) {
             var newHeadOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
             if (!newHeadOfDepartment) {
@@ -973,8 +979,10 @@ router.route("/update-department/:department")
                 return;
             }
             if (newHeadOfDepartment.role === "Head of Department") {
-                res.status(409).send("Academic member is already the head of another department");
-                return;
+                if (!(newHeadOfDepartment.department===departmentModel._id)) {
+                    res.status(409).send("Academic member is already the head of another department");
+                    return;
+                }
             }
             if (newHeadOfDepartment.role !== "Course Instructor") {
                 res.status(409).send("Academic member is not an instructor");

@@ -14,14 +14,22 @@ router.route("/get-academic-department")
 .get(async (req, res) => {
     const token = jwt.decode(req.headers.token);
     const academicMember = await academicMemberModel.findOne({id: token.id});
-    const department = await departmentModel.findById(academicMember.department);
+    const department = await departmentModel.findById(academicMember.department); 
+    console.log(department);  
     res.send(department);
 });
 
 router.route("/get-courses-by-department")
 .get(async (req, res) => {
-    let courses = await courseModel.find({department: req.query.department});
-    res.send(courses);
+    const token = jwt.decode(req.headers.token);
+    const academicMember = await academicMemberModel.findOne({id: token.id});
+    const department = await departmentModel.findById(academicMember.department);
+    let courses = await courseModel.find({department: department._id});
+    let departments = [];
+    for(let i = 0 ; i<courses.length ; i++) {
+        departments.push(department.name);
+    }
+    res.send({courses: courses, departments: departments});
 });
 
 router.route("/get-courses-by-academic")
@@ -101,5 +109,21 @@ router.route("/get-departments")
     
     res.send({departments: departments, faculties: faculties, heads: heads});
 });
+
+router.route("/get-courses")
+.get(async(req,res)=>{
+    let courses = await courseModel.find();
+    let departments = [];
+    for ( let i = 0; i<courses.length ; i++) {
+        if (courses[i].department==="UNASSIGNED") {
+            departments.push("UNASSIGNED");
+        }
+        else {
+            let department = await departmentModel.findOne({ _id: courses[i].department }); 
+            departments.push(department.name);
+        }
+    }
+    res.send({ courses: courses,departments: departments });
+})
 
 module.exports = router;

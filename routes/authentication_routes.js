@@ -50,10 +50,11 @@ router.route("/staff/login")
     const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
 
     if (!user.loggedIn) {
-        res.header("token", token).send("First login, reset password.");
+        res.header("token", token).send(user);
+        
     }
     else {
-        res.header("token", token).send("Logged in successfully.");
+        res.header("token", token).send(user);
     }
 })
 .get(async (req, res) => {

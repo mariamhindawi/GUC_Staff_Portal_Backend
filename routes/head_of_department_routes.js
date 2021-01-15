@@ -1,6 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-
+const roomModel = require("../models/room_model");
 const academicMemberModel = require("../models/academic_member_model");
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model")
@@ -26,7 +26,15 @@ router.route("/view-all-staff")
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
         let output = await academicMemberModel.find({ department: user.department })
-        res.send(output);
+        let department = await departmentModel.findOne({_id: user.department});
+        let departments = [];
+        let rooms = [];
+        for(let i = 0; i<output.length ; i++) {
+            departments.push(department.name);
+            let room = await roomModel.findOne({_id: output[i].office});
+            rooms.push(room.name);
+        }
+        res.send({staff: output, departments: departments, rooms: rooms});
     });
 
 router.route("/view-all-staff-per-course")
@@ -98,16 +106,17 @@ router.route("/assign-course-instructor")
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course });
-        if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
+        let course = await courseModel.findOne({ id: req.body.course });
+        if( !instructor || instructor.role === "Teaching Assistant" || instructor.role === "Course Coordinator"){
             res.send('No such instructor exists.');
             return;
         }
         if (course) {
             if (user.department === course.department) {
                 if (user.department === instructor.department) {
+                    course.courseInstructors.push(instructor);
                     try {
-                        await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instructor } })
+                        course.save();
                         res.send("Instructor assigned to course");
                     }
                     catch (error) {
