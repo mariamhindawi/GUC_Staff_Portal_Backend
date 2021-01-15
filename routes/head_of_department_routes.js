@@ -234,13 +234,13 @@ router.route("/update-course-instructor/:idDelete/:course")
 
 router.put('/staff-requests/:reqId/accept', async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await requestModel.findOne({ id: req.params.reqId })
     let requester = await academicMemberModel.findOne({ id: request.requestedBy })
     if (request.status !== 'Under review') {
-        res.send('Already responded')
+        res.status(403).send('Already responded')
         return
     }
     if (request.type === 'annualLeave') {
@@ -295,23 +295,21 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
 
 router.put('/staff-requests/:reqId/reject', async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
     if (request.status !== 'Under review') {
-        res.send('Already responded')
+        res.status(403).send('Already responded')
         return
     }
     request.HODComment = req.body.HODComment
-    console.log(request)
-    console.log(req.body.HODComment)
     request.status = 'Rejected'
     try {
         await request.save()
     }
     catch (error) {
-        res.send(error)
+        res.status(403).send(error)
     }
     let notification = new notificationModel({
         user: request.requestedBy,
