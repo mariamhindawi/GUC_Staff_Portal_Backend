@@ -8,6 +8,7 @@ const roomModel = require('../models/room_model');
 const facultyModel = require('../models/faculty_model');
 const notification_model = require("../models/notification_model");
 const slot_model = require("../models/slot_model");
+const attendance_record_model = require("../models/attendance_record_model");
 
 const router = express.Router();
 
@@ -139,4 +140,19 @@ router.get('/course-slots',async(req,res)=>{
     }
     res.send(slots)
 })
+
+router.get('/user-records',async(req,res)=>{
+    let dateStringParts = req.query.day.split("T")[0].split("-")
+    console.log(req.query.day)
+    let date=new Date(dateStringParts[0],dateStringParts[1]-1,dateStringParts[2],2).addDays(1)
+    console.log(date)
+    records=await attendance_record_model.find({user:req.query.user,signInTime: { $lt: date.addDays(1), $gte: date }})
+    res.send(records)
+})
+
+Date.prototype.addDays = function (days) {
+    var date = new Date(this.valueOf());
+    date.setDate(date.getDate() + days);
+    return date;
+}
 module.exports = router;

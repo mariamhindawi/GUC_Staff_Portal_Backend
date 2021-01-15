@@ -99,43 +99,43 @@ router.post('/send-replacement-request', async (req, res) => {
     config.requestCounter = id + "";
     let requester = await academicMemberModel.findOne({ id: token.id })
     if (requester.annualLeaveBalance < 1) {
-        res.send('Insufficient leave balance')
+        res.status(403).send('Insufficient leave balance')
         return
     }
     if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
-        res.send('Please enter the date in a valid format (yyyy-mm-dd)')
+        res.status(403).send('Please enter the date in a valid format (yyyy-mm-dd)')
         return
     }
     let parts = req.body.day.split('-')
     let date = new Date(parts[0], parts[1] - 1, parts[2])
     if (date < new Date()) {
-        res.send('Please enter a future date')
+        res.status(403).send('Please enter a future date')
         return
     }
     let dayNo = date.getDay()
     let weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     let day = weekDays[dayNo];
     if(!req.body.slot || isNaN(req.body.slot)){
-        res.send('Please enter a valid slot number')
+        res.status(403).send('Please enter a valid slot number')
         return
     }
     const slot = await slotModel.findOne({ staffMember: token.id, day: day, slotNumber: req.body.slot })
     if (!slot) {
-        res.send('Invalid slot')
+        res.status(403).send('Invalid slot')
         return
     }
     if(typeof req.body.replacementID !=='string'){
-        res.send('Please enter a valid replacement ID')
+        res.status(403).send('Please enter a valid replacement ID')
         return
     }
     let replacement = await academicMemberModel.findOne({ id: req.body.replacementID })
     let course = await courseModel.findOne({ _id: slot.course })
     if (requester.department !== replacement.department || !course.courseInstructors.includes(replacement.id) && !course.teachingAssistants.includes(replacement.id)) {
-        res.send('Make sure your replacement teaches this course and is in the same department as you')
+        res.status(403).send('Make sure your replacement teaches this course and is in the same department as you')
         return
     }
     if ((requester.role == 'Teaching Assistant' || requester.role === 'Course Coordinator') && (replacement.role === 'Course Instructor' || replacement.role === 'Head of Department')) {
-        res.send('You can not send a replacement request to a course instructor')
+        res.status(403).send('You can not send a replacement request to a course instructor')
         return
     }
     const request = new replacementModel({
@@ -157,14 +157,14 @@ router.post('/send-replacement-request', async (req, res) => {
         res.send('Request sent')
     }
     catch (error) {
-        res.send(error)
+        res.status(403).send(error)
     }
 })
 
 router.put('/replacement-requests/:id/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
@@ -179,14 +179,14 @@ router.put('/replacement-requests/:id/accept', async (req, res) => {
         res.send(request)
     }
     else {
-        res.send('Invalid request ID')
+        res.status(403).send('Invalid request ID')
     }
 })
 
 router.put('/replacement-requests/:id/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
@@ -202,11 +202,11 @@ router.put('/replacement-requests/:id/reject', async (req, res) => {
             res.send(request)
         }
         catch (error) {
-            res.send(error)
+            res.status(403).send(error)
         }
     }
     else {
-        res.send('Invalid request ID')
+        res.status(403).send('Invalid request ID')
     }
 })
 
@@ -232,34 +232,34 @@ router.post('/send-slot-linking-request', async (req, res) => {
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
     if(typeof req.body.room !=='string'){
-        res.send('Please enter a valid room name')
+        res.status(403).send('Please enter a valid room name')
         return
     }
     if(isNaN(req.body.slot) || typeof req.body.day !=='string'){
-        res.send('Please enter a valid day and slot number')
+        res.status(403).send('Please enter a valid day and slot number')
         return
     }
     let room = await roomModel.findOne({ name: req.body.room })
     let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slot, room: room._id })
     let course = await courseModel.findOne({ _id: slot.course })
     if (!room) {
-        res.send("Room doesn't exist")
+        res.status(403).send("Room doesn't exist")
         return
     }
     if (!course) {
-        res.send("Course doesn't exist")
+        res.status(403).send("Course doesn't exist")
         return
     }
     if (!course.teachingAssistants.includes(token.id) && !course.courseInstructors.includes(token.id)) {
-        res.send('You are not assigned to this course')
+        res.status(403).send('You are not assigned to this course')
         return
     }
     if (!slot) {
-        res.send("Slot doesn't exist")
+        res.status(403).send("Slot doesn't exist")
         return
     }
     if (slot.staffMember !== 'UNASSIGNED') {
-        res.send("Slot isn't free")
+        res.status(403).send("Slot isn't free")
         return
     }
     const prev = await slotLinkingModel.findOne({
@@ -268,7 +268,7 @@ router.post('/send-slot-linking-request', async (req, res) => {
         status: 'Under review'
     })
     if (prev) {
-        res.send('Request already submitted')
+        res.status(403).send('Request already submitted')
         return
     }
     const request = new slotLinkingModel({
@@ -282,7 +282,7 @@ router.post('/send-slot-linking-request', async (req, res) => {
         res.send('Request submitted')
     }
     catch (error) {
-        res.send(error)
+        res.status(403).send(error)
     }
 })
 
@@ -313,7 +313,7 @@ router.post('/change-day-off-request', async (req, res) => {
         res.send('Request submitted')
     }
     catch (error) {
-        res.send(error)
+        res.status(403).send(error)
     }
 })
 
@@ -324,27 +324,27 @@ router.post('/send-leave-request', async (req, res) => {
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
     if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
-        res.send('Please enter the date in a valid format (yyyy-mm-dd)')
+        res.status(403).send('Please enter the date in a valid format (yyyy-mm-dd)')
         return
     }
     let parts = req.body.day.split('-')
     let date = new Date(parts[0], parts[1] - 1, parts[2])
     if(typeof req.body.type !=='string'){
-        res.send('Invalid leave type')
+        res.status(403).send('Invalid leave type')
         return
     }
     const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: token.id, type: req.body.type })
     if (prev) {
-        res.send('Request already exists')
+        res.status(403).send('Request already exists')
         return
     }
     if (req.body.type === "annualLeave") {
         if (date < new Date()) {
-            res.send('Please enter a future date')
+            res.status(403).send('Please enter a future date')
             return
         }
         if (requester.annualLeaveBalance < 1) {
-            res.send('Insufficient leave balance')
+            res.status(403).send('Insufficient leave balance')
             return
         }
         let dayNo = date.getDay()
@@ -372,7 +372,7 @@ router.post('/send-leave-request', async (req, res) => {
     }
     else if (req.body.type === "accidentalLeave") {
         if (date > new Date()) {
-            res.send('Please enter a valid date')
+            res.status(403).send('Please enter a valid date')
             return
         }
         if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
@@ -383,13 +383,13 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.send('Insufficient leave/accidental leave balance')
+            res.status(403).send('Insufficient leave/accidental leave balance')
             return
         }
     }
     else if (req.body.type === "sickLeave") {
         if (date > new Date()) {
-            res.send('Please enter a valid date')
+            res.status(403).send('Please enter a valid date')
             return
         }
         let parts = req.body.day.split('-')
@@ -403,14 +403,14 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.send('Deadline for submitting this request has passed')
+            res.status(403).send('Deadline for submitting this request has passed')
             return
         }
     }
     else if (req.body.type === "maternityLeave") {
         let requester = await academicMemberModel.findOne({ id: token.id })
         if (isNaN(req.body.duration) || req.body.duration > 90) {
-            res.send("Please enter a valid leave duration. Maximum duration is 90 days.")
+            res.status(403).send("Please enter a valid leave duration. Maximum duration is 90 days.")
             return
         }
         if (requester.gender === 'Female')
@@ -423,13 +423,13 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.send("You can't apply for a maternity leave")
+            res.status(403).send("You can't apply for a maternity leave")
             return
         }
     }
     else if (req.body.type === "compensationRequest") {
         if (date > new Date()) {
-            res.send('Please enter a valid date')
+            res.status(403).send('Please enter a valid date')
             return
         }
         request = new compensationLeaveModel({
@@ -440,7 +440,7 @@ router.post('/send-leave-request', async (req, res) => {
         })
     }
     else{
-        res.send('Invalid leave request type')
+        res.status(403).send('Invalid leave request type')
         return
     }
     try {
@@ -450,7 +450,7 @@ router.post('/send-leave-request', async (req, res) => {
         res.status(200).send("Request submitted for review to the HOD")
     }
     catch (error) {
-        res.send(error)
+        res.status(403).send(error)
     }
 })
 
@@ -474,12 +474,12 @@ router.get('/all-requests/:filter', async (req, res) => {
 router.delete('/cancel-request/:id', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.send('Invalid request ID')
+        res.status(403).send('Invalid request ID')
         return
     }
     let request = await annualLeaveModel.findOne({ requestedBy: token.id, id: req.params.id })
     if(!request){
-        res.send("Request doesn't exist")
+        res.status(403).send("Request doesn't exist")
         return
     }
     if (request.status === 'Under review') {
@@ -503,7 +503,7 @@ router.delete('/cancel-request/:id', async (req, res) => {
         res.send('Your request has been cancelled successfully')
     }
     else {
-        res.send('Cannot cancel request')
+        res.status(403).send('Cannot cancel request')
     }
 })
 

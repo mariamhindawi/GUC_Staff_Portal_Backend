@@ -24,18 +24,18 @@ router.use((req, res, next) => {
 router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.reqId)){
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
     if (token.id !== course.courseCoordinator) {
-        res.send('Invalid credentials')
+        res.status(403).send('Invalid credentials')
         return
     }
     if (request.status === 'Accepted' || request.status === 'Rejected') {
-        res.send('Already replied to request')
+        res.status(403).send('Already replied to request')
         return
     }
     if (slot.staffMember !== 'UNASSIGNED') {
@@ -64,18 +64,18 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
 router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.reqId)){
-        res.send('Invalid request id')
+        res.status(403).send('Invalid request id')
         return
     }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
     if (token.id !== course.courseCoordinator) {
-        res.send('Invalid credentials')
+        res.status(403).send('Invalid credentials')
         return
     }
     if (request.status === 'Accepted' || request.status === 'Rejected') {
-        res.send('Already replied to request')
+        res.status(403).send('Already replied to request')
         return
     }
     request.status = 'Rejected'
@@ -84,7 +84,7 @@ router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
         await request.save()
     }
     catch(error){
-        res.send(error)
+        res.status(403).send(error)
     }
     let notification = new notificationModel({
         user: request.requestedBy,

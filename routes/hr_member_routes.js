@@ -1379,15 +1379,15 @@ router.route("/add-missing-record")
             res.send("Invalid user id.");
             return;
         }
-
+        console.log(req.body)
         let missingRecordType = req.body.missingRecordType;
         let signInYear = req.body.signInYear;
-        let signInMonth = req.body.signInMonth - 1;
+        let signInMonth = req.body.signInMonth;
         let signInDay = req.body.signInDay;
         let signInHour = req.body.signInHour;
         let signInMinute = req.body.signInMinute;
         let signOutYear = req.body.signOutYear;
-        let signOutMonth = req.body.signOutMonth - 1;
+        let signOutMonth = req.body.signOutMonth;
         let signOutDay = req.body.signOutDay;
         let signOutHour = req.body.signOutHour;
         let signOutMinute = req.body.signOutMinute;
@@ -1395,71 +1395,72 @@ router.route("/add-missing-record")
         let signOutDate;
         let userRecord = {};
 
-        if (!missingRecordType === "signOut" && !missingRecordType === "SignIn" && !missingRecordType === "fullDay") {
-            res.send("Inavalid missing record type.");
-            return;
-        }
-        if (signInYear === 0 || signOutYear === 0) {
-            res.send("Not a valid year");
-            return;
-        }
-        if (signInMonth === 0 || signOutMonth === 0) {
-            res.send("Not a valid month");
-            return;
-        }
-        if (signInDay === 0 || signOutDay === 0) {
-            res.send("Not a valid day");
-            return;
-        }
-        if (!signInYear || !signOutYear || !signInMonth || !signOutMonth || !signInDay || !signOutDay
-            || (!signInHour && signInHour !== 0) || (!signOutHour && signOutHour !== 0) || (!signInMinute && signInMinute !== 0) || (!signOutMinute && signOutMinute !== 0)) {
-            res.send("Not all fields are entered.");
-            return;
-        }
-        if (typeof signInYear !== "number" || typeof signOutYear !== "number" || typeof signInMonth !== "number" || typeof signOutMonth !== "number"
-            || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
-            || typeof signInMinute !== "number" || typeof signOutMinute !== "number" || typeof missingRecordType !== "string") {
-            res.send("Wrong data types entered.");
-            return;
-        }
-        if (signInYear < 2000 || signOutYear < 2000) {
-            res.send("Invalid year.");
-            return;
-        }
-        if (signInMonth <= 0 || signInMonth > 12 || signOutMonth <= 0 || signOutMonth > 12) {
-            res.send("Invalid month.");
-            return;
-        }
-        if (signInHour < 0 || signInHour > 23 || signOutHour < 0 || signOutHour > 23) {
-            res.send("Invalid hour.");
-            return;
-        }
-        if (signInMinute < 0 || signInMinute > 59 || signOutMinute < 0 || signOutMinute > 59) {
-            res.send("Invalid hour.");
-            return;
-        }
-        if (signInDay !== signOutDay || signInMonth !== signOutMonth || signInYear !== signOutYear) {
-            res.send("Cannot match these records together ");
-            return;
-        }
-        if (signInHour > signOutHour) {
-            res.send("Cannot have the sign in hour that is greater than the sign out hour.");
-            return;
-        }
-        if (signInHour === signOutHour && signInMinute > signOutMinute) {
-            res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
-            return;
-        }
-        signInDate = new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 0, 0);
-        signOutDate = new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 0, 0);
+        // if (!missingRecordType === "signOut" && !missingRecordType === "signIn" && !missingRecordType === "fullDay") {
+        //     res.send("Invalid missing record type.");
+        //     return;
+        // }
+        // if (signInYear === 0 || signOutYear === 0) {
+        //     res.send("Not a valid year");
+        //     return;
+        // }
+        // if (signInMonth === 0 || signOutMonth === 0) {
+        //     res.send("Not a valid month");
+        //     return;
+        // }
+        // if (signInDay === 0 || signOutDay === 0) {
+        //     res.send("Not a valid day");
+        //     return;
+        // }
+        // if (!signInYear || !signOutYear || !signInMonth || !signOutMonth || !signInDay || !signOutDay
+        //     || (!signInHour && signInHour !== 0) || (!signOutHour && signOutHour !== 0) || (!signInMinute && signInMinute !== 0) || (!signOutMinute && signOutMinute !== 0)) {
+        //     res.send("Not all fields are entered.");
+        //     return;
+        // }
+        // if (typeof signInYear !== "number" || typeof signOutYear !== "number" || typeof signInMonth !== "number" || typeof signOutMonth !== "number"
+        //     || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
+        //     || typeof signInMinute !== "number" || typeof signOutMinute !== "number" || typeof missingRecordType !== "string") {
+        //     res.send("Wrong data types entered.");
+        //     return;
+        // }
+        // if (signInYear < 2000 || signOutYear < 2000) {
+        //     res.send("Invalid year.");
+        //     return;
+        // }
+        // if (signInMonth <= 0 || signInMonth > 12 || signOutMonth <= 0 || signOutMonth > 12) {
+        //     res.send("Invalid month.");
+        //     return;
+        // }
+        // if (signInHour < 0 || signInHour > 23 || signOutHour < 0 || signOutHour > 23) {
+        //     res.send("Invalid hour.");
+        //     return;
+        // }
+        // if (signInMinute < 0 || signInMinute > 59 || signOutMinute < 0 || signOutMinute > 59) {
+        //     res.send("Invalid hour.");
+        //     return;
+        // }
+        // if (signInDay !== signOutDay || signInMonth !== signOutMonth || signInYear !== signOutYear) {
+        //     res.send("Cannot match these records together ");
+        //     return;
+        // }
+        // if (signInHour > signOutHour) {
+        //     res.send("Cannot have the sign in hour that is greater than the sign out hour.");
+        //     return;
+        // }
+        // if (signInHour === signOutHour && signInMinute > signOutMinute) {
+        //     res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
+        //     return;
+        // }
+        // signInDate = new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 0, 0);
+        // signOutDate = new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 0, 0);
 
 
         if (missingRecordType === "signIn") {
             userRecord = await attendanceRecordModel.findOne({
-                user: user.id, signOutTime: {
-                    $gte: signOutDate,
-                    $lte: new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 59, 0)
-                }, signInTime: null
+                user: user.id, _id:req.body.record
+                // , signOutTime: {
+                //     $gte: signOutDate,
+                //     $lte: new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 59, 0)
+                // }, signInTime: null
             })
 
             if (!userRecord) {
@@ -1467,24 +1468,26 @@ router.route("/add-missing-record")
                 return;
             }
             else {
-                userRecord.signInTime = signInDate;
+                // userRecord.signInTime = signInDate;
+                userRecord.signInTime = new Date(req.body.signInTime);
                 try {
                     await userRecord.save();
                     res.send(userRecord);
                 }
                 catch (error) {
                     console.log(error.message)
-                    res.send(error);
+                    res.status(403).send(error);
                 }
             }
         }
         else if (missingRecordType === "signOut") {
 
             userRecord = await attendanceRecordModel.findOne({
-                user: user.id, signInTime: {
-                    $gte: signInDate,
-                    $lte: new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 59, 0)
-                }, signOutTime: null
+                user: user.id, _id:req.body.record
+                // signInTime: {
+                //     $gte: signInDate,
+                //     $lte: new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 59, 0)
+                // }, signOutTime: null
             })
 
             if (!userRecord) {
@@ -1492,7 +1495,7 @@ router.route("/add-missing-record")
                 return;
             }
             else {
-                userRecord.signOutTime = signOutDate;
+                userRecord.signOutTime = new Date(req.body.signOutTime);
                 try {
                     await userRecord.save();
                     res.send(userRecord);
@@ -1506,17 +1509,17 @@ router.route("/add-missing-record")
         else if (missingRecordType === "fullDay") {
             userRecord = new attendanceRecordModel({
                 user: user.id,
-                signInTime: signInDate,
-                signOutTime: signOutDate
+                signInTime: req.body.signInTime,
+                signOutTime: req.body.signOutTime
 
             })
             try {
                 await userRecord.save();
-                res.send(userRecord);
+                res.send('Added successfully');
             }
             catch (error) {
                 console.log(error.message)
-                res.send(error);
+                res.status(403).send(error);
             }
         }
 
