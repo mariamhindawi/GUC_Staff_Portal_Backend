@@ -26,26 +26,34 @@ router.route("/view-staff")
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
         let output = await academicMemberModel.find({ department: user.department })
-        res.send(output);
+        let department = await departmentModel.findOne({_id: user.department});
+        let departments = [];
+        let rooms = [];
+        for(let i = 0; i<output.length ; i++) {
+            departments.push(department.name);
+            let room = await roomModel.findOne({_id: output[i].office});
+            rooms.push(room.name);
+        }
+        res.send({staff: output, departments: departments, rooms: rooms});
     });
 
 router.route("/view-staff/:course")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
-
         let course = await courseModel.findOne({name: req.params.course });
+
         if(!course){
-            res.send('Course does not exist.');
+            res.send('Course does not exist');
             return;
         }
         if(course.department !==user.department){
-            res.send("Course does not exist in your department.");
+            res.send("Course is not in your department");
             return;
         }
         let output = [];
-        let instructors = await course.courseInstructors;
-        let tas = await course.teachingAssistants;
+        let instructors = course.courseInstructors;
+        let tas = course.teachingAssistants;
 
         for (let i = 0; i < instructors.length; i++) {
             let instructor = await academicMemberModel.findOne({ id: instructors[i] });
@@ -55,10 +63,20 @@ router.route("/view-staff/:course")
             let ta = await academicMemberModel.findOne({ id: tas[i] });
             output.push(ta)
         }
-        res.send(output);
+        let department = await departmentModel.findOne({_id: user.department});
+        let departments = [];
+        let rooms = [];
+        
+        for(let i = 0; i<output.length ; i++) {
+            departments.push(department.name);
+            let room = await roomModel.findOne({_id: output[i].office});
+            rooms.push(room.name);
+        }
+        res.send({staff: output, departments: departments, rooms: rooms});
+        
     });
 
-router.route("/view-all-staff-dayoff")
+router.route("/view-staff-dayoff")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
@@ -66,7 +84,7 @@ router.route("/view-all-staff-dayoff")
         res.send(output);
     });
 
-router.route("/view-one-staff-dayoff/:id")
+router.route("/view-staff-dayoff/:id")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
       
@@ -79,40 +97,44 @@ router.route("/assign-course-instructor")
     .post(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         if(!req.body.course || !req.body.id){
-            res.send("Not all fields are entered.");
+            res.send("Not all fields are entered");
             return;
         }
         if (typeof req.body.id !== 'string'|| typeof req.body.course !== 'string' ) {
-            res.send('Wrong data types entered.');
+            res.send('Wrong data types entered');
             return;
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
         let course = await courseModel.findOne({ name: req.body.course});
-        if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
-            res.send( "Instructor does not exist.");
+        if( !instructor ){
+            res.send( "User does not exist");
+            return;
+        }
+        if (instructor.role !== "Course Instructor" || instructor.role !== "Head of Department") {
+            res.send("This user is not an instructor");
             return;
         }
         if (!course) {
             res.send("Course does not exist");
             return;
         }
-        if(course.department !== user.department){
-            res.send("Course does not exist in your department.");
+        if (course.department !== user.department){
+            res.send("Course does not exist in your department");
             return;
         }
         if(instructor.department !==user.department){
-            res.send("Instructor does not exist in your department.");
+            res.send("Instructor does not exist in your department");
             return;
         }
         course.courseInstructors.push(instructor);
         try {
             await course.save();
-            res.send("Instructor assigned to course successfully.");
+            res.send("Instructor assigned to course successfully");
         }
         catch (error) {
             console.log(error.message)
-            res.status(400).send(error.messages);
+            res.status(400).send(error.message);
         }
     });
 

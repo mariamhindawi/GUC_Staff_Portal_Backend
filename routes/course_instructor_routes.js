@@ -19,7 +19,7 @@ router.use((req, res, next) => {
     }
 });
 
-router.route("/view-all-staff")
+router.route("/view-staff")
 .get(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
@@ -29,7 +29,7 @@ router.route("/view-all-staff")
        
 })
 
-router.route("/view-all-staff/:course")
+router.route("/view-staff/:course")
 .post(async (req,res) => {
          const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
