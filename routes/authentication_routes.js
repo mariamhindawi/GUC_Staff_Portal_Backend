@@ -12,17 +12,17 @@ const router = express.Router();
 router.route("/staff/login")
 .post(async (req, res) => {
     if (!(req.body.email && req.body.password)) {
-        res.send("Not all the required fields are entered.");
+        res.status(400).send("Not all the required fields are entered");
         return;
     }
 
     if (typeof req.body.email !== "string" || typeof req.body.password !== "string") {
-        res.send("Wrong data types entered.");
+        res.status(400).send("Wrong data types entered");
         return;
     }
 
     if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-        res.send("Invalid email address.");
+        res.status(400).send("Invalid email address");
         return;
     }
 
@@ -31,13 +31,13 @@ router.route("/staff/login")
         user = await academicMemberModel.findOne({email: req.body.email});
     }
     if (!user) {
-        res.status(401).send("User not found.");
+        res.status(401).send("User not found");
         return;
     }
     
     const passwordCorrect = await bcrypt.compare(req.body.password, user.password);
     if (!passwordCorrect) {
-        res.status(401).send("Wrong password.");
+        res.status(401).send("Wrong password");
         return;
     }
     
@@ -47,24 +47,21 @@ router.route("/staff/login")
     else {
         var role = user.role;
     }
-    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { });
+    const token = jwt.sign({id: user.id, role: role}, process.env.TOKEN_SECRET, { expiresIn: "15 minutes" });
 
     if (!user.loggedIn) {
-        res.header("token", token).send(user);
+        res.header("token", token).send("First login, reset password");
         
     }
     else {
-        res.header("token", token).send(user);
+        res.header("token", token).send("Logged in succssefully");
     }
 })
-.get(async (req, res) => {
-    res.send("Please enter email and password.");
-});
 
 router.use(async (req, res, next) => {
     let token = req.headers.token;
     if (!token) {
-        res.status(401).send("No credentials.");
+        res.status(401).send("No credentials");
         return;
     }
     try {
@@ -72,7 +69,7 @@ router.use(async (req, res, next) => {
     }
     catch (error) {
         console.log(error.message);
-        res.status(401).send("Invalid token.");
+        res.status(401).send("Invalid token");
         return;
     }
 
@@ -81,7 +78,7 @@ router.use(async (req, res, next) => {
         user = await academicMemberModel.findOne({id: token.id});
     }
     if (!user) {
-        res.status(401).send("Invalid credentials.");
+        res.status(401).send("Invalid credentials");
         return;
     }
 
@@ -89,7 +86,7 @@ router.use(async (req, res, next) => {
     const blacklistToken = await jwtBlacklistModel.findOne({token: req.headers.token});
     const blacklistUser = await userBlacklistModel.findOne({user: user.id, blockedAt: {$gt: new Date(1000 * token.iat)}});
     if (blacklistToken || blacklistUser) {
-        res.status(401).send("Expired token.");
+        res.status(401).send("Expired token");
         return;
     }
 
@@ -106,23 +103,23 @@ router.route("/staff/logout")
 
     try {
         await blacklistedToken.save();
-        res.send("Logged out successfully.");
+        res.send("Logged out successfully");
     }
     catch (error) {
-        console.log(error.message)
-        res.send(error);
+        console.log(error.message);
+        res.status(400).send(error.message);
     }
 });
 
 router.route("/staff/change-password")
 .put(async (req, res) => {
     if (!(req.body.oldPassword && req.body.newPassword)) {
-        res.send("Not all the required fields are entered.");
+        res.status(400).send("Not all the required fields are entered");
         return;
     }
 
     if (typeof req.body.oldPassword !== "string" || typeof req.body.newPassword !== "string") {
-        res.send("Wrong data types entered.");
+        res.status(422).send("Wrong data types entered");
         return;
     }
 
@@ -136,7 +133,7 @@ router.route("/staff/change-password")
 
     const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
     if (!passwordCorrect) {
-        res.status(401).send("Wrong password.");
+        res.status(401).send("Wrong password");
         return;
     }
     
@@ -161,15 +158,12 @@ router.route("/staff/change-password")
             });
         }
         await blacklistEntry.save();
-        res.redirect("login");
+        res.send("Password changed succesfully");
     }
     catch (error) {
         console.log(error.message);
-        res.send(error);
+        res.status(400).send(error.message);
     }
 })
-.get(async (req, res) => {
-    res.send("Please renter old password and enter new password.");
-});
 
 module.exports = router;
