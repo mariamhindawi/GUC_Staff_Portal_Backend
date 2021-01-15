@@ -1104,268 +1104,272 @@ router.route("/delete-faculty")
 });
 
 router.route("/view-staff-attendance-records")
-.get(async (req,res) => {
-    if (!req.query.month && (req.query.year || req.query.year==0)) {
-        if(req.query.month!==0){
-            res.send("No month specified");
-            return;
+    .get(async (req, res) => {
+        if (!req.query.month && (req.query.year || req.query.year == 0)) {
+            if (req.query.month !== 0) {
+                res.send("No month specified");
+                return;
+            }
+            if (req.query.month === 0) {
+                res.send("Not a valid month");
+                return;
+            }
         }
-        if(req.query.month===0){
-            res.send("Not a valid month");
-            return;
-        }
-    }
 
-    if (!req.query.year && (req.query.month || req.query.month===0)) {
-        if(req.query.year!==0){
-            res.send("No year specified");
+        if (!req.query.year && (req.query.month || req.query.month === 0)) {
+            if (req.query.year !== 0) {
+                res.send("No year specified");
+                return;
+            }
+            if (req.query.year === 0) {
+                res.send("Not a valid year");
+                return;
+            }
+        }
+        if (!req.query.id) {
+            res.send("No user entered.")
             return;
         }
-        if(req.query.year===0){
-            res.send("Not a valid year");
-            return;
-        }   
-    }
-    if(!req.query.id){
-        res.send("No user entered.")
-        return;
-    }
-    if(typeof req.query.id !== "string"){
-        res.send("Wrong datatypes entered.")
-        return;
-    }
-    let user = await hrMemberModel.findOne({id: req.query.id});
-    if (!user) {
-        user = await academicMemberModel.findOne({id: req.query.id});
-    }
-    if (!user) {
-        res.send("Invalid user id.")
-        return;
-    }
-    var userAttendanceRecords;
-    var month;
-    var year;
-    
-    if (!req.query.month) {
-        month=new Date().getMonth();
-       year =new Date().getFullYear();
-       userAttendanceRecords = await attendanceRecordModel.find({ $or: [
-        { user: user.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
-        { user: user.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
-        ] });
-    }
-    else {
-        if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-            res.send("Wrong data types entered.");
+        if (typeof req.query.id !== "string") {
+            res.send("Wrong datatypes entered.")
             return;
         }
-        month = req.query.month - 1;
-        year = req.query.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
+        let user = await hrMemberModel.findOne({ id: req.query.id });
+        if (!user) {
+            user = await academicMemberModel.findOne({ id: req.query.id });
+        }
+        if (!user) {
+            res.send("Invalid user id.")
             return;
         }
-        if (year < 2000) {
-            res.send("Not a valid year");
-            return;
+        var userAttendanceRecords;
+        var month;
+        var year;
+
+        if (!req.query.month) {
+            month = new Date().getMonth();
+            year = new Date().getFullYear();
+            userAttendanceRecords = await attendanceRecordModel.find({
+                $or: [
+                    { user: user.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
+                    { user: user.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
+                ]
+            });
         }
-        userAttendanceRecords = await attendanceRecordModel.find({ $or: [
-            { user: req.query.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
-            { user: req.query.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
-        ] });
-    }
-    
-    res.send(userAttendanceRecords);
-})
+        else {
+            if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
+                res.send("Wrong data types entered.");
+                return;
+            }
+            month = req.query.month - 1;
+            year = req.query.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
+            }
+            userAttendanceRecords = await attendanceRecordModel.find({
+                $or: [
+                    { user: req.query.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
+                    { user: req.query.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
+                ]
+            });
+        }
+
+        res.send(userAttendanceRecords);
+    })
 
 router.route("/view-staff-missing-days")
-.get(async (req, res) => {
-    if (!req.query.month && (req.query.year || req.query.year==0)) {
-        if(req.query.month!==0){
-            res.send("No month specified");
-            return;
+    .get(async (req, res) => {
+        if (!req.query.month && (req.query.year || req.query.year == 0)) {
+            if (req.query.month !== 0) {
+                res.send("No month specified");
+                return;
+            }
+            if (req.query.month === 0) {
+                res.send("Not a valid month");
+                return;
+            }
         }
-        if(req.query.month===0){
-            res.send("Not a valid month");
-            return;
-        }
-    }
 
-    if (!req.query.year && (req.query.month || req.query.month===0)) {
-        if(req.query.year!==0){
-            res.send("No year specified");
-            return;
+        if (!req.query.year && (req.query.month || req.query.month === 0)) {
+            if (req.query.year !== 0) {
+                res.send("No year specified");
+                return;
+            }
+            if (req.query.year === 0) {
+                res.send("Not a valid year");
+                return;
+            }
         }
-        if(req.query.year===0){
-            res.send("Not a valid year");
-            return;
-        }   
-    }
-    if (!req.query.month) {
-        const currentDate = new Date();
-        if (currentDate.getDate() >= 11) {
-            var month = currentDate.getMonth();
-            var year = currentDate.getFullYear();
-        }
-        else {
-            if (currentDate.getMonth() === 0){
-                month = 11;
-                year = currentDate.getFullYear() - 1;
+        if (!req.query.month) {
+            const currentDate = new Date();
+            if (currentDate.getDate() >= 11) {
+                var month = currentDate.getMonth();
+                var year = currentDate.getFullYear();
             }
             else {
-                month = currentDate.getMonth() - 1;
-                year = currentDate.getFullYear();
+                if (currentDate.getMonth() === 0) {
+                    month = 11;
+                    year = currentDate.getFullYear() - 1;
+                }
+                else {
+                    month = currentDate.getMonth() - 1;
+                    year = currentDate.getFullYear();
+                }
             }
-        }
-    }
-    else {
-
-        if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-            res.send("Wrong data types entered.");
-            return;
-        }
-         month = req.query.month - 1;
-        year = req.query.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
-            return;
-        }
-        if (year < 2000) {
-            res.send("Not a valid year");
-            return;
-        }
-    }
-
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingDays = [];
-
-    for (let i = 0; i < hrMembers.length ; i++) {
-
-        let user = hrMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-              
-       await getMissingDays(month,year,dayOff,userAttendanceRecords,user).then(result => {
-            if (result.missingDays.length > 0) {
-                membersWithMissingDays.push({id: user.id, missingDays: result.missingDays});
-            }
-        }).catch(err => {
-            console.log(err);
-            res.status(500).send("Error");
-        })    
-    }
-    for (let i = 0; i < academicMembers.length ; i++) {
-
-        let user = academicMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        
-        await getMissingDays(month,year,dayOff,userAttendanceRecords,user).then(result => {
-            if (result.missingDays.length > 0) {
-                membersWithMissingDays.push({id: user.id, missingDays: result.missingDays});
-            }
-        }).catch(err => {
-            console.log(err);
-            res.status(500).send("Error");
-        })       
-    }
-    res.send(membersWithMissingDays);
-});
-
-router.route("/view-staff-missing-hours")
-.get(async(req, res) => {
-    if (!req.query.month && (req.query.year || req.query.year==0)) {
-        if(req.query.month!==0){
-            res.send("No month specified");
-            return;
-        }
-        if(req.query.month===0){
-            res.send("Not a valid month");
-            return;
-        }
-    }
-
-    if (!req.query.year && (req.query.month || req.query.month===0)) {
-        if(req.query.year!==0){
-            res.send("No year specified");
-            return;
-        }
-        if(req.query.year===0){
-            res.send("Not a valid year");
-            return;
-        }   
-    }
-    if (!req.query.month) {
-        const currentDate = new Date();
-        if (currentDate.getDate() >= 11) {
-            var month = currentDate.getMonth();
-            var year = currentDate.getFullYear();
         }
         else {
-            if (currentDate.getMonth() === 0){
-                month = 11;
-                year = currentDate.getFullYear() - 1;
+
+            if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
+                res.send("Wrong data types entered.");
+                return;
             }
-            else {
-                month = currentDate.getMonth() - 1;
-                year = currentDate.getFullYear();
+            month = req.query.month - 1;
+            year = req.query.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
             }
         }
-    }
-    else {
 
-        if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-            res.send("Wrong data types entered.");
-            return;
-        }
-         month = req.query.month - 1;
-        year = req.query.year;
-        if (month < 0 || month > 11) {
-            res.send("Not a valid month");
-            return;
-        }
-        if (year < 2000) {
-            res.send("Not a valid year");
-            return;
-        }
-    }
+        let hrMembers = await hrMemberModel.find({});
+        let academicMembers = await academicMemberModel.find({});
+        let membersWithMissingDays = [];
 
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingHours = [];
+        for (let i = 0; i < hrMembers.length; i++) {
 
-    for (let i = 0; i < hrMembers.length ; i++) {
-        let user = hrMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        let missingHours;
-        await getMissingAndExtraHours(month,year,dayOff,userAttendanceRecords,user).then(result => {
-        if ( result.missingHours > 0) {
-            membersWithMissingHours.push({id: user.id, missingHours: result.missingHours});
-        }
+            let user = hrMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
 
-        }).catch(err => {
-            console.log(err);
-            res.status(500).send("Error");
-        })     
-    }
-    
-    for (let i = 0; i < academicMembers.length ; i++) {
-        let user = academicMembers[i];
-        let dayOff = convertDay(user.dayOff);
-        let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
-        await getMissingAndExtraHours(month,year,dayOff,userAttendanceRecords,user).then(result => {
-            if (result.missingHours > 0) {
-                membersWithMissingHours.push({id: user.id, missingHours: result.missingHours});
-            }
+            await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
+                if (result.missingDays.length > 0) {
+                    membersWithMissingDays.push({ id: user.id, missingDays: result.missingDays });
+                }
             }).catch(err => {
                 console.log(err);
                 res.status(500).send("Error");
-            }) 
-    }
-    res.send(membersWithMissingHours);
-});
+            })
+        }
+        for (let i = 0; i < academicMembers.length; i++) {
+
+            let user = academicMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+
+            await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
+                if (result.missingDays.length > 0) {
+                    membersWithMissingDays.push({ id: user.id, missingDays: result.missingDays });
+                }
+            }).catch(err => {
+                console.log(err);
+                res.status(500).send("Error");
+            })
+        }
+        res.send(membersWithMissingDays);
+    });
+
+router.route("/view-staff-missing-hours")
+    .get(async (req, res) => {
+        if (!req.query.month && (req.query.year || req.query.year == 0)) {
+            if (req.query.month !== 0) {
+                res.send("No month specified");
+                return;
+            }
+            if (req.query.month === 0) {
+                res.send("Not a valid month");
+                return;
+            }
+        }
+
+        if (!req.query.year && (req.query.month || req.query.month === 0)) {
+            if (req.query.year !== 0) {
+                res.send("No year specified");
+                return;
+            }
+            if (req.query.year === 0) {
+                res.send("Not a valid year");
+                return;
+            }
+        }
+        if (!req.query.month) {
+            const currentDate = new Date();
+            if (currentDate.getDate() >= 11) {
+                var month = currentDate.getMonth();
+                var year = currentDate.getFullYear();
+            }
+            else {
+                if (currentDate.getMonth() === 0) {
+                    month = 11;
+                    year = currentDate.getFullYear() - 1;
+                }
+                else {
+                    month = currentDate.getMonth() - 1;
+                    year = currentDate.getFullYear();
+                }
+            }
+        }
+        else {
+
+            if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
+                res.send("Wrong data types entered.");
+                return;
+            }
+            month = req.query.month - 1;
+            year = req.query.year;
+            if (month < 0 || month > 11) {
+                res.send("Not a valid month");
+                return;
+            }
+            if (year < 2000) {
+                res.send("Not a valid year");
+                return;
+            }
+        }
+
+        let hrMembers = await hrMemberModel.find({});
+        let academicMembers = await academicMemberModel.find({});
+        let membersWithMissingHours = [];
+
+        for (let i = 0; i < hrMembers.length; i++) {
+            let user = hrMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            let missingHours;
+            await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user).then(result => {
+                if (result.missingHours > 0) {
+                    membersWithMissingHours.push({ id: user.id, missingHours: result.missingHours });
+                }
+
+            }).catch(err => {
+                console.log(err);
+                res.status(500).send("Error");
+            })
+        }
+
+        for (let i = 0; i < academicMembers.length; i++) {
+            let user = academicMembers[i];
+            let dayOff = convertDay(user.dayOff);
+            let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+            await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user).then(result => {
+                if (result.missingHours > 0) {
+                    membersWithMissingHours.push({ id: user.id, missingHours: result.missingHours });
+                }
+            }).catch(err => {
+                console.log(err);
+                res.status(500).send("Error");
+            })
+        }
+        res.send(membersWithMissingHours);
+    });
 
 router.route("/add-missing-record")
 .post(async (req,res) =>{

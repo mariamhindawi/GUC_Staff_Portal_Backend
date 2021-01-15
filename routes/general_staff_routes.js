@@ -229,6 +229,7 @@ router.route("/view-profile")
 
 router.route("/view-attendance-records")
 .get(async (req,res) => {
+
     if (!req.query.month && (req.query.year || req.query.year==0)) {
         if(req.query.month!==0){
             res.send("No month specified");
@@ -258,7 +259,7 @@ router.route("/view-attendance-records")
     var userAttendanceRecords;
     var month;
     var year;
-    if (!req.query.month) {
+    if (!req.body.month) {
        month=new Date().getMonth();
        year =new Date().getFullYear();
        userAttendanceRecords = await attendanceRecordModel.find({ $or: [
@@ -293,28 +294,28 @@ router.route("/view-attendance-records")
 router.route("/view-missing-days")
 .get(async (req,res) => {
 
-    if (!req.body.month && (req.body.year || req.body.year==0)) {
-        if(req.body.month!==0){
+    if (!req.query.month && (req.query.year || req.query.year==0)) {
+        if(req.query.month!==0){
             res.send("No month specified");
             return;
         }
-        if(req.body.month===0){
+        if(req.query.month===0){
             res.send("Not a valid month");
             return;
         }
     }
 
-    if (!req.body.year && (req.body.month || req.body.month===0)) {
-        if(req.body.year!==0){
+    if (!req.query.year && (req.query.month || req.query.month===0)) {
+        if(req.query.year!==0){
             res.send("No year specified");
             return;
         }
-        if(req.body.year===0){
+        if(req.query.year===0){
             res.send("Not a valid year");
             return;
         }   
     }
-    if (!req.body.month) {
+    if (!req.query.month) {
         const currentDate = new Date();
         if (currentDate.getDate() >= 11) {
             var month = currentDate.getMonth();
@@ -332,12 +333,12 @@ router.route("/view-missing-days")
         }
     }
     else {
-        if (typeof req.body.month !== "number" || typeof req.body.year !== "number") {
+        if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
             res.send("Wrong data types entered.");
             return;
         }
-        month = req.body.month - 1;
-        year = req.body.year;
+        month = req.query.month - 1;
+        year = req.query.year;
         if (month < 0 || month > 11) {
             res.send("Not a valid month");
             return;
@@ -403,7 +404,6 @@ router.route("/view-hours")
         }
     }
     else {
-
         if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
             res.send("Wrong data types entered.");
             return;
