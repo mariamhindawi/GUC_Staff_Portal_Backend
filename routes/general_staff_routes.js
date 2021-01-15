@@ -120,7 +120,7 @@ async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) 
         });
 
         if (request) {
-            if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {        
+            if (request.type !== "compensationRequest" || (request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate()))) {        
                 numberOfDaysWithExcuse++;
             }
         }

@@ -21,7 +21,7 @@ router.use((req, res, next) => {
     }
 });
 
-router.route("/view-all-staff")
+router.route("/view-staff")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
@@ -29,21 +29,18 @@ router.route("/view-all-staff")
         res.send(output);
     });
 
-router.route("/view-all-staff-per-course")
+router.route("/view-staff/:course")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let user = await academicMemberModel.findOne({ id: token.id });
-        if(!req.body.course){
-            res.send('Not all fields are entered.');
-            return;
-        }
-        if (typeof req.body.course !== 'string') {
-            res.send('Wrong data types entered.');
-            return;
-        }
-        let course = await courseModel.findOne({ department: user.department, name: req.body.course });
+
+        let course = await courseModel.findOne({name: req.params.course });
         if(!course){
-            res.send('No suuch course in your department.');
+            res.send('Course does not exist.');
+            return;
+        }
+        if(course.department !==user.department){
+            res.send("Course does not exist in your department.");
             return;
         }
         let output = [];
@@ -51,12 +48,12 @@ router.route("/view-all-staff-per-course")
         let tas = await course.teachingAssistants;
 
         for (let i = 0; i < instructors.length; i++) {
-            let user = await academicMemberModel.findOne({ id: instructors[i] });
-            output.push(user)
+            let instructor = await academicMemberModel.findOne({ id: instructors[i] });
+            output.push(instructor)
         }
         for (let i = 0; i < tas.length; i++) {
-            let user = await academicMemberModel.findOne({ id: tas[i] });
-            output.push(user)
+            let ta = await academicMemberModel.findOne({ id: tas[i] });
+            output.push(ta)
         }
         res.send(output);
     });
@@ -69,19 +66,12 @@ router.route("/view-all-staff-dayoff")
         res.send(output);
     });
 
-router.route("/view-one-staff-dayoff")
+router.route("/view-one-staff-dayoff/:id")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if(!req.body.id){
-            res.send("Not all fields are entered.");
-            return;
-        }
-        if (typeof req.body.id !== 'string') {
-            res.send('Wrong data types entered.')
-            return;
-        }
+      
         let user = await academicMemberModel.findOne({ id: token.id });
-        let output = await academicMemberModel.findOne({ department: user.department, id: req.body.id }, { id: 1,  dayoff: 1 });
+        let output = await academicMemberModel.findOne({ department: user.department, id: req.params.id }, { id: 1,  dayoff: 1 });
         res.send(output);
     });
 
@@ -98,130 +88,124 @@ router.route("/assign-course-instructor")
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course });
+        let course = await courseModel.findOne({ name: req.body.course});
         if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
-            res.send('No such instructor exists.');
+            res.send( "Instructor does not exist.");
             return;
         }
-        if (course) {
-            if (user.department === course.department) {
-                if (user.department === instructor.department) {
-                    try {
-                        await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instructor } })
-                        res.send("Instructor assigned to course");
-                    }
-                    catch (error) {
-                        res.send("Cannot assign instructor");
-                    }
-                }
-                else {
-                    res.send("Cannot assign instructor that is not in your department");
-                }
-            }
-            else {
-                res.send("Cannot assign instructor to a course not in your department");
-            }
-        }
-        else {
+        if (!course) {
             res.send("Course does not exist");
+            return;
         }
-    
-        
-           
+        if(course.department !== user.department){
+            res.send("Course does not exist in your department.");
+            return;
+        }
+        if(instructor.department !==user.department){
+            res.send("Instructor does not exist in your department.");
+            return;
+        }
+        course.courseInstructors.push(instructor);
+        try {
+            await course.save();
+            res.send("Instructor assigned to course successfully.");
+        }
+        catch (error) {
+            console.log(error.message)
+            res.status(400).send(error.messages);
+        }
     });
 
-router.route("/delete-course-instructor")
+router.route("/delete-course-instructor/:instructor/:course")
     .delete(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if(!req.body.id || !req.body.course){
-            res.send("Not all fields are entered.");
-            return;
-        }
-        if (typeof req.body.id !== 'string' || typeof req.body.course !== 'string') {
-            res.send('Wrong data types entered.');
-            return;
-        }
+       
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course })
-        if (instructor) {
-            if (course) {
-                if (user.department === course.department) {
-                    if (user.department === instructor.department) {
-                        try {
-                            await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: instructor } })
-                            res.send("Instructor deleted from course");
-                        }
-                        catch (error) {
-                            res.send("Cannot delete instructor");
-                        }
-                    }
-                    else {
-                        res.send("Cannot delete instructor that is not in your department");
-                    }
-                }
-                else {
-                    res.send("Cannot delete instructor from a course not in your department");
-                }
-            }
-            else {
-                res.send("Course does not exist");
-            }
+        let course = await courseModel.findOne({ name: req.body.course});
+
+        if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
+            res.send( "Instructor does not exist.");
+            return;
         }
-        else {
-            res.send("Instructor does not exist");
+        if (!course) {
+            res.send("Course does not exist");
+            return;
+        }
+        if(course.department !== user.department){
+            res.send("Course does not exist in your department.");
+            return;
+        }
+        if(instructor.department !==user.department){
+            res.send("Instructor is not in your department.");
+            return;
+        }
+        if(!course.courseInstructors.includes(instructor)){
+            res.send("Instructor is not assigned to this course.");
+            return;
+        }
+    
+        const indx = course.courseInstructors.findIndex(v => v === instructor);
+        course.courseInstructors.slice(indx,indx+1);
+        try {
+            await course.save();
+            res.send("Instructor deleted from course successfully");
+        }
+        catch (error) {
+            console.log(error.message)
+            res.status(400).send(error.messages);
         }
     });
 
-router.route("/update-course-instructor")
+router.route("/update-course-instructor/:idDelete/:course")
     .put(async (req, res) => {
         const token = jwt.decode(req.headers.token);
-        if(!req.body.idUpdate || !req.body.idDelete || !req.body.course){
+        if(!req.body.idUpdate){
             res.send("Not all fields are entered");
             return;
         }
-        if (typeof req.body.idUpdate !== 'string' || typeof req.body.idDelete !== 'string'||typeof req.body.course !== 'string') {
-            res.send('Wrong data types entered.');
+        if (typeof req.body.idUpdate !== 'string') {
+            res.send('Wrong data types entered');
             return;
         }
         
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
-        let instructordelete = await academicMemberModel.findOne({ id: req.body.idDelete });
-        let course = await courseModel.findOne({ name: req.body.course })
-        if (instructorupdate.role === "Course Instructor" || instructor.role === "Head of Department") {
-            if (instructorupdate && instructordelete) {
-                if (course) {
-                    if (user.department === course.department) {
-                        if (user.department === instructorupdate.department && user.department === instructordelete.department) {
-                            try {  
-                                await courseModel.findOneAndUpdate({ name: req.body.course }, { "$pull": { courseInstructors: instructordelete } })
-                                await courseModel.findOneAndUpdate({ name: req.body.course }, { "$push": { courseInstructors: instructorupdate } })
-                                res.send("Instructor updated");
-                            }
-                            catch (error) {
-                                res.send("Cannot update instructor");
-                            }
-                        }
-                        else {
-                            res.send("Cannot update instructor that is not in your department");
-                        }
-
-                    }
-                    else {
-                        res.send("Cannot update instructor in a course not in your department");
-                    }
-                }
-                else {
-                    res.send("Course does not exist");
-                }
-            }
-            else {
-                res.send("Instructor does not exist");
-            }
+        let instructordelete = await academicMemberModel.findOne({ id: req.params.idDelete });
+        let course = await courseModel.findOne({ name: req.params.course });
+        
+        if(!instructordelete || !instructorupdate){
+            res.send("Instructor does not exist.");
+            return;
         }
-        else {
-            res.send("Cannot assign TA to be a course instructor");
+        if(instructordelete.department!==user.department || instructorupdate.department!==user.department){
+            res.send("Cannot update an instructor that is not in your department.");
+            return;
+        }
+        if(!course){
+            res.send("Course does not exist.");
+            return;
+        }
+        if(course.department!==user.department){
+            res.send("Course does not exist in your department.");
+            return;
+        }
+        if(!course.courseInstructors.includes(instructordelete)){
+            res.send("Instructor is not assigned to this course.");
+            return;
+        }
+        
+        const indx = course.courseInstructors.findIndex(v => v === instructordelete);
+        course.courseInstructors.slice(indx,indx+1);
+        course.courseInstructors.push(instructorupdate);
+
+        try {   
+            await course.save();
+            res.send("Instructor updated successfully");
+        }
+        catch (error) {
+            console.log(error.message)
+            res.status(400).send(error.messages);
         }
 
     });
