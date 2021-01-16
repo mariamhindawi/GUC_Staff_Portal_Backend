@@ -106,12 +106,12 @@ router.route("/assign-course-instructor")
         }
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course});
+        let course = await courseModel.findOne({ id: req.body.course});
         if( !instructor ){
             res.send( "User does not exist");
             return;
         }
-        if (instructor.role !== "Course Instructor" || instructor.role !== "Head of Department") {
+        if (instructor.role === "Teaching Assistant" || instructor.role === "Course Coordinator") {
             res.send("This user is not an instructor");
             return;
         }
@@ -127,7 +127,7 @@ router.route("/assign-course-instructor")
             res.send("Instructor does not exist in your department");
             return;
         }
-        course.courseInstructors.push(instructor);
+        course.courseInstructors.push(instructor.id);
         try {
             await course.save();
             res.send("Instructor assigned to course successfully");
@@ -138,16 +138,20 @@ router.route("/assign-course-instructor")
         }
     });
 
-router.route("/delete-course-instructor/:instructor/:course")
+router.route("/delete-course-instructor")
     .delete(async (req, res) => {
         const token = jwt.decode(req.headers.token);
        
         let user = await academicMemberModel.findOne({ id: token.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ name: req.body.course});
+        let course = await courseModel.findOne({ id: req.body.course});
 
-        if( !instructor || instructor.role === "Course Instructor" || instructor.role === "Head of Department"){
+        if( !instructor ){
             res.send( "Instructor does not exist.");
+            return;
+        }
+        if( instructor.role !== "Course Instructor" && instructor.role !== "Head of Department") {
+            res.send("This is not an instructor");
             return;
         }
         if (!course) {
@@ -168,7 +172,7 @@ router.route("/delete-course-instructor/:instructor/:course")
         }
     
         const indx = course.courseInstructors.findIndex(v => v === instructor);
-        course.courseInstructors.slice(indx,indx+1);
+        course.courseInstructors.splice(indx,1);
         try {
             await course.save();
             res.send("Instructor deleted from course successfully");
