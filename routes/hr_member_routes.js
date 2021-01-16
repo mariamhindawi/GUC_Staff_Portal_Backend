@@ -1477,7 +1477,12 @@ router.route("/add-missing-record")
             }
             else {
                 // userRecord.signInTime = signInDate;
-                userRecord.signInTime = new Date(req.body.signInTime);
+                let signInTime = new Date(req.body.signInTime);
+                userRecord.signInTime = signInTime
+                if(signInTime>userRecord.signOutTime){
+                    res.status(403).send('Sign in time cannot be after the sign out time')
+                    return
+                }
                 try {
                     await userRecord.save();
                     res.send(userRecord);
@@ -1503,7 +1508,12 @@ router.route("/add-missing-record")
                 return;
             }
             else {
-                userRecord.signOutTime = new Date(req.body.signOutTime);
+                let signOutTime = new Date(req.body.signOutTime);
+                if(signOutTime<userRecord.signInTime){
+                    res.status(403).send('Sign out time cannot be before the sign in time')
+                    return
+                }
+                userRecord.signOutTime = signOutTime
                 try {
                     await userRecord.save();
                     res.send(userRecord);
@@ -1515,6 +1525,12 @@ router.route("/add-missing-record")
             }
         }
         else if (missingRecordType === "fullDay") {
+            let signInTime= new Date(req.body.signInTime)
+            let signOutTime= new Date(req.body.signOutTime)
+            if(signInTime>signOutTime){    
+                res.status(403).send('Sign out time cannot be before the sign in time')
+                return
+            }
             userRecord = new attendanceRecordModel({
                 user: user.id,
                 signInTime: req.body.signInTime,
