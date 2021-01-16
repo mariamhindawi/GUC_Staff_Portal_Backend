@@ -40,11 +40,26 @@ router.route("/get-courses-by-academic")
     res.send(courses);
 });
 
+router.route("/get-ci-courses")
+.get(async(req,res)=>{
+    const token = jwt.decode(req.headers.token);
+    let academicMember = await academicMemberModel.findOne({id:token.id});
+    let courses = await courseModel.find({courseInstructors: academicMember.id});
+    console.log(courses);
+    res.send(courses);
+})
+
 router.route("/get-my-courses")
 .get(async (req, res) => {
-    let token=jwt.decode(req.headers.token)
+    let token=jwt.decode(req.headers.token);
     const courses = await courseModel.find({$or: [{courseInstructors: token.id}, {teachingAssistants: token.id}]});
-    res.send(courses);
+    let departments = [];
+    let user = await academicMemberModel.findOne({id:token.id});
+    let department = await departmentModel.findOne({_id: user.department});
+    for( let i=0 ; i<courses.length ; i++) {
+        departments.push(department.name);
+    }
+    res.send({courses:courses, departments: departments});
 });
 
 router.route("/get-rooms")
@@ -162,6 +177,23 @@ router.route("/get-courses")
         }
     }
     res.send({ courses: courses,departments: departments });
+})
+
+router.route("/view-staff-profile/:id")
+.get(async(req,res)=>{
+    const token = jwt.decode(req.headers.token);
+    let user = await hrMemberModel.findOne({id: req.params.id});
+    if (!user) {
+        user = await academicMemberModel.findOne({id: req.params.id});
+    }
+    let office = await roomModel.findOne({_id: user.office});
+    let department = await departmentModel.findOne({_id:user.department})
+    let faculty = await facultyModel.findOne({_id:user.faculty})
+    if(department)
+        user.department=department.name
+    if(faculty)
+        user.faculty=faculty
+    res.send({user: user, office: office});
 })
 
 module.exports = router;

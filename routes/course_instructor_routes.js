@@ -6,6 +6,7 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
 const slotModel = require("../models/slot_model");
+const departmentModel = require("../models/department_model");
 
 const router = express.Router();
 
@@ -24,8 +25,15 @@ router.route("/view-staff")
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
     let output= await academicMemberModel.find({department:user.department})
-    
-    res.send(output);
+    let department = await departmentModel.findOne({_id: user.department});
+    let departments = [];
+    let rooms = [];
+    for(let i = 0; i<output.length ; i++) {
+        departments.push(department.name);
+        let room = await roomModel.findOne({_id: output[i].office});
+        rooms.push(room.name);
+    }
+    res.send({staff: output, departments: departments, rooms: rooms});
        
 })
 
@@ -85,10 +93,10 @@ router.route("/assign-course-coordinator")
         res.send("Course does not exist.");
         return;
     }
-    if(!course.courseInstructors.includes(user)){
-        res.send("You are not assigned to this course.");
-        return;
-    }
+    // if(!course.courseInstructors.includes(user)){
+    //     res.send("You are not assigned to this course.");
+    //     return;
+    // }
     if(!academic){
         res.send("Academic does not exist.");
         return;
@@ -116,10 +124,10 @@ router.route("/delete-ta-from-course/:id/:course")
 .delete(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
-    let course=await courseModel.findOne({name:req.params.course})
+    let course=await courseModel.findOne({id:req.params.course})
     let ta=await academicMemberModel.findOne({id:req.params.id});
 
-    if(!ta || (ta.role!=="Teaching Assistant"&& ta.role!=="Course Coordinator")){
+    if(!ta || (ta.role==="Course Instructor"||ta.role==="Head of Department")){
         res.send("TA does not exist.");
         return;
     }
@@ -127,21 +135,21 @@ router.route("/delete-ta-from-course/:id/:course")
         res.send("Course does not exist.");
         return;
     }
-    if(!course.includes(user)){
+    if(!course.courseInstructors.includes(user.id)){
         res.send("You are not assigned to this course.");
         return;
     }
     if(ta.department!==user.department){
-        res.send("Cannot add a ta that is not in your department.");
+        res.send("Cannot remove a ta that is not in your department.");
         return;
     }
-    if(!course.teachingAssistants.includes(ta)){
+    if(!course.teachingAssistants.includes(ta.id)){
         res.send("TA is not assiged to this course");
         return;
     }
     
     const indx = course.teachingAssistants.findIndex(v => v === ta);
-    course.courseInstructors.slice(indx,indx+1);
+    course.teachingAssistants.splice(indx,1);
     try{
         await course.save();
         res.send("TA deleted from course successfully");
@@ -158,10 +166,10 @@ router.route("/assign-ta-to-course/:id/:course")
 .post(async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let user = await academicMemberModel.findOne({id:token.id});
-    let course=await courseModel.findOne({name:req.params.course})
+    let course=await courseModel.findOne({id:req.params.course})
     let ta=await academicMemberModel.findOne({id:req.params.id});
 
-    if(!ta || (ta.role!=="Teaching Assistant"&& ta.role!=="Course Coordinator")){
+    if(!ta || (ta.role==="Course Instructor"|| ta.role==="Head of Department")){
         res.send("TA does not exist.");
         return;
     }
@@ -169,7 +177,7 @@ router.route("/assign-ta-to-course/:id/:course")
         res.send("Course does not exist.");
         return;
     }
-    if(!course.includes(user)){
+    if(!course.courseInstructors.includes(user.id)){
         res.send("You are not assigned to this course.");
         return;
     }
@@ -177,8 +185,7 @@ router.route("/assign-ta-to-course/:id/:course")
         res.send("Cannot add a ta that is not in your department.");
         return;
     }
-    
-    course.teachingAssistants.push(ta);
+    course.teachingAssistants.push(ta.id);
     try{
         await course.save();
         res.send("TA assigned to course successfully")
