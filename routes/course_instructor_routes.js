@@ -239,8 +239,7 @@ router.route('/assign-academic-member-to-slot')
         return;
     }
     let room = await roomModel.findOne({name: req.body.room});
-    let course = await courseModel.findOne({id: req.body.course});
-    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
+    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
     if(! slot) {
         res.body.send("No such slot");
         return;
@@ -249,7 +248,8 @@ router.route('/assign-academic-member-to-slot')
         res.send("Slot already assigned.. try updating it");
         return;
     }
-    let otherSlot = await slotModel({day: req.body.day ,slotNumber: req.body.slotNumber,staffMember: academicMember.id});
+    let otherSlot = await slotModel.findOne({day: req.body.day ,slotNumber: req.body.slotNumber,staffMember: academicMember.id});
+    console.log(otherSlot)
     if (otherSlot) {
         res.send("This TA is assigned to another slot in the same time");
         return;
@@ -286,11 +286,11 @@ router.route('/update-academic-member-to-slot')
     slot.staffMember = academicMember.id;
     try {
         await slot.save();
-        res.send(slot);
+        res.send('Assigned to slot')
     }
     catch(error)
     {
-        res.body.send(error);
+        res.send(error);
     }
 })
 
@@ -298,16 +298,16 @@ router.route('/delete-academic-member-to-slot')
 .delete( async (req,res) => {
     const token = jwt.decode(req.headers.token);
     let room = await roomModel.findOne({name: req.body.room});
-    let course = await courseModel.findOne({id: req.body.course});
-    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id,course: course._id,type: req.body.type});
+    let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
     if(! slot) {
         res.send("No such slot");
         return;
     }
+    console.log(slot)
     slot.staffMember = "UNASSIGNED";
     try {
         await slot.save();
-        res.send(slot);
+        res.send('Deleted successfully')
 
     }
     catch (error) {
