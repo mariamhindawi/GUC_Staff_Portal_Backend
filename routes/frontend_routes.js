@@ -17,8 +17,7 @@ router.route("/get-academic-department")
 .get(async (req, res) => {
     const token = jwt.decode(req.headers.token);
     const academicMember = await academicMemberModel.findOne({id: token.id});
-    const department = await departmentModel.findById(academicMember.department); 
-    console.log(department);  
+    const department = await departmentModel.findById(academicMember.department);
     res.send(department);
 });
 
@@ -46,7 +45,6 @@ router.route("/get-ci-courses")
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id:token.id});
     let courses = await courseModel.find({courseInstructors: academicMember.id});
-    console.log(courses);
     res.send(courses);
 })
 
@@ -149,8 +147,7 @@ router.put('/academic/mark-notifications-seen', async(req,res)=>{
         noti.seen=true;
         noti.save()
     }
-    console.log(seenNotifications)
-    res.send('Done')
+    res.send('Done');
 })
 router.get('/course-slots',async(req,res)=>{
     let course = await courseModel.findOne({id:req.query.id})
@@ -182,9 +179,7 @@ router.route("/get-courses")
 
 router.get('/user-records',async(req,res)=>{
     let dateStringParts = req.query.day.split("T")[0].split("-")
-    console.log(req.query.day)
     let date=new Date(dateStringParts[0],dateStringParts[1]-1,dateStringParts[2],2).addDays(1)
-    console.log(date)
     records=await attendance_record_model.find({user:req.query.user,signInTime: { $lt: date.addDays(1), $gte: date }})
     res.send(records)
 })
