@@ -1,12 +1,13 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const roomModel = require("../models/room_model");
+
 const academicMemberModel = require("../models/academic_member_model");
 const departmentModel = require("../models/department_model");
-const courseModel = require("../models/course_model")
+const courseModel = require("../models/course_model");
+const roomModel = require("../models/room_model");
+const slotModel = require("../models/slot_model");
+const notificationModel = require("../models/notification_model");
 const { annualLeaveModel, dayOffChangeModel, requestModel } = require("../models/request_model");
-const notificationModel = require('../models/notification_model')
-const slotModel = require('../models/slot_model')
 
 const router = express.Router();
 
@@ -44,7 +45,7 @@ router.route("/view-staff/:course")
         let course = await courseModel.findOne({name: req.params.course });
 
         if(!course){
-            res.send('Course does not exist');
+            res.send("Course does not exist");
             return;
         }
         if(course.department !==user.department){
@@ -100,8 +101,8 @@ router.route("/assign-course-instructor")
             res.send("Not all fields are entered");
             return;
         }
-        if (typeof req.body.id !== 'string'|| typeof req.body.course !== 'string' ) {
-            res.send('Wrong data types entered');
+        if (typeof req.body.id !== "string"|| typeof req.body.course !== "string" ) {
+            res.send("Wrong data types entered");
             return;
         }
         let user = await academicMemberModel.findOne({ id: token.id });
@@ -190,8 +191,8 @@ router.route("/update-course-instructor/:idDelete/:course")
             res.send("Not all fields are entered");
             return;
         }
-        if (typeof req.body.idUpdate !== 'string') {
-            res.send('Wrong data types entered');
+        if (typeof req.body.idUpdate !== "string") {
+            res.send("Wrong data types entered");
             return;
         }
         
@@ -236,18 +237,18 @@ router.route("/update-course-instructor/:idDelete/:course")
 
     });
 
-router.put('/staff-requests/:reqId/accept', async (req, res) => {
+router.put("/staff-requests/:reqId/accept", async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await requestModel.findOne({ id: req.params.reqId })
     let requester = await academicMemberModel.findOne({ id: request.requestedBy })
-    if (request.status !== 'Under review') {
-        res.status(403).send('Already responded')
+    if (request.status !== "Under review") {
+        res.status(403).send("Already responded")
         return
     }
-    if (request.type === 'annualLeave') {
+    if (request.type === "annualLeave") {
         if (requester.annualLeaveBalance >= 1) {
             requester.annualLeaveBalance -= 1;
             requester.save()
@@ -262,7 +263,7 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
             notification.save()
         }
     }
-    if (request.type === 'accidentalLeave') {
+    if (request.type === "accidentalLeave") {
         if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1) {
             requester.annualLeaveBalance -= 1
             requester.accidentalLeaveBalance -= 1
@@ -278,14 +279,14 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
             notification.save()
         }
     }
-    if (request.type === 'sickLeave' || request.type === 'maternityLeave' || request.type === 'compensationRequest') {
+    if (request.type === "sickLeave" || request.type === "maternityLeave" || request.type === "compensationRequest") {
         request = await requestModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true })
     }
-    if (request.type === 'dayOffChangeRequest') {
+    if (request.type === "dayOffChangeRequest") {
         request = await dayOffChangeModel.findOne({ id: req.params.reqId })
         let day = request.dayOff
         requester.dayOff = day
-        request.status = 'Accepted'
+        request.status = "Accepted"
         request.save()
         requester.save()
     }
@@ -297,18 +298,18 @@ router.put('/staff-requests/:reqId/accept', async (req, res) => {
     res.send(request)
 })
 
-router.put('/staff-requests/:reqId/reject', async (req, res) => {
+router.put("/staff-requests/:reqId/reject", async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
-    if (request.status !== 'Under review') {
-        res.status(403).send('Already responded')
+    if (request.status !== "Under review") {
+        res.status(403).send("Already responded")
         return
     }
     request.HODComment = req.body.HODComment
-    request.status = 'Rejected'
+    request.status = "Rejected"
     try {
         await request.save()
     }
@@ -324,10 +325,10 @@ router.put('/staff-requests/:reqId/reject', async (req, res) => {
 })
 
 
-router.get('/staff-requests', async (req, res) => {
+router.get("/staff-requests", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let hod = await academicMemberModel.findOne({ id: token.id });
-    let requests = await requestModel.find({ $and: [{ $nor: [{ type: 'slotLinkingRequest' }] }, { status: 'Under review' }] })
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] })
     for (let i = 0; i < requests.length; i++) {
         let request = requests[i]
         let staffMember = await academicMemberModel.findOne({ id: request.requestedBy })
@@ -340,7 +341,7 @@ router.get('/staff-requests', async (req, res) => {
 });
 
 //view the coverage of each course in his/her department
-router.route('/view-coverage').get(async (req, res) => {
+router.route("/view-coverage").get(async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let hod = await academicMemberModel.findOne({ id: token.id });
     let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
@@ -363,7 +364,7 @@ router.route('/view-coverage').get(async (req, res) => {
 })
 
 //view teaching assignments
-router.route('/view-teaching-assignments')
+router.route("/view-teaching-assignments")
     .get(async (req, res) => {
         const token = jwt.decode(req.headers.token);
         let hod = await academicMemberModel.findOne({ id: token.id });

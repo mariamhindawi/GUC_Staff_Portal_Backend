@@ -1,9 +1,9 @@
 const schedule = require("node-schedule");
 
-const hrMemberModel = require("./models/hr_member_model");
-const academicMemberModel = require("./models/academic_member_model");
-const jwtBlacklistModel = require("./models/jwt_blacklist_model");
-const userBlacklistModel = require("./models/user_blacklist_model");
+const hrMemberModel = require("../models/hr_member_model");
+const academicMemberModel = require("../models/academic_member_model");
+const jwtBlacklistModel = require("../models/jwt_blacklist_model");
+const userBlacklistModel = require("../models/user_blacklist_model");
 
 const updateAnnualLeaveBalacnceJob = schedule.scheduleJob("0 0 0 11 * *", async () => {
     await hrMemberModel.updateMany({}, {$inc: {annualLeaveBalance: 2.5}});

@@ -6,8 +6,8 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const slotModel = require("../models/slot_model");
 const courseModel = require("../models/course_model");
+const notificationModel=require("../models/notification_model")
 const { slotLinkingModel } = require("../models/request_model");
-const notificationModel=require('../models/notification_model')
 
 const router = express.Router();
 
@@ -21,39 +21,39 @@ router.use((req, res, next) => {
     }
 });
 
-router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
+router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.reqId)){
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
     if (token.id !== course.courseCoordinator) {
-        res.status(403).send('Invalid credentials')
+        res.status(403).send("Invalid credentials")
         return
     }
-    if (request.status === 'Accepted' || request.status === 'Rejected') {
-        res.status(403).send('Already replied to request')
+    if (request.status === "Accepted" || request.status === "Rejected") {
+        res.status(403).send("Already replied to request")
         return
     }
-    if (slot.staffMember !== 'UNASSIGNED') {
-        request.status = 'Rejected'
-        request.ccComment = 'Slot was assigned to another staff member'
+    if (slot.staffMember !== "UNASSIGNED") {
+        request.status = "Rejected"
+        request.ccComment = "Slot was assigned to another staff member"
         let notification = new notificationModel({
             user: request.requestedBy,
-            message: 'Your slot-linking request request has been rejected.'
+            message: "Your slot-linking request request has been rejected."
         })
         notification.save()
     }
     else {
-        request.status = 'Accepted'
+        request.status = "Accepted"
         slot.staffMember = request.requestedBy
         slot.save()
         let notification = new notificationModel({
             user: request.requestedBy,
-            message: 'Your slot-linking request request has been accepted.'
+            message: "Your slot-linking request request has been accepted."
         })
         notification.save()
     }
@@ -61,24 +61,24 @@ router.put('/slot-linking-requests/:reqId/accept', async (req, res) => {
     res.send(request)
 });
 
-router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
+router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.reqId)){
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
     if (token.id !== course.courseCoordinator) {
-        res.status(403).send('Invalid credentials')
+        res.status(403).send("Invalid credentials")
         return
     }
-    if (request.status === 'Accepted' || request.status === 'Rejected') {
-        res.status(403).send('Already replied to request')
+    if (request.status === "Accepted" || request.status === "Rejected") {
+        res.status(403).send("Already replied to request")
         return
     }
-    request.status = 'Rejected'
+    request.status = "Rejected"
     request.ccComment = req.body.ccComment
     try{
         await request.save()
@@ -88,19 +88,19 @@ router.put('/slot-linking-requests/:reqId/reject', async (req, res) => {
     }
     let notification = new notificationModel({
         user: request.requestedBy,
-        message: 'Your slot-linking request has been rejected.'
+        message: "Your slot-linking request has been rejected."
     })
     notification.save()
     res.send(request)
 });
 
-router.get('/slot-linking-requests', async (req, res) => {
+router.get("/slot-linking-requests", async (req, res) => {
     const token = jwt.decode(req.headers.token)
     let slots = await slotModel.find()
     let courses = await courseModel.find({ courseCoordinator: token.id })
     let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course))
     let myCourseSlotsids = myCourseSlots.map(slot=>slot._id.toString())
-    let allRequests = await slotLinkingModel.find({ type: 'slotLinkingRequest', status:'Under review' })
+    let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status:"Under review" })
     let myRequests = allRequests.filter(request=>myCourseSlotsids.includes(request.slot))
     for(let i=0;i<myRequests.length;i++){
         myRequests[i].slot= await slotModel.findOne({_id:myRequests[i].slot})
@@ -115,11 +115,11 @@ router.route("/get-courses-of-cc")
     res.send(courses);
 })
 
-router.route('/add-course-slot')
+router.route("/add-course-slot")
 .post ( async(req,res) => {
     const token = jwt.decode(req.headers.token);
-    if (typeof req.body.course !== 'string') {
-        res.send('Please enter a valid course id')
+    if (typeof req.body.course !== "string") {
+        res.send("Please enter a valid course id")
         return
     }
     let academicMember = await academicMemberModel.findOne({id: token.id});
@@ -128,8 +128,8 @@ router.route('/add-course-slot')
         res.send("Invalid creditentials");
         return;
     }
-    if (typeof req.body.room !== 'string') {
-        res.send('Please enter a valid room')
+    if (typeof req.body.room !== "string") {
+        res.send("Please enter a valid room")
         return
     }
     let room = await roomModel.findOne({name: req.body.room});
@@ -137,20 +137,20 @@ router.route('/add-course-slot')
         res.send("Not a valid room");
         return;
     }
-    if (typeof req.body.type !== 'string') {
-        res.send('Please enter a valid room type')
+    if (typeof req.body.type !== "string") {
+        res.send("Please enter a valid room type")
         return
     }
     if (!(room.type===req.body.type)) {
         res.send("room type and slot type do not match");
         return;
     }
-    if (typeof req.body.day !== 'string') {
-        res.send('Please enter a valid day')
+    if (typeof req.body.day !== "string") {
+        res.send("Please enter a valid day")
         return
     }
     if(isNaN(req.body.slotNumber)){
-        res.send('Please enter a valid slot number')
+        res.send("Please enter a valid slot number")
         return
     }
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
@@ -174,12 +174,12 @@ router.route('/add-course-slot')
     }
 });
 
-router.route('/update-course-slot/:day/:slotNumber/:room/:course')
+router.route("/update-course-slot/:day/:slotNumber/:room/:course")
 .put( async(req, res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});
-    if (typeof req.params.course !== 'string') {
-        res.send('Please enter a valid course id')
+    if (typeof req.params.course !== "string") {
+        res.send("Please enter a valid course id")
         return
     }
     let course = await courseModel.findOne({id: req.params.course});
@@ -188,14 +188,14 @@ router.route('/update-course-slot/:day/:slotNumber/:room/:course')
         return;
     }
     let room = await roomModel.findOne({name: req.params.room});
-    if (typeof req.body.updatedRoom !== 'string') {
-        res.send('Please enter a room name')
+    if (typeof req.body.updatedRoom !== "string") {
+        res.send("Please enter a room name")
         return
     }
     if (req.body.updatedRoom) {
         let updatedRoom = await roomModel.findOne({name: req.body.updatedRoom});
         if(!updatedRoom) {
-            res.send("The updated Room's name is incorrect");
+            res.send("The updated room's name is incorrect");
             return;
         }
         if (updatedRoom.type==="Office") {
@@ -209,19 +209,19 @@ router.route('/update-course-slot/:day/:slotNumber/:room/:course')
     }
     
     if (isNaN(req.params.slotNumber)) {
-        res.send('Please enter a valid slot number')
+        res.send("Please enter a valid slot number")
         return
     }
     let slot = await slotModel.findOne({day: req.params.day,room: room._id, slotNumber: req.params.slotNumber});
     if (!slot) {
         res.send("No slot to update");
         return;
-    }if (typeof req.body.updatedDay !== 'string') {
-        res.send('Please enter a day')
+    }if (typeof req.body.updatedDay !== "string") {
+        res.send("Please enter a day")
         return
     }
     if (isNaN(req.body.updatedSlotNumber)) {
-        res.send('Please enter a valid slot number')
+        res.send("Please enter a valid slot number")
         return
     }
     if (req.body.updatedDay) {
@@ -262,7 +262,7 @@ router.route('/update-course-slot/:day/:slotNumber/:room/:course')
     }
 })
 
-router.route('/delete-course-slot')
+router.route("/delete-course-slot")
 .delete( async(req,res) => {
     const token = jwt.decode(req.headers.token);
     let academicMember = await academicMemberModel.findOne({id: token.id});
@@ -271,17 +271,17 @@ router.route('/delete-course-slot')
         res.send("Invalid creditentials");
         return;
     }
-    if (typeof req.body.room !== 'string') {
-        res.send('Please enter a valid room')
+    if (typeof req.body.room !== "string") {
+        res.send("Please enter a valid room")
         return
     }
-    if (typeof req.body.day !== 'string') {
-        res.send('Please enter a valid day')
+    if (typeof req.body.day !== "string") {
+        res.send("Please enter a valid day")
         return
     }
     
     if (isNaN(req.body.slotNumber)) {
-        res.send('Please enter a valid slot number')
+        res.send("Please enter a valid slot number")
         return
     }
     let room = await roomModel.findOne({name: req.body.room});

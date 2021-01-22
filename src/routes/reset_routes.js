@@ -13,7 +13,7 @@ const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const { requestModel } = require('../models/request_model')
+const { requestModel } = require("../models/request_model")
 
 const router = express.Router();
 
@@ -70,9 +70,9 @@ router.route("")
 });
 
 const resetConfig = async() => {  
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),'config.json')));
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),"config.json")));
     config.requestCounter = "0";
-    fs.writeFileSync(path.join(path.dirname(__dirname),'config.json'), JSON.stringify(config));
+    fs.writeFileSync(path.join(path.dirname(__dirname),"config.json"), JSON.stringify(config));
 }
 
 module.exports = router;

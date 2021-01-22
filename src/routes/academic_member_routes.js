@@ -1,17 +1,17 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
+const roomModel = require("../models/room_model");
+const courseModel = require("../models/course_model");
+const slotModel = require("../models/slot_model");
+const notificationModel = require("../models/notification_model");
 const { replacementModel, annualLeaveModel, accidentalLeaveModel,
     maternityLeaveModel, dayOffChangeModel,
     slotLinkingModel, compensationLeaveModel, sickLeaveModel, requestModel } = require("../models/request_model");
-const notificationModel = require('../models/notification_model');
-const slotModel = require('../models/slot_model')
-const roomModel = require('../models/room_model')
-const courseModel = require('../models/course_model');
 
 const router = express.Router();
 
@@ -92,50 +92,50 @@ router.route("/update-profile")
     }
 });
 
-router.post('/send-replacement-request', async (req, res) => {
+router.post("/send-replacement-request", async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
     let requester = await academicMemberModel.findOne({ id: token.id })
     if (requester.annualLeaveBalance < 1) {
-        res.status(403).send('Insufficient leave balance')
+        res.status(403).send("Insufficient leave balance")
         return
     }
     if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
-        res.status(403).send('Please enter the date in a valid format (yyyy-mm-dd)')
+        res.status(403).send("Please enter the date in a valid format (yyyy-mm-dd)")
         return
     }
-    let parts = req.body.day.split('-')
+    let parts = req.body.day.split("-")
     let date = new Date(parts[0], parts[1] - 1, parts[2])
     if (date < new Date()) {
-        res.status(403).send('Please enter a future date')
+        res.status(403).send("Please enter a future date")
         return
     }
     let dayNo = date.getDay()
-    let weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let day = weekDays[dayNo];
     if(!req.body.slot || isNaN(req.body.slot)){
-        res.status(403).send('Please enter a valid slot number')
+        res.status(403).send("Please enter a valid slot number")
         return
     }
     const slot = await slotModel.findOne({ staffMember: token.id, day: day, slotNumber: req.body.slot })
     if (!slot) {
-        res.status(403).send('Invalid slot')
+        res.status(403).send("Invalid slot")
         return
     }
-    if(typeof req.body.replacementID !=='string'){
-        res.status(403).send('Please enter a valid replacement ID')
+    if(typeof req.body.replacementID !=="string"){
+        res.status(403).send("Please enter a valid replacement ID")
         return
     }
     let replacement = await academicMemberModel.findOne({ id: req.body.replacementID })
     let course = await courseModel.findOne({ _id: slot.course })
     if (requester.department !== replacement.department || !course.courseInstructors.includes(replacement.id) && !course.teachingAssistants.includes(replacement.id)) {
-        res.status(403).send('Make sure your replacement teaches this course and is in the same department as you')
+        res.status(403).send("Make sure your replacement teaches this course and is in the same department as you")
         return
     }
-    if ((requester.role == 'Teaching Assistant' || requester.role === 'Course Coordinator') && (replacement.role === 'Course Instructor' || replacement.role === 'Head of Department')) {
-        res.status(403).send('You can not send a replacement request to a course instructor')
+    if ((requester.role == "Teaching Assistant" || requester.role === "Course Coordinator") && (replacement.role === "Course Instructor" || replacement.role === "Head of Department")) {
+        res.status(403).send("You cannot send a replacement request to a course instructor")
         return
     }
     const request = new replacementModel({
@@ -144,59 +144,59 @@ router.post('/send-replacement-request', async (req, res) => {
         day: req.body.day,
         slot: slot._id,
         replacementID: req.body.replacementID,
-        replacementReply: 'Waiting for reply'
+        replacementReply: "Waiting for reply"
     })
     try {
         await request.save()
-        fs.writeFileSync(path.join(path.dirname(__dirname), 'config.json'), JSON.stringify(config))
+        fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config))
         let notification = new notificationModel({
             user: req.body.replacementID,
-            message: 'You have received a replacement request'
+            message: "You have received a replacement request"
         })
         await notification.save()
-        res.send('Request sent')
+        res.send("Request sent")
     }
     catch (error) {
         res.status(403).send(error)
     }
 })
 
-router.put('/replacement-requests/:id/accept', async (req, res) => {
+router.put("/replacement-requests/:id/accept", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
-    if (request && request.type === 'replacementRequest' && request.replacementReply === 'Waiting for reply' && token.id !== request.requestedBy) {
-        request.replacementReply = 'Accepted'
+    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && token.id !== request.requestedBy) {
+        request.replacementReply = "Accepted"
         request.save()
         let notification = new notificationModel({
             user: request.requestedBy,
-            message: 'Your replacement request has been accepted.'
+            message: "Your replacement request has been accepted."
         })
         notification.save()
         res.send(request)
     }
     else {
-        res.status(403).send('Invalid request ID')
+        res.status(403).send("Invalid request ID")
     }
 })
 
-router.put('/replacement-requests/:id/reject', async (req, res) => {
+router.put("/replacement-requests/:id/reject", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.status(403).send('Invalid request id')
+        res.status(403).send("Invalid request id")
         return
     }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
-    if (request && request.type === 'replacementRequest' && request.replacementReply === 'Waiting for reply' && token.id !== request.requestedBy) {
-        request.replacementReply = 'Rejected'
+    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && token.id !== request.requestedBy) {
+        request.replacementReply = "Rejected"
         try {
             request.save()
             let notification = new notificationModel({
                 user: request.requestedBy,
-                message: 'Your replacement request has been rejected.'
+                message: "Your replacement request has been rejected."
             })
             notification.save()
             res.send(request)
@@ -206,14 +206,14 @@ router.put('/replacement-requests/:id/reject', async (req, res) => {
         }
     }
     else {
-        res.status(403).send('Invalid request ID')
+        res.status(403).send("Invalid request ID")
     }
 })
 
-router.get('/replacement-requests', async (req, res) => {
+router.get("/replacement-requests", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let myRequests = await replacementModel.find({ requestedBy: token.id, type: "replacementRequest" })
-    let requestedFromMe = await replacementModel.find({ replacementID: token.id, type: "replacementRequest", replacementReply: 'Waiting for reply' })
+    let requestedFromMe = await replacementModel.find({ replacementID: token.id, type: "replacementRequest", replacementReply: "Waiting for reply" })
     for (let i = 0; i < myRequests.length; i++) {
         let slot = await slotModel.findOne({ _id: myRequests[i].slot })
         myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) }
@@ -225,50 +225,50 @@ router.get('/replacement-requests', async (req, res) => {
     res.send({ byMe: myRequests, forMe: requestedFromMe })
 })
 
-router.post('/send-slot-linking-request', async (req, res) => {
+router.post("/send-slot-linking-request", async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let requester = await academicMemberModel.findOne({ id: token.id })
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
-    if(typeof req.body.room !=='string'){
-        res.status(403).send('Please enter a valid room name')
+    if(typeof req.body.room !=="string"){
+        res.status(403).send("Please enter a valid room name")
         return
     }
-    if(isNaN(req.body.slot) || typeof req.body.day !=='string'){
-        res.status(403).send('Please enter a valid day and slot number')
+    if(isNaN(req.body.slot) || typeof req.body.day !=="string"){
+        res.status(403).send("Please enter a valid day and slot number")
         return
     }
     let room = await roomModel.findOne({ name: req.body.room })
     let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slot, room: room._id })
     let course = await courseModel.findOne({ _id: slot.course })
     if (!room) {
-        res.status(403).send("Room doesn't exist")
+        res.status(403).send("Room does not exist")
         return
     }
     if (!course) {
-        res.status(403).send("Course doesn't exist")
+        res.status(403).send("Course does not exist")
         return
     }
     if (!course.teachingAssistants.includes(token.id) && !course.courseInstructors.includes(token.id)) {
-        res.status(403).send('You are not assigned to this course')
+        res.status(403).send("You are not assigned to this course")
         return
     }
     if (!slot) {
-        res.status(403).send("Slot doesn't exist")
+        res.status(403).send("Slot does not exist")
         return
     }
-    if (slot.staffMember !== 'UNASSIGNED') {
-        res.status(403).send("Slot isn't free")
+    if (slot.staffMember !== "UNASSIGNED") {
+        res.status(403).send("Slot is not free")
         return
     }
     const prev = await slotLinkingModel.findOne({
         requestedBy: token.id,
         slot: slot._id,
-        status: 'Under review'
+        status: "Under review"
     })
     if (prev) {
-        res.status(403).send('Request already submitted')
+        res.status(403).send("Request already submitted")
         return
     }
     const request = new slotLinkingModel({
@@ -278,15 +278,15 @@ router.post('/send-slot-linking-request', async (req, res) => {
     })
     try {
         await request.save()
-        fs.writeFileSync(path.join(path.dirname(__dirname), 'config.json'), JSON.stringify(config))
-        res.send('Request submitted')
+        fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config))
+        res.send("Request submitted")
     }
     catch (error) {
         res.status(403).send(error)
     }
 })
 
-router.get('/slot-linking-requests', async (req, res) => {
+router.get("/slot-linking-requests", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let myRequests = await slotLinkingModel.find({ requestedBy: token.id, type: "slotLinkingRequest" })
     for (let i = 0; i < myRequests.length; i++) {
@@ -296,9 +296,9 @@ router.get('/slot-linking-requests', async (req, res) => {
     res.send(myRequests)
 })
 
-router.post('/change-day-off-request', async (req, res) => {
+router.post("/change-day-off-request", async (req, res) => {
     const token = jwt.decode(req.headers.token);
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
     const request = new dayOffChangeModel({
@@ -309,50 +309,50 @@ router.post('/change-day-off-request', async (req, res) => {
     })
     try {
         await request.save()
-        fs.writeFileSync(path.join(path.dirname(__dirname), 'config.json'), JSON.stringify(config))
-        res.send('Request submitted')
+        fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config))
+        res.send("Request submitted")
     }
     catch (error) {
         res.status(403).send(error)
     }
 })
 
-router.post('/send-leave-request', async (req, res) => {
+router.post("/send-leave-request", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let requester = await academicMemberModel.findOne({ id: token.id })
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), 'config.json')));
+    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
     if(!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)){
-        res.status(403).send('Please enter the date in a valid format (yyyy-mm-dd)')
+        res.status(403).send("Please enter the date in a valid format (yyyy-mm-dd)")
         return
     }
-    let parts = req.body.day.split('-')
+    let parts = req.body.day.split("-")
     let date = new Date(parts[0], parts[1] - 1, parts[2])
-    if(typeof req.body.type !=='string'){
-        res.status(403).send('Invalid leave type')
+    if(typeof req.body.type !=="string"){
+        res.status(403).send("Invalid leave type")
         return
     }
     const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: token.id, type: req.body.type })
     if (prev) {
-        res.status(403).send('Request already exists')
+        res.status(403).send("Request already exists")
         return
     }
     if (req.body.type === "annualLeave") {
         if (date < new Date()) {
-            res.status(403).send('Please enter a future date')
+            res.status(403).send("Please enter a future date")
             return
         }
         if (requester.annualLeaveBalance < 1) {
-            res.status(403).send('Insufficient leave balance')
+            res.status(403).send("Insufficient leave balance")
             return
         }
         let dayNo = date.getDay()
-        let weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         let day = weekDays[dayNo];
         let slots = await slotModel.find({ staffMember: token.id, day: day })
         let slotIDs = slots.map(slot => slot._id.toString())
-        let replacementRequests = await replacementModel.find({ requestedBy: token.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: 'Accepted' })
+        let replacementRequests = await replacementModel.find({ requestedBy: token.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: "Accepted" })
         let replacements = []
         for (let i = 0; i < slots.length; i++) {
             replacements.push(null)
@@ -372,7 +372,7 @@ router.post('/send-leave-request', async (req, res) => {
     }
     else if (req.body.type === "accidentalLeave") {
         if (date > new Date()) {
-            res.status(403).send('Please enter a valid date')
+            res.status(403).send("Please enter a valid date")
             return
         }
         if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
@@ -383,16 +383,16 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.status(403).send('Insufficient leave/accidental leave balance')
+            res.status(403).send("Insufficient leave/accidental leave balance")
             return
         }
     }
     else if (req.body.type === "sickLeave") {
         if (date > new Date()) {
-            res.status(403).send('Please enter a valid date')
+            res.status(403).send("Please enter a valid date")
             return
         }
-        let parts = req.body.day.split('-')
+        let parts = req.body.day.split("-")
         let myDate = new Date(parts[0], parts[1] - 1, parts[2]);
         if (myDate.addDays(3) >= new Date())
             request = new sickLeaveModel({
@@ -403,7 +403,7 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.status(403).send('Deadline for submitting this request has passed')
+            res.status(403).send("Deadline for submitting this request has passed")
             return
         }
     }
@@ -413,7 +413,7 @@ router.post('/send-leave-request', async (req, res) => {
             res.status(403).send("Please enter a valid leave duration. Maximum duration is 90 days.")
             return
         }
-        if (requester.gender === 'Female')
+        if (requester.gender === "Female")
             request = new maternityLeaveModel({
                 id: id,
                 requestedBy: token.id,
@@ -423,13 +423,13 @@ router.post('/send-leave-request', async (req, res) => {
                 reason: req.body.reason
             })
         else {
-            res.status(403).send("You can't apply for a maternity leave")
+            res.status(403).send("You cannot apply for a maternity leave")
             return
         }
     }
     else if (req.body.type === "compensationRequest") {
         if (date > new Date()) {
-            res.status(403).send('Please enter a valid date')
+            res.status(403).send("Please enter a valid date")
             return
         }
         request = new compensationLeaveModel({
@@ -440,13 +440,13 @@ router.post('/send-leave-request', async (req, res) => {
         })
     }
     else{
-        res.status(403).send('Invalid leave request type')
+        res.status(403).send("Invalid leave request type")
         return
     }
     try {
         await request.save()
         config.requestCounter = id + "";
-        fs.writeFileSync(path.join(path.dirname(__dirname), 'config.json'), JSON.stringify(config))
+        fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config))
         res.status(200).send("Request submitted for review to the HOD")
     }
     catch (error) {
@@ -454,56 +454,56 @@ router.post('/send-leave-request', async (req, res) => {
     }
 })
 
-router.get('/all-requests/:filter', async (req, res) => {
+router.get("/all-requests/:filter", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let requests = [];
-    if (req.params.filter === 'All')
+    if (req.params.filter === "All")
         requests = await requestModel.find({ requestedBy: token.id })
-    if (req.params.filter === 'Accepted')
-        requests = await requestModel.find({ requestedBy: token.id, status: 'Accepted' })
-    if (req.params.filter === 'Rejected')
-        requests = await requestModel.find({ requestedBy: token.id, status: 'Rejected' })
-    if (req.params.filter === 'Pending') {
-        requests = await requestModel.find({ requestedBy: token.id, status: 'Under review' })
+    if (req.params.filter === "Accepted")
+        requests = await requestModel.find({ requestedBy: token.id, status: "Accepted" })
+    if (req.params.filter === "Rejected")
+        requests = await requestModel.find({ requestedBy: token.id, status: "Rejected" })
+    if (req.params.filter === "Pending") {
+        requests = await requestModel.find({ requestedBy: token.id, status: "Under review" })
 
     }
 
     res.send(requests);
 })
 
-router.delete('/cancel-request/:id', async (req, res) => {
+router.delete("/cancel-request/:id", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     if(isNaN(req.params.id)){
-        res.status(403).send('Invalid request ID')
+        res.status(403).send("Invalid request ID")
         return
     }
     let request = await annualLeaveModel.findOne({ requestedBy: token.id, id: req.params.id })
     if(!request){
-        res.status(403).send("Request doesn't exist")
+        res.status(403).send("Request does not exist")
         return
     }
-    if (request.status === 'Under review') {
+    if (request.status === "Under review") {
         await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
-        res.send('Your request has been cancelled successfully')
+        res.send("Your request has been cancelled successfully")
     }
-    else if(request.type!=='dayOffChangeRequest' && request.type!=='slotLinkingRequest' && request.day > new Date()){
-        if(request.type==='annualLeave' ){
+    else if(request.type!=="dayOffChangeRequest" && request.type!=="slotLinkingRequest" && request.day > new Date()){
+        if(request.type==="annualLeave" ){
             let requester = await academicMemberModel.findOne({id:token.id})
             requester.annualLeaveBalance+=1
             requester.save()
-            await replacementModel.deleteMany({requestedBy:token.id, type:'replacementRequest',day: { $lt: request.day.addDays(1), $gte: request.day }})
+            await replacementModel.deleteMany({requestedBy:token.id, type:"replacementRequest",day: { $lt: request.day.addDays(1), $gte: request.day }})
         }
-        if(request.type ==='accidentalLeave'){
+        if(request.type ==="accidentalLeave"){
             let requester = await academicMemberModel.findOne({id:token.id})
             requester.annualLeaveBalance+=1
             requester.accidentalLeaveBalance+=1
             requester.save()
         }
         await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
-        res.send('Your request has been cancelled successfully')
+        res.send("Your request has been cancelled successfully")
     }
     else {
-        res.status(403).send('Cannot cancel request')
+        res.status(403).send("Cannot cancel request")
     }
 })
 
@@ -511,7 +511,7 @@ router.get("/schedule", async (req, res) => {
     const token = jwt.decode(req.headers.token);
     let schedule = await slotModel.find({ staffMember: token.id })
     let date = new Date()
-    let replacementRequests = await annualLeaveModel.find({ type:'annualLeave',replacementIDs: token.id, status:'Accepted', day: { $lt: date.addDays(7), $gte: date } })
+    let replacementRequests = await annualLeaveModel.find({ type:"annualLeave",replacementIDs: token.id, status:"Accepted", day: { $lt: date.addDays(7), $gte: date } })
     for (let i = 0; i < replacementRequests.length; i++) {
         for(let j=0;j<replacementRequests[i].replacementIDs.length;j++){
             if(replacementRequests[i].replacementIDs[j]===token.id){

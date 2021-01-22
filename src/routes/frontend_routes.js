@@ -1,17 +1,17 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model");
 const academicMemberModel = require("../models/academic_member_model");
 const hrMemberModel = require("../models/hr_member_model");
-const roomModel = require('../models/room_model');
-const facultyModel = require('../models/faculty_model');
+const roomModel = require("../models/room_model");
+const facultyModel = require("../models/faculty_model");
 const notification_model = require("../models/notification_model");
 const slot_model = require("../models/slot_model");
 const attendance_record_model = require("../models/attendance_record_model");
 
 const router = express.Router();
-
 
 router.route("/get-academic-department")
 .get(async (req, res) => {
@@ -133,13 +133,13 @@ router.route("/get-departments")
     res.send({departments: departments, faculties: faculties, heads: heads});
 });
 
-router.get('/academic/notifications',async(req,res)=>{
+router.get("/academic/notifications",async(req,res)=>{
     let token = jwt.decode(req.headers.token)
     let notifications = await notification_model.find({user:token.id}).sort({createdAt:-1})
     res.send(notifications)
 })
 
-router.put('/academic/mark-notifications-seen', async(req,res)=>{
+router.put("/academic/mark-notifications-seen", async(req,res)=>{
     let token = jwt.decode(req.headers.token)
     let seenNotifications = req.body.seenNotifications
     for(let i=0;i<seenNotifications.length;i++){
@@ -147,9 +147,9 @@ router.put('/academic/mark-notifications-seen', async(req,res)=>{
         noti.seen=true;
         noti.save()
     }
-    res.send('Done');
+    res.send("Done");
 })
-router.get('/course-slots',async(req,res)=>{
+router.get("/course-slots",async(req,res)=>{
     let course = await courseModel.findOne({id:req.query.id})
     let slots = await slot_model.find({course:course._id})
     for(let i=0;i<slots.length;i++){
@@ -177,7 +177,7 @@ router.route("/get-courses")
     res.send({ courses: courses,departments: departments });
 })
 
-router.get('/user-records',async(req,res)=>{
+router.get("/user-records",async(req,res)=>{
     let dateStringParts = req.query.day.split("T")[0].split("-")
     let date=new Date(dateStringParts[0],dateStringParts[1]-1,dateStringParts[2],2).addDays(1)
     records=await attendance_record_model.find({user:req.query.user,signInTime: { $lt: date.addDays(1), $gte: date }})

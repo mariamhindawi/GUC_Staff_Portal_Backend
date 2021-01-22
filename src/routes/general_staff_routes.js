@@ -6,8 +6,8 @@ const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const { requestModel, maternityLeaveModel, annualLeaveModel } = require("../models/request_model");
-const departmentModel = require('../models/department_model');
-const facultyModel = require('../models/faculty_model')
+const departmentModel = require("../models/department_model");
+const facultyModel = require("../models/faculty_model")
 
 function convertDay(day) {
     switch (day) {

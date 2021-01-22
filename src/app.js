@@ -1,6 +1,9 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
+require("./others/periodic_scripts");
 const resetRoutes = require("./routes/reset_routes");
 const campusRoutes = require("./routes/campus_routes");
 const authenticationRoutes = require("./routes/authentication_routes");
@@ -21,9 +24,11 @@ const corsOptions = {
     maxAge: 5
 };
 
-app.options('*', cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+
 app.use("/reset", resetRoutes);
 app.use("/campus", campusRoutes);
 app.use(authenticationRoutes);

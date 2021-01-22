@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
-const {MongooseAutoIncrementID} = require('mongoose-auto-increment-reworked');
+const {MongooseAutoIncrementID} = require("mongoose-auto-increment-reworked");
 
-const academicMemberSchema = new mongoose.Schema({
+const hrMemberSchema = new mongoose.Schema({
     id: {
         type: String,
         required: true,
@@ -25,16 +25,6 @@ const academicMemberSchema = new mongoose.Schema({
         required: true,
         enum : ["Male", "Female"]
     },
-    role: {
-        type: String,
-        required: true,
-        enum : ["Course Instructor", "Head of Department", "Teaching Assistant", "Course Coordinator"]
-    },
-    department: {
-        type: String,
-        required: true,
-        default: "UNASSIGNED"
-    },
     office: {
         type: String,
         required: true
@@ -47,16 +37,14 @@ const academicMemberSchema = new mongoose.Schema({
         type: String,
         required: true,
         default: "Saturday",
-        enum : ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
+        enum : ["Saturday"]
     },
     annualLeaveBalance: {
         type: Number,
-        required: true,
         default: 0
     },
     accidentalLeaveBalance: {
         type: Number,
-        required: true,
         default: 6
     },
     loggedIn: {
@@ -66,8 +54,8 @@ const academicMemberSchema = new mongoose.Schema({
     }
 });
 
-academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
-    modelName: "academic_member",
+hrMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
+    modelName: "hr_member",
     field: "idCount",
     incrementBy: 1,
     nextCount: "nextCount",
@@ -76,4 +64,4 @@ academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
     unique: true
   });
 
-module.exports = mongoose.model("academic_member", academicMemberSchema);
+module.exports = mongoose.model("hr_member", hrMemberSchema);

@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
@@ -9,9 +10,9 @@ const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
+const userBlacklistModel = require("../models/user_blacklist_model");
 const notificationModel = require("../models/notification_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
-const userBlacklistModel = require("../models/user_blacklist_model");
 
 const router = express.Router();
 
@@ -1480,7 +1481,7 @@ router.route("/add-missing-record")
                 let signInTime = new Date(req.body.signInTime);
                 userRecord.signInTime = signInTime
                 if(signInTime>userRecord.signOutTime){
-                    res.status(403).send('Sign in time cannot be after the sign out time')
+                    res.status(403).send("Sign in time cannot be after the sign out time")
                     return
                 }
                 try {
@@ -1510,7 +1511,7 @@ router.route("/add-missing-record")
             else {
                 let signOutTime = new Date(req.body.signOutTime);
                 if(signOutTime<userRecord.signInTime){
-                    res.status(403).send('Sign out time cannot be before the sign in time')
+                    res.status(403).send("Sign out time cannot be before the sign in time")
                     return
                 }
                 userRecord.signOutTime = signOutTime
@@ -1528,7 +1529,7 @@ router.route("/add-missing-record")
             let signInTime= new Date(req.body.signInTime)
             let signOutTime= new Date(req.body.signOutTime)
             if(signInTime>signOutTime){    
-                res.status(403).send('Sign out time cannot be before the sign in time')
+                res.status(403).send("Sign out time cannot be before the sign in time")
                 return
             }
             userRecord = new attendanceRecordModel({
@@ -1539,7 +1540,7 @@ router.route("/add-missing-record")
             })
             try {
                 await userRecord.save();
-                res.send('Added successfully');
+                res.send("Added successfully");
             }
             catch (error) {
                 console.log(error.message)

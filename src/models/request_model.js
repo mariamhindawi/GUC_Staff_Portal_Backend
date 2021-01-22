@@ -49,7 +49,7 @@ const replacementSchema = new mongoose.Schema({
     },
     replacementReply:{
         type: String,
-        enum:['Accepted','Rejected','Waiting for reply']
+        enum:["Accepted","Rejected","Waiting for reply"]
     }
 })
 const annualLeaveSchema = new mongoose.Schema({
@@ -76,8 +76,8 @@ const annualLeaveSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     HODComment:{
         type:String
@@ -111,8 +111,8 @@ const accidentalLeaveSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     HODComment:{
         type:String
@@ -142,8 +142,8 @@ const sickLeaveSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     HODComment:{
         type:String
@@ -181,8 +181,8 @@ const maternityLeaveSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     HODComment:{
         type:String
@@ -217,8 +217,8 @@ const compensationRequestSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     HODComment:{
         type:String
@@ -250,8 +250,8 @@ const dayOffChangeRequestSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Under review','Accepted','Rejected'],
-        default:'Under review'
+        enum:["Under review","Accepted","Rejected"],
+        default:"Under review"
     },
     reason:{
         type:String
@@ -281,8 +281,8 @@ const slotLinkingRequestSchema = new mongoose.Schema({
     },
     status:{
         type: String,
-        enum: ['Under review','Accepted','Rejected'],
-        default: 'Under review'
+        enum: ["Under review","Accepted","Rejected"],
+        default: "Under review"
     },
     ccComment:{
         type:String
