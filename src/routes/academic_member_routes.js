@@ -16,8 +16,8 @@ const { replacementModel, annualLeaveModel, accidentalLeaveModel,
 const router = express.Router();
 
 router.use((req, res, next) => {
-    const token = jwt.decode(req.headers.token);
-    if (token.role !== "HR") {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    if (authAccessToken.role !== "HR") {
         next();
     }
     else {
@@ -32,8 +32,8 @@ router.route("/update-profile")
         return
     }
 
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await academicMemberModel.findOne({id: authAccessToken.id});
     
     if (req.body.email) {
         if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
@@ -93,11 +93,11 @@ router.route("/update-profile")
 });
 
 router.post("/send-replacement-request", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
-    let requester = await academicMemberModel.findOne({ id: token.id })
+    let requester = await academicMemberModel.findOne({ id: authAccessToken.id })
     if (requester.annualLeaveBalance < 1) {
         res.status(403).send("Insufficient leave balance")
         return
@@ -119,7 +119,7 @@ router.post("/send-replacement-request", async (req, res) => {
         res.status(403).send("Please enter a valid slot number")
         return
     }
-    const slot = await slotModel.findOne({ staffMember: token.id, day: day, slotNumber: req.body.slot })
+    const slot = await slotModel.findOne({ staffMember: authAccessToken.id, day: day, slotNumber: req.body.slot })
     if (!slot) {
         res.status(403).send("Invalid slot")
         return
@@ -140,7 +140,7 @@ router.post("/send-replacement-request", async (req, res) => {
     }
     const request = new replacementModel({
         id: id,
-        requestedBy: token.id,
+        requestedBy: authAccessToken.id,
         day: req.body.day,
         slot: slot._id,
         replacementID: req.body.replacementID,
@@ -162,13 +162,13 @@ router.post("/send-replacement-request", async (req, res) => {
 })
 
 router.put("/replacement-requests/:id/accept", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(isNaN(req.params.id)){
         res.status(403).send("Invalid request id")
         return
     }
-    let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
-    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && token.id !== request.requestedBy) {
+    let request = await replacementModel.findOne({ id: req.params.id, replacementID: authAccessToken.id })
+    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && authAccessToken.id !== request.requestedBy) {
         request.replacementReply = "Accepted"
         request.save()
         let notification = new notificationModel({
@@ -184,13 +184,13 @@ router.put("/replacement-requests/:id/accept", async (req, res) => {
 })
 
 router.put("/replacement-requests/:id/reject", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(isNaN(req.params.id)){
         res.status(403).send("Invalid request id")
         return
     }
-    let request = await replacementModel.findOne({ id: req.params.id, replacementID: token.id })
-    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && token.id !== request.requestedBy) {
+    let request = await replacementModel.findOne({ id: req.params.id, replacementID: authAccessToken.id })
+    if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && authAccessToken.id !== request.requestedBy) {
         request.replacementReply = "Rejected"
         try {
             request.save()
@@ -211,9 +211,9 @@ router.put("/replacement-requests/:id/reject", async (req, res) => {
 })
 
 router.get("/replacement-requests", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let myRequests = await replacementModel.find({ requestedBy: token.id, type: "replacementRequest" })
-    let requestedFromMe = await replacementModel.find({ replacementID: token.id, type: "replacementRequest", replacementReply: "Waiting for reply" })
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let myRequests = await replacementModel.find({ requestedBy: authAccessToken.id, type: "replacementRequest" })
+    let requestedFromMe = await replacementModel.find({ replacementID: authAccessToken.id, type: "replacementRequest", replacementReply: "Waiting for reply" })
     for (let i = 0; i < myRequests.length; i++) {
         let slot = await slotModel.findOne({ _id: myRequests[i].slot })
         myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) }
@@ -226,9 +226,9 @@ router.get("/replacement-requests", async (req, res) => {
 })
 
 router.post("/send-slot-linking-request", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-    let requester = await academicMemberModel.findOne({ id: token.id })
+    let requester = await academicMemberModel.findOne({ id: authAccessToken.id })
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
     if(typeof req.body.room !=="string"){
@@ -250,7 +250,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
         res.status(403).send("Course does not exist")
         return
     }
-    if (!course.teachingAssistants.includes(token.id) && !course.courseInstructors.includes(token.id)) {
+    if (!course.teachingAssistants.includes(authAccessToken.id) && !course.courseInstructors.includes(authAccessToken.id)) {
         res.status(403).send("You are not assigned to this course")
         return
     }
@@ -263,7 +263,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
         return
     }
     const prev = await slotLinkingModel.findOne({
-        requestedBy: token.id,
+        requestedBy: authAccessToken.id,
         slot: slot._id,
         status: "Under review"
     })
@@ -273,7 +273,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
     }
     const request = new slotLinkingModel({
         id: id,
-        requestedBy: token.id,
+        requestedBy: authAccessToken.id,
         slot: slot._id
     })
     try {
@@ -287,8 +287,8 @@ router.post("/send-slot-linking-request", async (req, res) => {
 })
 
 router.get("/slot-linking-requests", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let myRequests = await slotLinkingModel.find({ requestedBy: token.id, type: "slotLinkingRequest" })
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let myRequests = await slotLinkingModel.find({ requestedBy: authAccessToken.id, type: "slotLinkingRequest" })
     for (let i = 0; i < myRequests.length; i++) {
         let slot = await slotModel.findOne({ _id: myRequests[i].slot })
         myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) }
@@ -297,13 +297,13 @@ router.get("/slot-linking-requests", async (req, res) => {
 })
 
 router.post("/change-day-off-request", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     config.requestCounter = id + "";
     const request = new dayOffChangeModel({
         id: id,
-        requestedBy: token.id,
+        requestedBy: authAccessToken.id,
         dayOff: req.body.dayOff,
         reason: req.body.reason
     })
@@ -318,8 +318,8 @@ router.post("/change-day-off-request", async (req, res) => {
 })
 
 router.post("/send-leave-request", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let requester = await academicMemberModel.findOne({ id: token.id })
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let requester = await academicMemberModel.findOne({ id: authAccessToken.id })
     let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
@@ -333,7 +333,7 @@ router.post("/send-leave-request", async (req, res) => {
         res.status(403).send("Invalid leave type")
         return
     }
-    const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: token.id, type: req.body.type })
+    const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: authAccessToken.id, type: req.body.type })
     if (prev) {
         res.status(403).send("Request already exists")
         return
@@ -350,9 +350,9 @@ router.post("/send-leave-request", async (req, res) => {
         let dayNo = date.getDay()
         let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
         let day = weekDays[dayNo];
-        let slots = await slotModel.find({ staffMember: token.id, day: day })
+        let slots = await slotModel.find({ staffMember: authAccessToken.id, day: day })
         let slotIDs = slots.map(slot => slot._id.toString())
-        let replacementRequests = await replacementModel.find({ requestedBy: token.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: "Accepted" })
+        let replacementRequests = await replacementModel.find({ requestedBy: authAccessToken.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: "Accepted" })
         let replacements = []
         for (let i = 0; i < slots.length; i++) {
             replacements.push(null)
@@ -363,7 +363,7 @@ router.post("/send-leave-request", async (req, res) => {
         }
         request = new annualLeaveModel({
             id: id,
-            requestedBy: token.id,
+            requestedBy: authAccessToken.id,
             day: req.body.day,
             slots: slots,
             replacementIDs: replacements,
@@ -378,7 +378,7 @@ router.post("/send-leave-request", async (req, res) => {
         if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
             request = new accidentalLeaveModel({
                 id: id,
-                requestedBy: token.id,
+                requestedBy: authAccessToken.id,
                 day: req.body.day,
                 reason: req.body.reason
             })
@@ -397,7 +397,7 @@ router.post("/send-leave-request", async (req, res) => {
         if (myDate.addDays(3) >= new Date())
             request = new sickLeaveModel({
                 id: id,
-                requestedBy: token.id,
+                requestedBy: authAccessToken.id,
                 day: req.body.day,
                 document: req.body.document,
                 reason: req.body.reason
@@ -408,7 +408,7 @@ router.post("/send-leave-request", async (req, res) => {
         }
     }
     else if (req.body.type === "maternityLeave") {
-        let requester = await academicMemberModel.findOne({ id: token.id })
+        let requester = await academicMemberModel.findOne({ id: authAccessToken.id })
         if (isNaN(req.body.duration) || req.body.duration > 90) {
             res.status(403).send("Please enter a valid leave duration. Maximum duration is 90 days.")
             return
@@ -416,7 +416,7 @@ router.post("/send-leave-request", async (req, res) => {
         if (requester.gender === "Female")
             request = new maternityLeaveModel({
                 id: id,
-                requestedBy: token.id,
+                requestedBy: authAccessToken.id,
                 day: req.body.day,
                 duration: req.body.duration,
                 document: req.body.document,
@@ -435,7 +435,7 @@ router.post("/send-leave-request", async (req, res) => {
         request = new compensationLeaveModel({
             id: id,
             day: req.body.day,
-            requestedBy: token.id,
+            requestedBy: authAccessToken.id,
             reason: req.body.reason
         })
     }
@@ -455,16 +455,16 @@ router.post("/send-leave-request", async (req, res) => {
 })
 
 router.get("/all-requests/:filter", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let requests = [];
     if (req.params.filter === "All")
-        requests = await requestModel.find({ requestedBy: token.id })
+        requests = await requestModel.find({ requestedBy: authAccessToken.id })
     if (req.params.filter === "Accepted")
-        requests = await requestModel.find({ requestedBy: token.id, status: "Accepted" })
+        requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Accepted" })
     if (req.params.filter === "Rejected")
-        requests = await requestModel.find({ requestedBy: token.id, status: "Rejected" })
+        requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Rejected" })
     if (req.params.filter === "Pending") {
-        requests = await requestModel.find({ requestedBy: token.id, status: "Under review" })
+        requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Under review" })
 
     }
 
@@ -472,34 +472,34 @@ router.get("/all-requests/:filter", async (req, res) => {
 })
 
 router.delete("/cancel-request/:id", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(isNaN(req.params.id)){
         res.status(403).send("Invalid request ID")
         return
     }
-    let request = await annualLeaveModel.findOne({ requestedBy: token.id, id: req.params.id })
+    let request = await annualLeaveModel.findOne({ requestedBy: authAccessToken.id, id: req.params.id })
     if(!request){
         res.status(403).send("Request does not exist")
         return
     }
     if (request.status === "Under review") {
-        await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
+        await requestModel.deleteOne({ requestedBy: authAccessToken.id, id: req.params.id })
         res.send("Your request has been cancelled successfully")
     }
     else if(request.type!=="dayOffChangeRequest" && request.type!=="slotLinkingRequest" && request.day > new Date()){
         if(request.type==="annualLeave" ){
-            let requester = await academicMemberModel.findOne({id:token.id})
+            let requester = await academicMemberModel.findOne({id:authAccessToken.id})
             requester.annualLeaveBalance+=1
             requester.save()
-            await replacementModel.deleteMany({requestedBy:token.id, type:"replacementRequest",day: { $lt: request.day.addDays(1), $gte: request.day }})
+            await replacementModel.deleteMany({requestedBy:authAccessToken.id, type:"replacementRequest",day: { $lt: request.day.addDays(1), $gte: request.day }})
         }
         if(request.type ==="accidentalLeave"){
-            let requester = await academicMemberModel.findOne({id:token.id})
+            let requester = await academicMemberModel.findOne({id:authAccessToken.id})
             requester.annualLeaveBalance+=1
             requester.accidentalLeaveBalance+=1
             requester.save()
         }
-        await requestModel.deleteOne({ requestedBy: token.id, id: req.params.id })
+        await requestModel.deleteOne({ requestedBy: authAccessToken.id, id: req.params.id })
         res.send("Your request has been cancelled successfully")
     }
     else {
@@ -508,13 +508,13 @@ router.delete("/cancel-request/:id", async (req, res) => {
 })
 
 router.get("/schedule", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let schedule = await slotModel.find({ staffMember: token.id })
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let schedule = await slotModel.find({ staffMember: authAccessToken.id })
     let date = new Date()
-    let replacementRequests = await annualLeaveModel.find({ type:"annualLeave",replacementIDs: token.id, status:"Accepted", day: { $lt: date.addDays(7), $gte: date } })
+    let replacementRequests = await annualLeaveModel.find({ type:"annualLeave",replacementIDs: authAccessToken.id, status:"Accepted", day: { $lt: date.addDays(7), $gte: date } })
     for (let i = 0; i < replacementRequests.length; i++) {
         for(let j=0;j<replacementRequests[i].replacementIDs.length;j++){
-            if(replacementRequests[i].replacementIDs[j]===token.id){
+            if(replacementRequests[i].replacementIDs[j]===authAccessToken.id){
                 schedule.push(replacementRequests[i].slots[j])
             }
         }

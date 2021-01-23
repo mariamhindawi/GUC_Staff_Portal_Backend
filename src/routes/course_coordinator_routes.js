@@ -12,8 +12,8 @@ const { slotLinkingModel } = require("../models/request_model");
 const router = express.Router();
 
 router.use((req, res, next) => {
-    const token = jwt.decode(req.headers.token);
-    if (token.role === "Course Coordinator") {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    if (authAccessToken.role === "Course Coordinator") {
         next();
     }
     else {
@@ -22,7 +22,7 @@ router.use((req, res, next) => {
 });
 
 router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(isNaN(req.params.reqId)){
         res.status(403).send("Invalid request id")
         return
@@ -30,7 +30,7 @@ router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
-    if (token.id !== course.courseCoordinator) {
+    if (authAccessToken.id !== course.courseCoordinator) {
         res.status(403).send("Invalid credentials")
         return
     }
@@ -62,7 +62,7 @@ router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
 });
 
 router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(isNaN(req.params.reqId)){
         res.status(403).send("Invalid request id")
         return
@@ -70,7 +70,7 @@ router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
     let request = await slotLinkingModel.findOne({ id: req.params.reqId })
     let slot = await slotModel.findOne({ _id: request.slot })
     let course = await courseModel.findOne({ _id: slot.course })
-    if (token.id !== course.courseCoordinator) {
+    if (authAccessToken.id !== course.courseCoordinator) {
         res.status(403).send("Invalid credentials")
         return
     }
@@ -95,9 +95,9 @@ router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
 });
 
 router.get("/slot-linking-requests", async (req, res) => {
-    const token = jwt.decode(req.headers.token)
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"])
     let slots = await slotModel.find()
-    let courses = await courseModel.find({ courseCoordinator: token.id })
+    let courses = await courseModel.find({ courseCoordinator: authAccessToken.id })
     let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course))
     let myCourseSlotsids = myCourseSlots.map(slot=>slot._id.toString())
     let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status:"Under review" })
@@ -110,19 +110,19 @@ router.get("/slot-linking-requests", async (req, res) => {
 
 router.route("/get-courses-of-cc")
 .get(async(req,res)=>{
-    const token = jwt.decode(req.headers.token);
-    let courses = await courseModel.find({courseCoordinator: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let courses = await courseModel.find({courseCoordinator: authAccessToken.id});
     res.send(courses);
 })
 
 router.route("/add-course-slot")
 .post ( async(req,res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (typeof req.body.course !== "string") {
         res.send("Please enter a valid course id")
         return
     }
-    let academicMember = await academicMemberModel.findOne({id: token.id});
+    let academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
     let course = await courseModel.findOne({id: req.body.course});
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");
@@ -176,8 +176,8 @@ router.route("/add-course-slot")
 
 router.route("/update-course-slot/:day/:slotNumber/:room/:course")
 .put( async(req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let academicMember = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
     if (typeof req.params.course !== "string") {
         res.send("Please enter a valid course id")
         return
@@ -264,8 +264,8 @@ router.route("/update-course-slot/:day/:slotNumber/:room/:course")
 
 router.route("/delete-course-slot")
 .delete( async(req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let academicMember = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
     let course = await courseModel.findOne({id: req.body.id});
     if(!(course.courseCoordinator === academicMember.id)) {
         res.send("Invalid creditentials");

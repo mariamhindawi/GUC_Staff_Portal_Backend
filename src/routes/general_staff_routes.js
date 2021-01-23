@@ -5,7 +5,7 @@ const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
-const { requestModel, maternityLeaveModel, annualLeaveModel } = require("../models/request_model");
+const { requestModel, maternityLeaveModel } = require("../models/request_model");
 const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model")
 
@@ -212,10 +212,10 @@ const router = express.Router();
 
 router.route("/view-profile")
 .get(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await hrMemberModel.findOne({id: authAccessToken.id});
     if (!user) {
-        user = await academicMemberModel.findOne({id: token.id});
+        user = await academicMemberModel.findOne({id: authAccessToken.id});
     }
     let office = await roomModel.findOne({_id: user.office});
     let department = await departmentModel.findOne({_id:user.department})
@@ -251,10 +251,10 @@ router.route("/view-attendance-records")
             return;
         }   
     }
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await hrMemberModel.findOne({id: authAccessToken.id});
     if (!user) {
-        user = await academicMemberModel.findOne({id: token.id});
+        user = await academicMemberModel.findOne({id: authAccessToken.id});
     }    
     var userAttendanceRecords;
     var month;
@@ -263,8 +263,8 @@ router.route("/view-attendance-records")
        month=new Date().getMonth();
        year =new Date().getFullYear();
        userAttendanceRecords = await attendanceRecordModel.find({ $or: [
-        { user: token.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
-        { user: token.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
+        { user: authAccessToken.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
+        { user: authAccessToken.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
         ] });
     }
     else {
@@ -283,8 +283,8 @@ router.route("/view-attendance-records")
             return;
         }
         userAttendanceRecords = await attendanceRecordModel.find({ $or: [
-            { user: token.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
-            { user: token.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
+            { user: authAccessToken.id, signInTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} },
+            { user: authAccessToken.id, signOutTime: {$gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)} }
         ] });
     }
    
@@ -348,13 +348,13 @@ router.route("/view-missing-days")
             return;
         }
     }
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await hrMemberModel.findOne({id:authAccessToken.id});
     if (!user) {
-        user = await academicMemberModel.findOne({id: token.id});
+        user = await academicMemberModel.findOne({id: authAccessToken.id});
     }  
     const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: authAccessToken.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
     await getMissingDays(month,year,dayOff,userAttendanceRecords,user).then(result => {
         res.send(result.missingDays);
     }).catch(err => {
@@ -419,14 +419,14 @@ router.route("/view-hours")
             return;
         }
     }
-    const token = jwt.decode(req.headers.token);
-    let user = await hrMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await hrMemberModel.findOne({id:authAccessToken.id});
     if (!user) {
-        user = await academicMemberModel.findOne({id: token.id});
+        user = await academicMemberModel.findOne({id: authAccessToken.id});
     }
     
     const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: authAccessToken.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
     await getMissingAndExtraHours(month,year,dayOff,userAttendanceRecords,user).then(result => {
         res.send(result);
     }).catch(err => {
@@ -439,12 +439,12 @@ router.route("/view-hours")
 router.route("/view-salary")
 .get(async (req,res) =>{
     //Get last month's salary
-    const token = jwt.decode(req.headers.token);
-    const user = await academicMemberModel.find({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.find({id:authAccessToken.id});
     const salary = user.salary;
     const currentDate = new Date();
     const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: token.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: authAccessToken.id, signInTime: {$ne:null, $gte: new Date(year, month, 11), $lt: new Date(year, month+1, 11)}, signOutTime: {$ne:null} });
 
     if (currentDate.getDate() >= 11 && currentDate.getMonth() >= 1) {
         var month = currentDate.getMonth() - 1;

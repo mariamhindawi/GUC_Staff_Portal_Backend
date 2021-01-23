@@ -11,8 +11,8 @@ const departmentModel = require("../models/department_model");
 const router = express.Router();
 
 router.use((req, res, next) => {
-    const token = jwt.decode(req.headers.token);
-    if (token.role === "Course Instructor" || token.role === "Head of Department") {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    if (authAccessToken.role === "Course Instructor" || authAccessToken.role === "Head of Department") {
         next();
     }
     else {
@@ -22,8 +22,8 @@ router.use((req, res, next) => {
 
 router.route("/view-staff")
 .get(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await academicMemberModel.findOne({id:authAccessToken.id});
     let output= await academicMemberModel.find({department:user.department})
     let department = await departmentModel.findOne({_id: user.department});
     let departments = [];
@@ -39,8 +39,8 @@ router.route("/view-staff")
 
 router.route("/view-staff/:course")
 .post(async (req,res) => {
-         const token = jwt.decode(req.headers.token);
-        let user = await academicMemberModel.findOne({ id: token.id });
+         const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+        let user = await academicMemberModel.findOne({ id: authAccessToken.id });
         if(!req.params.course){
             res.send("Not all fields are entered.");
             return;
@@ -76,7 +76,7 @@ router.route("/view-staff/:course")
 
 router.route("/assign-course-coordinator")
 .post(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if(!req.body.course || !req.body.id){
         res.send("Not all fields are entered.");
         return;
@@ -85,7 +85,7 @@ router.route("/assign-course-coordinator")
         res.send("Wrong data types entered.");
         return;
     }
-    let user = await academicMemberModel.findOne({id:token.id});
+    let user = await academicMemberModel.findOne({id:authAccessToken.id});
     let course=await courseModel.findOne({id:req.body.course})
     let academic=await academicMemberModel.findOne({id:req.body.id});
 
@@ -122,8 +122,8 @@ router.route("/assign-course-coordinator")
 
 router.route("/delete-ta-from-course/:id/:course")
 .delete(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await academicMemberModel.findOne({id:authAccessToken.id});
     let course=await courseModel.findOne({id:req.params.course})
     let ta=await academicMemberModel.findOne({id:req.params.id});
 
@@ -164,8 +164,8 @@ router.route("/delete-ta-from-course/:id/:course")
 
 router.route("/assign-ta-to-course/:id/:course")
 .post(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let user = await academicMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let user = await academicMemberModel.findOne({id:authAccessToken.id});
     let course=await courseModel.findOne({id:req.params.course})
     let ta=await academicMemberModel.findOne({id:req.params.id});
 
@@ -201,8 +201,8 @@ router.route("/assign-ta-to-course/:id/:course")
 
 router.route("/view-coverage")
 .get(async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let courseInstructor = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let courseInstructor = await academicMemberModel.findOne({id: authAccessToken.id});
     let courses = await courseModel.find({courseInstructors: courseInstructor.id});
     let coverages = [];
     for( let i = 0; i<courses.length; i++) {
@@ -222,8 +222,8 @@ router.route("/view-coverage")
 
 router.route("/view-teaching-assignments")
 .get( async (req,res) => {
-    const token = jwt.decode(req.headers.token);
-    let courseInstructor = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let courseInstructor = await academicMemberModel.findOne({id: authAccessToken.id});
     let course = await courseModel.findOne({id: req.body.course,courseInstructors: courseInstructor.id});
     if(!course) {
         res.send("No such course");
@@ -235,7 +235,7 @@ router.route("/view-teaching-assignments")
 
 router.route("/assign-academic-member-to-slot")
 .put( async (req,res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let academicMember = await academicMemberModel.findOne({id: req.body.id});
     if (!academicMember) {
         res.send("No TA with such id");
@@ -273,7 +273,7 @@ router.route("/assign-academic-member-to-slot")
 
 router.route("/update-academic-member-to-slot")
 .put( async (req,res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let academicMember = await academicMemberModel.findOne({id: req.body.id});
     if (!academicMember) {
         res.send("No TA with such id");
@@ -303,7 +303,7 @@ router.route("/update-academic-member-to-slot")
 
 router.route("/delete-academic-member-to-slot")
 .delete( async (req,res) => {
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let room = await roomModel.findOne({name: req.body.room});
     let slot = await slotModel.findOne({day: req.body.day,slotNumber: req.body.slotNumber,room: room._id});
     if(! slot) {

@@ -225,9 +225,10 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
     }
 }
 
+
 router.use((req, res, next) => {
-    const token = jwt.decode(req.headers.token);
-    if (token.role === "HR") {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    if (authAccessToken.role === "HR") {
         next();
     }
     else {
@@ -1374,8 +1375,8 @@ router.route("/view-staff-missing-hours")
 
 router.route("/add-missing-record")
     .post(async (req, res) => {
-        const token = jwt.decode(req.headers.token);
-        if (req.body.id === token.id) {
+        const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+        if (req.body.id === authAccessToken.id) {
             res.send("Cannot add missing record for yourself");
             return;
         }

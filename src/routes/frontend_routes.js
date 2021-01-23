@@ -15,16 +15,16 @@ const router = express.Router();
 
 router.route("/get-academic-department")
 .get(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    const academicMember = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
     const department = await departmentModel.findById(academicMember.department);
     res.send(department);
 });
 
 router.route("/get-courses-by-department")
 .get(async (req, res) => {
-    const token = jwt.decode(req.headers.token);
-    const academicMember = await academicMemberModel.findOne({id: token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
     const department = await departmentModel.findById(academicMember.department);
     let courses = await courseModel.find({department: department._id});
     let departments = [];
@@ -42,18 +42,18 @@ router.route("/get-courses-by-academic")
 
 router.route("/get-ci-courses")
 .get(async(req,res)=>{
-    const token = jwt.decode(req.headers.token);
-    let academicMember = await academicMemberModel.findOne({id:token.id});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let academicMember = await academicMemberModel.findOne({id:authAccessToken.id});
     let courses = await courseModel.find({courseInstructors: academicMember.id});
     res.send(courses);
 })
 
 router.route("/get-my-courses")
 .get(async (req, res) => {
-    let token=jwt.decode(req.headers.token);
-    const courses = await courseModel.find({$or: [{courseInstructors: token.id}, {teachingAssistants: token.id}]});
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const courses = await courseModel.find({$or: [{courseInstructors: authAccessToken.id}, {teachingAssistants: authAccessToken.id}]});
     let departments = [];
-    let user = await academicMemberModel.findOne({id:token.id});
+    let user = await academicMemberModel.findOne({id:authAccessToken.id});
     let department = await departmentModel.findOne({_id: user.department});
     for( let i=0 ; i<courses.length ; i++) {
         departments.push(department.name);
@@ -134,13 +134,13 @@ router.route("/get-departments")
 });
 
 router.get("/academic/notifications",async(req,res)=>{
-    let token = jwt.decode(req.headers.token)
-    let notifications = await notification_model.find({user:token.id}).sort({createdAt:-1})
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"])
+    let notifications = await notification_model.find({user:authAccessToken.id}).sort({createdAt:-1})
     res.send(notifications)
 })
 
 router.put("/academic/mark-notifications-seen", async(req,res)=>{
-    let token = jwt.decode(req.headers.token)
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"])
     let seenNotifications = req.body.seenNotifications
     for(let i=0;i<seenNotifications.length;i++){
         let noti = await notification_model.findOne({_id:seenNotifications[i]._id})
@@ -192,7 +192,7 @@ Date.prototype.addDays = function (days) {
 
 router.route("/view-staff-profile/:id")
 .get(async(req,res)=>{
-    const token = jwt.decode(req.headers.token);
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let user = await hrMemberModel.findOne({id: req.params.id});
     if (!user) {
         user = await academicMemberModel.findOne({id: req.params.id});

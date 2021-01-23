@@ -19,12 +19,11 @@ const app = express();
 const corsOptions = {
     origin: process.env.FRONTEND_BASE_URL,
     methods: "GET,PUT,POST,DELETE",
-    exposedHeaders: "token",
+    exposedHeaders: "auth-access-token",
     credentials: true,
     maxAge: 5
 };
 
-app.options("*", cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
