@@ -1,7 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const jwtBlacklistModel = require("../models/jwt_blacklist_model");
@@ -10,20 +9,21 @@ const userBlacklistModel = require("../models/user_blacklist_model");
 const router = express.Router();
 
 function getAuthAccessToken(user) {
-    if (!user.role)
+    if (!user.role) {
         var role = "HR";
-    else
+    }
+    else {
         var role = user.role;
+    }
 
     const authAccessToken = jwt.sign({ id: user.id, name: user.name, email: user.email, role: role },
-        process.env.AUTH_ACCESS_TOKEN_SECRET, { expiresIn: "5 minutes" });
-
+        process.env.AUTH_ACCESS_TOKEN_SECRET, { expiresIn: `${process.env.AUTH_ACCESS_TOKEN_AGE} seconds` });
     return authAccessToken;
 }
 
 function getAuthRefreshToken(user) {
     const authRefreshToken = jwt.sign({ id: user.id },
-        process.env.AUTH_REFRESH_TOKEN_SECRET, { expiresIn: "1 hour" });
+        process.env.AUTH_REFRESH_TOKEN_SECRET, { expiresIn: `${process.env.AUTH_REFRESH_TOKEN_AGE} seconds` });
 
     return authRefreshToken;
 }
@@ -61,17 +61,14 @@ router.route("/staff/login")
             return;
         }
 
-        const authAccessToken = getAuthAccessToken(user);
-        const authRefreshToken = getAuthRefreshToken(user);
-
-        res.header("auth-access-token", authAccessToken);
-        res.cookie("auth-refresh-token", authRefreshToken, {
+        res.header("auth-access-token", getAuthAccessToken(user));
+        res.cookie("auth-refresh-token", getAuthRefreshToken(user), {
             // domain: ??, TODO: check if needed
             // path: "/staff/refresh-token", TODO: check path
             // secure: true, TODO: test with https + domains
             sameSite: "strict",
             httpOnly: true,
-            maxAge: 100_000_000
+            maxAge: 1000 * parseInt(process.env.AUTH_REFRESH_TOKEN_AGE)
         });
 
         res.send({ firstLogin: !user.loggedIn });
@@ -83,7 +80,7 @@ router.route("/staff/refresh-token")
             var authRefreshToken = jwt.verify(req.cookies["auth-refresh-token"], process.env.AUTH_REFRESH_TOKEN_SECRET);
         }
         catch (error) {
-            console.log(error.message);
+            res.clearCookie("auth-refresh-token");
             res.status(401).send("Invalid token");
             return;
         }
@@ -93,6 +90,7 @@ router.route("/staff/refresh-token")
             user = await academicMemberModel.findOne({ id: authRefreshToken.id });
         }
         if (!user) {
+            res.clearCookie("auth-refresh-token");
             res.status(401).send("Invalid credentials");
             return;
         }
@@ -100,25 +98,15 @@ router.route("/staff/refresh-token")
         const blacklistedRefreshToken = await jwtBlacklistModel.findOne({ token: req.cookies["auth-refresh-token"] });
         const blacklistedUser = await userBlacklistModel.findOne({ user: user.id, blockedAt: { $gt: new Date(1000 * authRefreshToken.iat) } });
         if (blacklistedRefreshToken || blacklistedUser) {
+            res.clearCookie("auth-refresh-token");
             res.status(401).send("Expired token");
             return;
         }
 
-        const authAccessToken = getAuthAccessToken(user);
-        authRefreshToken = getAuthRefreshToken(user);
+        res.header("auth-access-token", getAuthAccessToken(user));
+        // TODO: resend cookie?
 
-        res.header("auth-access-token", authAccessToken);
-        res.cookie("auth-refresh-token", authRefreshToken, {
-            // domain: ??, TODO: check if needed
-            // path: "/staff/refresh-token", TODO: check path
-            // secure: true, TODO: test with https + domains
-            sameSite: "strict",
-            httpOnly: true,
-            maxAge: 100_000_000
-        });
-
-        res.send({ authAccessToken: authAccessToken, authRefreshToken: authRefreshToken });
-        // res.send("Authentication tokens refreshed successfully")
+        res.send("Authentication token refreshed successfully")
     })
 
 router.use(async (req, res, next) => {
@@ -126,7 +114,6 @@ router.use(async (req, res, next) => {
         var authAccessToken = jwt.verify(req.headers["auth-access-token"], process.env.AUTH_ACCESS_TOKEN_SECRET);
     }
     catch (error) {
-        console.log(error.message);
         res.status(401).send("Invalid token");
         return;
     }
@@ -163,14 +150,16 @@ router.route("/staff/logout")
             expiresAt: new Date(1000 * authRefreshToken.exp)
         });
 
+        res.clearCookie("auth-refresh-token");
+
         try {
             await blacklistAccessToken.save();
             await blacklistRefreshToken.save();
         }
         catch (error) {
-            console.log(error.message);
+            res.status(400).send(error.message);
+            return;
         }
-
         res.send("Logged out successfully");
     });
 
@@ -224,7 +213,6 @@ router.route("/staff/change-password")
             res.send("Password changed succesfully");
         }
         catch (error) {
-            console.log(error.message);
             res.status(400).send(error.message);
         }
     })
