@@ -2,8 +2,6 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const fs = require("fs");
 const path = require("path");
-
-const jwtBlacklistModel = require("../models/jwt_blacklist_model");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
@@ -22,7 +20,7 @@ router.route("")
     if (!req.body.reset) {
         res.send("Did not reset.");
     }
-    await jwtBlacklistModel.deleteMany({});
+    
     await hrMemberModel.deleteMany({});
     await hrMemberModel.resetCount();
     await academicMemberModel.deleteMany({});

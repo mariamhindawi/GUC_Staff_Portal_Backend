@@ -30,13 +30,14 @@ app.use(cookieParser());
 
 app.use("/reset", resetRoutes);
 app.use("/campus", campusRoutes);
-app.use(authenticationRoutes);
+app.use("/staff", authenticationRoutes);
 app.use("/staff", generalStaffRoutes);
-app.use("/hr", hrMemberRoutes);
-app.use("/academic", academicMemberRoutes);
-app.use("/hod", headOfDepartmentRoutes);
-app.use("/ci", courseInstructorRoutes);
-app.use("/cc", courseCoordinatorRoutes);
+app.use("/staff/hr", hrMemberRoutes);
+app.use("/staff/academic", academicMemberRoutes);
+app.use("/staff/hod", headOfDepartmentRoutes);
+app.use("/staff/ci", courseInstructorRoutes);
+app.use("/staff/cc", courseCoordinatorRoutes);
+
 app.use("/fe", frontEndRoutes);
 
 module.exports.app = app;

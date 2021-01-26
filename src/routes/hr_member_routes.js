@@ -1,7 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
@@ -10,9 +9,9 @@ const departmentModel = require("../models/department_model");
 const facultyModel = require("../models/faculty_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
-const userBlacklistModel = require("../models/user_blacklist_model");
 const notificationModel = require("../models/notification_model");
 const { requestModel, maternityLeaveModel } = require("../models/request_model");
+const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
 
@@ -432,6 +431,7 @@ router.route("/update-hr-member/:id")
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(req.body.password, salt);
             user.password = hashedPassword;
+            await authRefreshTokenModel.deleteMany({ user: user.id });
         }
 
         if (req.body.gender) {
@@ -527,6 +527,7 @@ router.route("/update-academic-member/:id")
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(req.body.password, salt);
             user.password = hashedPassword;
+            await authRefreshTokenModel.deleteMany({ user: user.id });
         }
 
         if (req.body.gender) {
@@ -662,6 +663,7 @@ router.route("/delete-hr-member/:id")
         await office.save();
 
         await attendanceRecordModel.deleteMany({ user: user.id });
+        await authRefreshTokenModel.deleteMany({ user: user.id });
 
         res.send("User deleted successfully");
     });
@@ -681,6 +683,7 @@ router.route("/delete-academic-member/:id")
         }
 
         await academicMemberModel.findOneAndDelete({ id: user.id });
+        await authRefreshTokenModel.deleteMany({ user: user.id });
 
         const office = await roomModel.findOne({ _id: user.office });
         office.remainingCapacity++;

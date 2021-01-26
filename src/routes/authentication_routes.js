@@ -3,12 +3,11 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
-const jwtBlacklistModel = require("../models/jwt_blacklist_model");
-const userBlacklistModel = require("../models/user_blacklist_model");
+const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
 
-function getAuthToken(user, type) {
+function getAuthAccessToken(user) {
     if (!user.role) {
         var role = "HR";
     }
@@ -16,66 +15,91 @@ function getAuthToken(user, type) {
         var role = user.role;
     }
 
-    if (type === "access") {
-        var secret = process.env.AUTH_ACCESS_TOKEN_SECRET;
-        var age = process.env.AUTH_ACCESS_TOKEN_AGE;
-    }
-    else if (type === "refresh") {
-        var secret = process.env.AUTH_REFRESH_TOKEN_SECRET;
-        var age = process.env.AUTH_REFRESH_TOKEN_AGE;
-    }
+    const authAccessToken = jwt.sign({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: role
+    }, process.env.AUTH_ACCESS_TOKEN_SECRET, { expiresIn: `${process.env.AUTH_ACCESS_TOKEN_AGE} seconds` });
 
-    const authAccessToken = jwt.sign({ id: user.id, name: user.name, email: user.email, role: role },
-        secret, { expiresIn: `${age} seconds` });
     return authAccessToken;
 }
 
+function getAuthRefreshToken(user, expiryDate) {
+    if (!user.role) {
+        var role = "HR";
+    }
+    else {
+        var role = user.role;
+    }
 
-router.route("/staff/login")
+    const authRefreshToken = jwt.sign({
+        exp: expiryDate.getTime() / 1000,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: role
+    }, process.env.AUTH_REFRESH_TOKEN_SECRET);
+
+    return authRefreshToken;
+}
+
+
+router.route("/login")
     .post(async (req, res) => {
-        if (!(req.body.email && req.body.password)) {
-            res.status(400).send("Not all the required fields are entered");
-            return;
+        try {
+            if (!(req.body.email && req.body.password)) {
+                res.status(400).send("Not all the required fields are entered");
+                return;
+            }
+    
+            if (typeof req.body.email !== "string" || typeof req.body.password !== "string") {
+                res.status(400).send("Wrong data types entered");
+                return;
+            }
+    
+            if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
+                res.status(400).send("Invalid email address");
+                return;
+            }
+    
+            const user = await hrMemberModel.findOne({ email: req.body.email })
+                || await academicMemberModel.findOne({ email: req.body.email });
+            if (!user) {
+                res.status(401).send("User not found");
+                return;
+            }
+    
+            const passwordCorrect = await bcrypt.compare(req.body.password, user.password);
+            if (!passwordCorrect) {
+                res.status(401).send("Wrong password");
+                return;
+            }
+    
+            const refreshTokenAge = 1000 * parseInt(process.env.AUTH_REFRESH_TOKEN_AGE);
+            const refreshTokenExpiryDate = new Date(Date.now() + refreshTokenAge);
+            const authRefreshToken = new authRefreshTokenModel({
+                user: user.id,
+                token: getAuthRefreshToken(user, refreshTokenExpiryDate),
+                expiresAt: refreshTokenExpiryDate
+            });
+            await authRefreshToken.save();
+    
+            res.header("auth-access-token", getAuthAccessToken(user));
+            res.cookie("auth-refresh-token", authRefreshToken.token, {
+                // secure: true, TODO: test with https + domains
+                sameSite: "strict",
+                httpOnly: true,
+                expires: new Date(refreshTokenExpiryDate.getTime() + 2 * 1000 * parseInt(process.env.AUTH_ACCESS_TOKEN_AGE))
+            });
+            res.send({ firstLogin: !user.loggedIn });
         }
-
-        if (typeof req.body.email !== "string" || typeof req.body.password !== "string") {
-            res.status(400).send("Wrong data types entered");
-            return;
+        catch (error) {
+            res.status(400).send(error.message);
         }
+    });
 
-        if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
-            res.status(400).send("Invalid email address");
-            return;
-        }
-
-        let user = await hrMemberModel.findOne({ email: req.body.email });
-        if (!user) {
-            user = await academicMemberModel.findOne({ email: req.body.email });
-        }
-        if (!user) {
-            res.status(401).send("User not found");
-            return;
-        }
-
-        const passwordCorrect = await bcrypt.compare(req.body.password, user.password);
-        if (!passwordCorrect) {
-            res.status(401).send("Wrong password");
-            return;
-        }
-
-        res.header("auth-access-token", getAuthToken(user, "access"));
-        res.cookie("auth-refresh-token", getAuthToken(user, "refresh"), {
-            // domain: ??, TODO: check if needed
-            // path: "/staff/refresh-token", TODO: check path
-            // secure: true, TODO: test with https + domains
-            sameSite: "strict",
-            httpOnly: true,
-            maxAge: 1000 * (parseInt(process.env.AUTH_REFRESH_TOKEN_AGE) + parseInt(process.env.AUTH_ACCESS_TOKEN_AGE))
-        });
-        res.send({ firstLogin: !user.loggedIn });
-    })
-
-router.route("/staff/refresh-token")
+router.route("/refresh-token")
     .post(async (req, res) => {
         if (!req.cookies["auth-refresh-token"]) {
             res.status(401).send("No refresh token");
@@ -83,81 +107,74 @@ router.route("/staff/refresh-token")
         }
 
         try {
-            var authRefreshToken = jwt.verify(req.cookies["auth-refresh-token"], process.env.AUTH_REFRESH_TOKEN_SECRET);
+            const decodedAuthRefreshToken = jwt.decode(req.cookies["auth-refresh-token"]);
+
+            const authRefreshToken = await authRefreshTokenModel.findOne({
+                user: decodedAuthRefreshToken.id,
+                token: req.cookies["auth-refresh-token"],
+                expiresAt: { $gt: new Date() }
+            });
+
+            if (!authRefreshToken) {
+                throw new Error("Refresh token does not exist");
+            }
+
+            authRefreshToken.token = getAuthRefreshToken(decodedAuthRefreshToken, authRefreshToken.expiresAt);
+            await authRefreshToken.save();
+
+            res.header("auth-access-token", getAuthAccessToken(decodedAuthRefreshToken));
+            res.cookie("auth-refresh-token", authRefreshToken.token, {
+                // secure: true, TODO: test with https + domains
+                sameSite: "strict",
+                httpOnly: true,
+                expires: new Date(authRefreshToken.expiresAt.getTime() + 2 * 1000 * parseInt(process.env.AUTH_ACCESS_TOKEN_AGE))
+            });
+            res.send("Access token refreshed successfully");
         }
         catch (error) {
             res.clearCookie("auth-refresh-token");
             res.status(401).send("Invalid refresh token");
-            return;
         }
-
-        const blacklistedRefreshToken = await jwtBlacklistModel.findOne({ token: req.cookies["auth-refresh-token"] });
-        const blacklistedUser = await userBlacklistModel.findOne({ user: authRefreshToken.id, blockedAt: { $gt: new Date(1000 * authRefreshToken.iat) } });
-        if (blacklistedRefreshToken || blacklistedUser) {
-            res.clearCookie("auth-refreshs-token");
-            res.status(401).send("Expired refresh token");
-            return;
-        }
-
-        res.header("auth-access-token", getAuthToken(authRefreshToken, "access"));
-        res.send("Access token refreshed successfully");
-    })
+    });
 
 router.use(async (req, res, next) => {
     try {
-        var authAccessToken = jwt.verify(req.headers["auth-access-token"], process.env.AUTH_ACCESS_TOKEN_SECRET);
+        const authAccessToken = jwt.verify(req.headers["auth-access-token"], process.env.AUTH_ACCESS_TOKEN_SECRET);
+        req.token = authAccessToken;
+        next();
     }
     catch (error) {
         res.status(401).send("Invalid access token");
-        console.log(error.message)
-        return;
     }
-
-    const blacklistedAccessToken = await jwtBlacklistModel.findOne({ token: req.headers["auth-access-token"] });
-    const blacklistedUser = await userBlacklistModel.findOne({ user: authAccessToken.id, blockedAt: { $gt: new Date(1000 * authAccessToken.iat) } });
-    if (blacklistedAccessToken || blacklistedUser) {
-        res.status(401).send("Expired access token");
-        return;
-    }
-
-    req.authAccessToken = authAccessToken;
-    next();
 });
 
-router.route("/staff/logout")
+router.route("/logout")
     .post(async (req, res) => {
-        const blacklistAccessToken = new jwtBlacklistModel({
-            token: req.headers["auth-access-token"],
-            expiresAt: new Date(1000 * req.authAccessToken.exp)
-        });
-        const authRefreshToken = jwt.decode(req.cookies["auth-refresh-token"]);
-        const blacklistRefreshToken = new jwtBlacklistModel({
-            token: req.cookies["auth-refresh-token"],
-            expiresAt: new Date(1000 * authRefreshToken.exp)
-        });
-
         try {
-            await blacklistAccessToken.save();
-            await blacklistRefreshToken.save();
+            if (req.body.forceLogout) {
+                await authRefreshTokenModel.deleteMany({ user: req.token.id });
+            }
+            else {
+                await authRefreshTokenModel.deleteOne({ token: req.cookies["auth-refresh-token"] });
+            }
+
+            res.clearCookie("auth-refresh-token");
+            res.send("Logged out successfully");
         }
         catch (error) {
             res.clearCookie("auth-refresh-token");
             res.status(400).send(error.message);
-            return;
         }
-
-        res.clearCookie("auth-refresh-token");
-        res.send("Logged out successfully");
     });
 
-router.route("/staff/change-password")
+router.route("/change-password")
     .put(async (req, res) => {
         if (!(req.body.oldPassword && req.body.newPassword && req.body.confirmedNewPassword)) {
             res.status(400).send("Not all the required fields are entered");
             return;
         }
 
-        if (typeof req.body.oldPassword !== "string" || typeof req.body.newPassword !== "string" 
+        if (typeof req.body.oldPassword !== "string" || typeof req.body.newPassword !== "string"
             || typeof req.body.confirmedNewPassword !== "string") {
             res.status(422).send("Wrong data types entered");
             return;
@@ -168,11 +185,11 @@ router.route("/staff/change-password")
             return;
         }
 
-        if (req.authAccessToken.role === "HR") {
-            var user = await hrMemberModel.findOne({ id: req.authAccessToken.id });
+        if (req.token.role === "HR") {
+            var user = await hrMemberModel.findOne({ id: req.token.id });
         }
         else {
-            var user = await academicMemberModel.findOne({ id: req.authAccessToken.id });
+            var user = await academicMemberModel.findOne({ id: req.token.id });
         }
 
         const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
@@ -207,6 +224,6 @@ router.route("/staff/change-password")
         catch (error) {
             res.status(400).send(error.message);
         }
-    })
+    });
 
 module.exports = router;
