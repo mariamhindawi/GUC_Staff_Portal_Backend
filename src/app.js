@@ -38,6 +38,6 @@ app.use("/staff/hod", headOfDepartmentRoutes);
 app.use("/staff/ci", courseInstructorRoutes);
 app.use("/staff/cc", courseCoordinatorRoutes);
 
-app.use("/fe", frontEndRoutes);
+app.use("/staff/fe", frontEndRoutes);
 
 module.exports.app = app;
