@@ -226,8 +226,7 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
 
 
 router.use((req, res, next) => {
-	const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-	if (authAccessToken.role === "HR") {
+	if (req.token.role === "HR") {
 		next();
 	}
 	else {
@@ -247,11 +246,10 @@ router.route("/add-hr-member")
 			return;
 		}
 
-		let user = await hrMemberModel.findOne({ email: req.body.email });
-		if (!user) {
-			user = await academicMemberModel.findOne({ email: req.body.email });
-		}
-		if (user) {
+		const existingUser = await hrMemberModel.findOne({ email: req.body.email })
+			|| await academicMemberModel.findOne({ email: req.body.email });
+
+		if (existingUser) {
 			res.status(409).send("Email already exists");
 			return;
 		}
@@ -312,11 +310,10 @@ router.route("/add-academic-member")
 			return;
 		}
 
-		let user = await hrMemberModel.findOne({ email: req.body.email });
-		if (!user) {
-			user = await academicMemberModel.findOne({ email: req.body.email });
-		}
-		if (user) {
+		const existingUser = await hrMemberModel.findOne({ email: req.body.email })
+			|| await academicMemberModel.findOne({ email: req.body.email });
+
+		if (existingUser) {
 			res.status(409).send("Email already exists");
 			return;
 		}
@@ -327,6 +324,7 @@ router.route("/add-academic-member")
 				res.status(422).send("Incorrect department name");
 				return;
 			}
+			department.headOfDepartment = newUser.id;
 		}
 
 		if (req.body.role === "Course Coordinator") {
@@ -384,7 +382,6 @@ router.route("/add-academic-member")
 			await newUser.save();
 			await office.save();
 			if (req.body.role === "Head of Department") {
-				department.headOfDepartment = newUser.id;
 				await department.save();
 			}
 			res.send("User added successfully");
@@ -412,18 +409,12 @@ router.route("/update-hr-member/:id")
 				res.status(400).send("Invalid email address");
 				return;
 			}
-
-			let otherUser = await hrMemberModel.findOne({ email: req.body.email });
-			if (!otherUser) {
-				otherUser = await academicMemberModel.findOne({ email: req.body.email });
+			const existingUser = await hrMemberModel.findOne({ email: req.body.email })
+				|| await academicMemberModel.findOne({ email: req.body.email });
+			if (existingUser && existingUser.id !== user.id) {
+				res.status(409).send("Email already exists");
+				return;
 			}
-			if (otherUser) {
-				if (otherUser.id !== user.id) {
-					res.status(409).send("Email already exists");
-					return;
-				}
-			}
-
 			user.email = req.body.email;
 		}
 
@@ -431,7 +422,6 @@ router.route("/update-hr-member/:id")
 			const salt = await bcrypt.genSalt(10);
 			const hashedPassword = await bcrypt.hash(req.body.password, salt);
 			user.password = hashedPassword;
-			await authRefreshTokenModel.deleteMany({ user: user.id });
 		}
 
 		if (req.body.gender) {
@@ -471,17 +461,7 @@ router.route("/update-hr-member/:id")
 				await oldOffice.save();
 			}
 			if (req.body.password) {
-				let blacklistEntry = await userBlacklistModel.findOne({ user: user.id });
-				if (blacklistEntry) {
-					blacklistEntry.blockedAt = new Date();
-				}
-				else {
-					blacklistEntry = new userBlacklistModel({
-						user: user.id,
-						blockedAt: new Date()
-					});
-				}
-				await blacklistEntry.save();
+				await authRefreshTokenModel.deleteMany({ user: user.id });
 			}
 			res.send("User updated successfully");
 		}
@@ -508,18 +488,12 @@ router.route("/update-academic-member/:id")
 				res.status(400).send("Invalid email address");
 				return;
 			}
-
-			let otherUser = await hrMemberModel.findOne({ email: req.body.email });
-			if (!otherUser) {
-				otherUser = await academicMemberModel.findOne({ email: req.body.email });
+			const existingUser = await hrMemberModel.findOne({ email: req.body.email })
+				|| await academicMemberModel.findOne({ email: req.body.email });
+			if (existingUser && existingUser.id !== user.id) {
+				res.status(409).send("Email already exists");
+				return;
 			}
-			if (otherUser) {
-				if (otherUser.id !== user.id) {
-					res.status(409).send("Email already exists");
-					return;
-				}
-			}
-
 			user.email = req.body.email;
 		}
 
@@ -527,7 +501,6 @@ router.route("/update-academic-member/:id")
 			const salt = await bcrypt.genSalt(10);
 			const hashedPassword = await bcrypt.hash(req.body.password, salt);
 			user.password = hashedPassword;
-			await authRefreshTokenModel.deleteMany({ user: user.id });
 		}
 
 		if (req.body.gender) {
@@ -540,9 +513,9 @@ router.route("/update-academic-member/:id")
 				res.status(422).send("Incorrect department name");
 				return;
 			}
-			var oldDepartment = await departmentModel.findOne({ name: req.body.department });
+			var oldDepartment = await departmentModel.findOne({ _id: user.department });
 			if (!req.body.role && user.role === "Head of Department") {
-				if (department.headOfDepartment !== "UNASSIGNED") {
+				if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
 					res.status(409).send("Department already has a head");
 					return;
 				}
@@ -550,7 +523,7 @@ router.route("/update-academic-member/:id")
 				department.headOfDepartment = user.id;
 			}
 			if (req.body.role === "Head of Department") {
-				if (department.headOfDepartment !== "UNASSIGNED") {
+				if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
 					res.status(409).send("Department already has a head");
 					return;
 				}
@@ -563,19 +536,19 @@ router.route("/update-academic-member/:id")
 		}
 
 		if (req.body.role) {
-			if (req.body.role === "Course Coordinator") {
+			if (req.body.role === "Course Coordinator" && user.role !== "Course Coordinator") {
 				res.status(403).send("You cannot assign an academic member to be a course coordinator");
 				return;
 			}
 			if (req.body.role === "Head of Department" && !req.body.department) {
-				department = await departmentModel.findOne({ _id: user.department });
-				if (department.headOfDepartment !== "UNASSIGNED") {
+				var department = await departmentModel.findOne({ _id: user.department });
+				if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
 					res.status(409).send("Department already has a head");
 					return;
 				}
 				department.headOfDepartment = user.id;
 			}
-			else if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
+			if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
 				if (req.body.department) {
 					oldDepartment.headOfDepartment = "UNASSIGNED";
 				}
@@ -630,17 +603,7 @@ router.route("/update-academic-member/:id")
 				await oldDepartment.save();
 			}
 			if (req.body.password) {
-				let blacklistEntry = await userBlacklistModel.findOne({ user: user.id });
-				if (blacklistEntry) {
-					blacklistEntry.blockedAt = new Date();
-				}
-				else {
-					blacklistEntry = new userBlacklistModel({
-						user: user.id,
-						blockedAt: new Date()
-					});
-				}
-				await blacklistEntry.save();
+				await authRefreshTokenModel.deleteMany({ user: user.id });
 			}
 			res.send("User updated successfully");
 		}
@@ -652,81 +615,91 @@ router.route("/update-academic-member/:id")
 
 router.route("/delete-hr-member/:id")
 	.delete(async (req, res) => {
-		const user = await hrMemberModel.findOneAndDelete({ id: req.params.id });
-		if (!user) {
-			res.status(404).send("Incorrect user id");
-			return;
+		try {
+			const user = await hrMemberModel.findOneAndDelete({ id: req.params.id });
+			if (!user) {
+				res.status(404).send("Incorrect user id");
+				return;
+			}
+
+			const office = await roomModel.findOne({ _id: user.office });
+			office.remainingCapacity++;
+			await office.save();
+
+			await attendanceRecordModel.deleteMany({ user: user.id });
+			await authRefreshTokenModel.deleteMany({ user: user.id });
+
+			res.send("User deleted successfully");
 		}
-
-		const office = await roomModel.findOne({ _id: user.office });
-		office.remainingCapacity++;
-		await office.save();
-
-		await attendanceRecordModel.deleteMany({ user: user.id });
-		await authRefreshTokenModel.deleteMany({ user: user.id });
-
-		res.send("User deleted successfully");
+		catch (error) {
+			res.status(400).send(error.message);
+		}
 	});
 
 router.route("/delete-academic-member/:id")
 	.delete(async (req, res) => {
-		const user = await academicMemberModel.findOne({ id: req.params.id });
-		if (!user) {
-			res.status(404).send("Incorrect user id");
-			return;
-		}
-
-		const slots = await slotModel.find({ staffMember: user.id });
-		if (slots.length !== 0) {
-			res.status(409).send("Cannot delete user. Reassign his slots first");
-			return;
-		}
-
-		await academicMemberModel.findOneAndDelete({ id: user.id });
-		await authRefreshTokenModel.deleteMany({ user: user.id });
-
-		const office = await roomModel.findOne({ _id: user.office });
-		office.remainingCapacity++;
-		await office.save();
-
-		if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
-			let courses = await courseModel.find({ teachingAssistants: user.id });
-			for (let i = 0; i < courses.length; i++) {
-				let course = courses[i];
-				let userIndex = course.teachingAssistants.indexOf(user.id);
-				course.teachingAssistants.splice(userIndex, 1);
-				await course.save();
+		try {
+			const user = await academicMemberModel.findOne({ id: req.params.id });
+			if (!user) {
+				res.status(404).send("Incorrect user id");
+				return;
 			}
-		}
-		else {
-			let courses = await courseModel.find({ courseInstructors: user.id });
-			for (let i = 0; i < courses.length; i++) {
-				let course = courses[i];
-				let userIndex = course.courseInstructors.indexOf(user.id);
-				course.courseInstructors.splice(userIndex, 1);
-				await course.save();
+
+			const slots = await slotModel.find({ staffMember: user.id });
+			if (slots.length !== 0) {
+				res.status(409).send("Cannot delete user. Reassign their slots first");
+				return;
 			}
-		}
 
-		if (user.role === "Course Coordinator") {
-			let courses = await courseModel.find({ courseCoordinator: user.id });
-			for (let i = 0; i < courses.length; i++) {
-				let course = courses[i];
-				course.courseCoordinator = "UNASSIGNED";
-				await course.save();
+			await academicMemberModel.deleteOne({ id: user.id });
+
+			const office = await roomModel.findOne({ _id: user.office });
+			office.remainingCapacity++;
+			await office.save();
+
+			if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
+				let courses = await courseModel.find({ teachingAssistants: user.id });
+				for (let i = 0; i < courses.length; i++) {
+					let course = courses[i];
+					let userIndex = course.teachingAssistants.indexOf(user.id);
+					course.teachingAssistants.splice(userIndex, 1);
+					await course.save();
+				}
 			}
-		}
-		else if (user.role === "Head of Department") {
-			let department = await departmentModel.findOne({ headOfDepartment: user.id });
-			department.headOfDepartment = "UNASSIGNED";
-			await department.save();
-		}
+			else {
+				let courses = await courseModel.find({ courseInstructors: user.id });
+				for (let i = 0; i < courses.length; i++) {
+					let course = courses[i];
+					let userIndex = course.courseInstructors.indexOf(user.id);
+					course.courseInstructors.splice(userIndex, 1);
+					await course.save();
+				}
+			}
 
-		await attendanceRecordModel.deleteMany({ user: user.id });
-		await notificationModel.deleteMany({ user: user.id });
-		await requestModel.deleteMany({ requestedBy: user.id });
+			if (user.role === "Course Coordinator") {
+				let courses = await courseModel.find({ courseCoordinator: user.id });
+				for (let i = 0; i < courses.length; i++) {
+					let course = courses[i];
+					course.courseCoordinator = "UNASSIGNED";
+					await course.save();
+				}
+			}
+			else if (user.role === "Head of Department") {
+				let department = await departmentModel.findOne({ headOfDepartment: user.id });
+				department.headOfDepartment = "UNASSIGNED";
+				await department.save();
+			}
 
-		res.send("User deleted successfully");
+			await authRefreshTokenModel.deleteMany({ user: user.id });
+			await attendanceRecordModel.deleteMany({ user: user.id });
+			await notificationModel.deleteMany({ user: user.id });
+			await requestModel.deleteMany({ requestedBy: user.id });
+
+			res.send("User deleted successfully");
+		}
+		catch (error) {
+			res.status(400).send(error.message);
+		}
 	});
 
 router.route("/add-room")
