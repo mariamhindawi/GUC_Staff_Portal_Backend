@@ -177,12 +177,8 @@ router.route("/reset-password")
 			return;
 		}
 
-		if (req.token.role === "HR") {
-			var user = await hrMemberModel.findOne({ id: req.token.id });
-		}
-		else {
-			var user = await academicMemberModel.findOne({ id: req.token.id });
-		}
+		const user = req.token.role === "HR" ? await hrMemberModel.findOne({ id: req.token.id }) :
+			await academicMemberModel.findOne({ id: req.token.id });
 
 		const passwordCorrect = await bcrypt.compare(req.body.oldPassword, user.password);
 		if (!passwordCorrect) {
@@ -190,27 +186,20 @@ router.route("/reset-password")
 			return;
 		}
 
+		if (req.body.oldPassword === req.body.newPassword) {
+			res.status(422).send("New password must be different than the old one");
+			return;
+		}
+
 		const salt = await bcrypt.genSalt(10);
 		const newPassword = await bcrypt.hash(req.body.newPassword, salt);
 		user.password = newPassword;
-
-		if (!user.loggedIn) {
-			user.loggedIn = true;
-		}
+		user.loggedIn = true;
 
 		try {
 			await user.save();
-			let blacklistEntry = await userBlacklistModel.findOne({ user: user.id });
-			if (blacklistEntry) {
-				blacklistEntry.blockedAt = new Date();
-			}
-			else {
-				blacklistEntry = new userBlacklistModel({
-					user: user.id,
-					blockedAt: new Date()
-				});
-			}
-			await blacklistEntry.save();
+			await authRefreshTokenModel.deleteMany({ user: req.token.id });
+			res.clearCookie("auth-refresh-token");
 			res.send("Password changed succesfully");
 		}
 		catch (error) {
