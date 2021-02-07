@@ -14,197 +14,190 @@ const attendance_record_model = require("../models/attendance_record_model");
 const router = express.Router();
 
 router.route("/get-academic-department")
-.get(async (req, res) => {
+  .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
+    const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
     const department = await departmentModel.findById(academicMember.department);
     res.send(department);
-});
+  });
 
 router.route("/get-courses-by-department")
-.get(async (req, res) => {
+  .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const academicMember = await academicMemberModel.findOne({id: authAccessToken.id});
+    const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
     const department = await departmentModel.findById(academicMember.department);
-    let courses = await courseModel.find({department: department._id});
+    let courses = await courseModel.find({ department: department._id });
     let departments = [];
-    for(let i = 0 ; i<courses.length ; i++) {
-        departments.push(department.name);
+    for (let i = 0; i < courses.length; i++) {
+      departments.push(department.name);
     }
-    res.send({courses: courses, departments: departments});
-});
+    res.send({ courses: courses, departments: departments });
+  });
 
 router.route("/get-courses-by-academic")
-.get(async (req, res) => {
-    const courses = await courseModel.find({$or: [{courseInstructors: req.query.id}, {teachingAssistants: req.query.id}]});
+  .get(async (req, res) => {
+    const courses = await courseModel.find({ $or: [{ courseInstructors: req.query.id }, { teachingAssistants: req.query.id }] });
     res.send(courses);
-});
+  });
 
 router.route("/get-ci-courses")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let academicMember = await academicMemberModel.findOne({id:authAccessToken.id});
-    let courses = await courseModel.find({courseInstructors: academicMember.id});
+    let academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
+    let courses = await courseModel.find({ courseInstructors: academicMember.id });
     res.send(courses);
-})
+  });
 
 router.route("/get-my-courses")
-.get(async (req, res) => {
+  .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const courses = await courseModel.find({$or: [{courseInstructors: authAccessToken.id}, {teachingAssistants: authAccessToken.id}]});
+    const courses = await courseModel.find({ $or: [{ courseInstructors: authAccessToken.id }, { teachingAssistants: authAccessToken.id }] });
     let departments = [];
-    let user = await academicMemberModel.findOne({id:authAccessToken.id});
-    let department = await departmentModel.findOne({_id: user.department});
-    for( let i=0 ; i<courses.length ; i++) {
-        departments.push(department.name);
+    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
+    let department = await departmentModel.findOne({ _id: user.department });
+    for (let i = 0; i < courses.length; i++) {
+      departments.push(department.name);
     }
-    res.send({courses:courses, departments: departments});
-});
+    res.send({ courses: courses, departments: departments });
+  });
 
 router.route("/get-rooms")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const rooms = await roomModel.find();
     res.send(rooms);
-})
+  });
 
 router.route("/get-academics")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const academics = await academicMemberModel.find();
-    let departments = [];
-    for (let i = 0; i<academics.length; i++) {
-        if(academics[i].department==="UNASSIGNED") {
-            departments.push(academics[i].department);
-        }
-        else {
-            const department = await departmentModel.findOne({_id: academics[i].department});
-            departments.push(department.name);
-        }
+    for (let i = 0; i < academics.length; i++) {
+      const academic =  academics[i];
+      const office = await roomModel.findOne({ _id: academic.office });
+      academic.office = office.name;
+      if (academic.department !== "UNASSIGNED") {
+        const department = await departmentModel.findOne({ _id: academics[i].department });
+        academics[i].department = department.name;
+      }
     }
-    let rooms = [];
-    for (let i = 0; i<academics.length; i++) {
-        const room = await roomModel.findOne({_id: academics[i].office});
-        rooms.push(room.name);
-    }
-
-    res.send({academics: academics, departments: departments, rooms: rooms});
-})
+    res.send(academics);
+  });
 
 router.route("/get-hr-members")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const hrmembers = await hrMemberModel.find();
     let rooms = [];
-    for (let i = 0; i<hrmembers.length; i++) {
-        const room = await roomModel.findOne({_id: hrmembers[i].office});
-        rooms.push(room.name);
+    for (let i = 0; i < hrmembers.length; i++) {
+      const room = await roomModel.findOne({ _id: hrmembers[i].office });
+      rooms.push(room.name);
     }
-    res.send({hrmembers: hrmembers, rooms: rooms});
-})
+    res.send({ hrmembers: hrmembers, rooms: rooms });
+  });
 
 router.route("/get-faculties")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const faculties = await facultyModel.find();
     res.send(faculties);
-})
+  });
 
 router.route("/get-departments")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const departments = await departmentModel.find();
     let faculties = [];
-    for (let i = 0; i<departments.length; i++) {
-        if (departments[i].faculty==="UNASSIGNED") {
-            faculties.push(departments[i].faculty);
-        }
-        else {
-            const faculty = await facultyModel.findById(departments[i].faculty);
-            faculties.push(faculty.name); 
-        }
+    for (let i = 0; i < departments.length; i++) {
+      if (departments[i].faculty === "UNASSIGNED") {
+        faculties.push(departments[i].faculty);
+      }
+      else {
+        const faculty = await facultyModel.findById(departments[i].faculty);
+        faculties.push(faculty.name);
+      }
     }
     let heads = [];
-    for (let i = 0; i<departments.length; i++) {
-        if (departments[i].headOfDepartment==="UNASSIGNED") {
-            heads.push(departments[i].headOfDepartment);
-        }
-        else {
-            const headOfDepartment = await academicMemberModel.findOne({id: departments[i].headOfDepartment});
-            heads.push(headOfDepartment.id); 
-        }
+    for (let i = 0; i < departments.length; i++) {
+      if (departments[i].headOfDepartment === "UNASSIGNED") {
+        heads.push(departments[i].headOfDepartment);
+      }
+      else {
+        const headOfDepartment = await academicMemberModel.findOne({ id: departments[i].headOfDepartment });
+        heads.push(headOfDepartment.id);
+      }
     }
-    
-    res.send({departments: departments, faculties: faculties, heads: heads});
+
+    res.send({ departments: departments, faculties: faculties, heads: heads });
+  });
+
+router.get("/academic/notifications", async (req, res) => {
+  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+  let notifications = await notification_model.find({ user: authAccessToken.id }).sort({ createdAt: -1 });
+  res.send(notifications);
 });
 
-router.get("/academic/notifications",async(req,res)=>{
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"])
-    let notifications = await notification_model.find({user:authAccessToken.id}).sort({createdAt:-1})
-    res.send(notifications)
-})
-
-router.put("/academic/mark-notifications-seen", async(req,res)=>{
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"])
-    let seenNotifications = req.body.seenNotifications
-    for(let i=0;i<seenNotifications.length;i++){
-        let noti = await notification_model.findOne({_id:seenNotifications[i]._id})
-        noti.seen=true;
-        noti.save()
-    }
-    res.send("Done");
-})
-router.get("/course-slots",async(req,res)=>{
-    let course = await courseModel.findOne({id:req.query.id})
-    let slots = await slot_model.find({course:course._id})
-    for(let i=0;i<slots.length;i++){
-        let room= await roomModel.findById(slots[i].room)
-        slots[i].room= room.name 
-        let course= await courseModel.findById(slots[i].course)
-        slots[i].course= course.name 
-    }
-    res.send(slots)
-})
+router.put("/academic/mark-notifications-seen", async (req, res) => {
+  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+  let seenNotifications = req.body.seenNotifications;
+  for (let i = 0; i < seenNotifications.length; i++) {
+    let noti = await notification_model.findOne({ _id: seenNotifications[i]._id });
+    noti.seen = true;
+    noti.save();
+  }
+  res.send("Done");
+});
+router.get("/course-slots", async (req, res) => {
+  let course = await courseModel.findOne({ id: req.query.id });
+  let slots = await slot_model.find({ course: course._id });
+  for (let i = 0; i < slots.length; i++) {
+    let room = await roomModel.findById(slots[i].room);
+    slots[i].room = room.name;
+    let course = await courseModel.findById(slots[i].course);
+    slots[i].course = course.name;
+  }
+  res.send(slots);
+});
 
 router.route("/get-courses")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     let courses = await courseModel.find();
     let departments = [];
-    for ( let i = 0; i<courses.length ; i++) {
-        if (courses[i].department==="UNASSIGNED") {
-            departments.push("UNASSIGNED");
-        }
-        else {
-            let department = await departmentModel.findOne({ _id: courses[i].department }); 
-            departments.push(department.name);
-        }
+    for (let i = 0; i < courses.length; i++) {
+      if (courses[i].department === "UNASSIGNED") {
+        departments.push("UNASSIGNED");
+      }
+      else {
+        let department = await departmentModel.findOne({ _id: courses[i].department });
+        departments.push(department.name);
+      }
     }
-    res.send({ courses: courses,departments: departments });
-})
+    res.send({ courses: courses, departments: departments });
+  });
 
-router.get("/user-records",async(req,res)=>{
-    let dateStringParts = req.query.day.split("T")[0].split("-")
-    let date=new Date(dateStringParts[0],dateStringParts[1]-1,dateStringParts[2],2).addDays(1)
-    records=await attendance_record_model.find({user:req.query.user,signInTime: { $lt: date.addDays(1), $gte: date }})
-    res.send(records)
-})
+router.get("/user-records", async (req, res) => {
+  let dateStringParts = req.query.day.split("T")[0].split("-");
+  let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
+  records = await attendance_record_model.find({ user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date } });
+  res.send(records);
+});
 
 Date.prototype.addDays = function (days) {
-    var date = new Date(this.valueOf());
-    date.setDate(date.getDate() + days);
-    return date;
-}
+  var date = new Date(this.valueOf());
+  date.setDate(date.getDate() + days);
+  return date;
+};
 
 router.route("/view-staff-profile/:id")
-.get(async(req,res)=>{
+  .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await hrMemberModel.findOne({id: req.params.id});
+    let user = await hrMemberModel.findOne({ id: req.params.id });
     if (!user) {
-        user = await academicMemberModel.findOne({id: req.params.id});
+      user = await academicMemberModel.findOne({ id: req.params.id });
     }
-    let office = await roomModel.findOne({_id: user.office});
-    let department = await departmentModel.findOne({_id:user.department})
-    let faculty = await facultyModel.findOne({_id:user.faculty})
-    if(department)
-        user.department=department.name
-    if(faculty)
-        user.faculty=faculty
-    res.send({user: user, office: office});
-})
+    let office = await roomModel.findOne({ _id: user.office });
+    let department = await departmentModel.findOne({ _id: user.department });
+    let faculty = await facultyModel.findOne({ _id: user.faculty });
+    if (department)
+      user.department = department.name;
+    if (faculty)
+      user.faculty = faculty;
+    res.send({ user: user, office: office });
+  });
 
 module.exports = router;
