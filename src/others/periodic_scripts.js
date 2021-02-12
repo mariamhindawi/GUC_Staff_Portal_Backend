@@ -9,7 +9,6 @@ schedule.scheduleJob("0 0 0 11 * *", async () => {
     await academicMemberModel.updateMany({}, {$inc: {annualLeaveBalance: 2.5}});
 });
 
-const period = 1000 * process.env.AUTH_REFRESH_TOKEN_AGE;
-setInterval(async () => {
-    await authRefreshTokenModel.deleteMany({expiresAt: {$lt: new Date()}});
-}, period);
+schedule.scheduleJob("0 /15 * * * *", async () => {
+  await authRefreshTokenModel.deleteMany({expiresAt: {$lt: new Date()}});
+});

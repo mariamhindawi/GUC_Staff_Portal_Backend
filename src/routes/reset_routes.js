@@ -11,16 +11,17 @@ const courseModel = require("../models/course_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const { requestModel } = require("../models/request_model")
+const { requestModel } = require("../models/request_model");
+const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
 
 router.route("")
-.post(async (req,res) => {
+  .post(async (req, res) => {
     if (!req.body.reset) {
-        res.send("Did not reset.");
+      res.send("Did not reset.");
     }
-    
+
     await hrMemberModel.deleteMany({});
     await hrMemberModel.resetCount();
     await academicMemberModel.deleteMany({});
@@ -33,44 +34,45 @@ router.route("")
     await slotModel.deleteMany({});
     await requestModel.deleteMany({});
     await notificationModel.deleteMany({});
+    await authRefreshTokenModel.deleteMany({});
 
     let newRoom = new roomModel({
-        name: "C7.305",
-        capacity: 10,
-        remainingCapacity: 9,
-        type: "Office"
+      name: "C7.305",
+      capacity: 10,
+      remainingCapacity: 9,
+      type: "Office"
     });
     await newRoom.save();
-    newRoom = await roomModel.findOne({name: "C7.305"});
+    newRoom = await roomModel.findOne({ name: "C7.305" });
 
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
 
     let newUserCount;
     await hrMemberModel.nextCount().then(count => {
-        newUserCount = count;
+      newUserCount = count;
     });
 
     const newUser = new hrMemberModel({
-        id: "hr-" + newUserCount,
-        name: "user",
-        email: "user@guc.edu.eg",
-        password: newPassword,
-        gender: "Male",
-        office: newRoom._id,
-        salary: 7000
-    })
+      id: "hr-" + newUserCount,
+      name: "user",
+      email: "user@guc.edu.eg",
+      password: newPassword,
+      gender: "Male",
+      office: newRoom._id,
+      salary: 7000
+    });
     await newUser.save();
 
     resetConfig();
-    
-    res.status(418).send("Reset done successfully.");
-});
 
-const resetConfig = async() => {  
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname),"config.json")));
-    config.requestCounter = "0";
-    fs.writeFileSync(path.join(path.dirname(__dirname),"config.json"), JSON.stringify(config));
-}
+    res.status(418).send("Reset done successfully.");
+  });
+
+const resetConfig = async () => {
+  let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
+  config.requestCounter = "0";
+  fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
+};
 
 module.exports = router;
