@@ -67,14 +67,14 @@ router.route("/view-staff/:course")
         let department = await departmentModel.findOne({_id: user.department});
         let departments = [];
         let rooms = [];
-        
+
         for(let i = 0; i<output.length ; i++) {
             departments.push(department.name);
             let room = await roomModel.findOne({_id: output[i].office});
             rooms.push(room.name);
         }
         res.send({staff: output, departments: departments, rooms: rooms});
-        
+
     });
 
 router.route("/view-staff-dayoff")
@@ -88,7 +88,7 @@ router.route("/view-staff-dayoff")
 router.route("/view-staff-dayoff/:id")
     .get(async (req, res) => {
         const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-      
+
         let user = await academicMemberModel.findOne({ id: authAccessToken.id });
         let output = await academicMemberModel.findOne({ department: user.department, id: req.params.id }, { id: 1,  dayoff: 1 });
         res.send(output);
@@ -142,7 +142,7 @@ router.route("/assign-course-instructor")
 router.route("/delete-course-instructor")
     .delete(async (req, res) => {
         const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-       
+
         let user = await academicMemberModel.findOne({ id: authAccessToken.id });
         let instructor = await academicMemberModel.findOne({ id: req.body.id });
         let course = await courseModel.findOne({ id: req.body.course});
@@ -171,7 +171,7 @@ router.route("/delete-course-instructor")
             res.send("Instructor is not assigned to this course.");
             return;
         }
-    
+
         const indx = course.courseInstructors.findIndex(v => v === instructor);
         course.courseInstructors.splice(indx,1);
         try {
@@ -195,12 +195,12 @@ router.route("/update-course-instructor/:idDelete/:course")
             res.send("Wrong data types entered");
             return;
         }
-        
+
         let user = await academicMemberModel.findOne({ id: authAccessToken.id });
         let instructorupdate = await academicMemberModel.findOne({ id: req.body.idUpdate });
         let instructordelete = await academicMemberModel.findOne({ id: req.params.idDelete });
         let course = await courseModel.findOne({ name: req.params.course });
-        
+
         if(!instructordelete || !instructorupdate){
             res.send("Instructor does not exist.");
             return;
@@ -221,12 +221,12 @@ router.route("/update-course-instructor/:idDelete/:course")
             res.send("Instructor is not assigned to this course.");
             return;
         }
-        
+
         const indx = course.courseInstructors.findIndex(v => v === instructordelete);
         course.courseInstructors.slice(indx,indx+1);
         course.courseInstructors.push(instructorupdate);
 
-        try {   
+        try {
             await course.save();
             res.send("Instructor updated successfully");
         }
@@ -357,7 +357,7 @@ router.route("/view-coverage").get(async (req, res) => {
             let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
             coverages.push(Math.round(coverage)+"%");
         }
-        
+
     }
     res.send({courses: courses, coverages: coverages});
 
@@ -377,8 +377,5 @@ router.route("/view-teaching-assignments")
         let slots = await slotModel.find({ course: course._id });
         res.send(slots); // all info of slots
     })
-
-
-
 
 module.exports = router;

@@ -17,11 +17,11 @@ const frontEndRoutes = require("./routes/frontend_routes");
 
 const app = express();
 const corsOptions = {
-    origin: process.env.FRONTEND_BASE_URL,
-    methods: "GET,PUT,POST,DELETE",
-    exposedHeaders: "auth-access-token",
-    credentials: true,
-    maxAge: 5
+  origin: process.env.FRONTEND_BASE_URL,
+  methods: "GET,PUT,POST,DELETE",
+  exposedHeaders: "auth-access-token",
+  credentials: true,
+  maxAge: 5
 };
 
 app.use(cors(corsOptions));
