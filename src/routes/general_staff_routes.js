@@ -212,19 +212,20 @@ const router = express.Router();
 
 router.route("/view-profile")
   .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await hrMemberModel.findOne({ id: authAccessToken.id });
-    if (!user) {
-      user = await academicMemberModel.findOne({ id: authAccessToken.id });
+    const user = await hrMemberModel.findOne({ id: req.token.id }).lean()
+      || await academicMemberModel.findOne({ id: req.token.id }).lean();
+    const office = await roomModel.findOne({ _id: user.office });
+    user.office = office.name;
+    if (user.role) {
+      if (user.department !== "UNASSIGNED") {
+        const department = await departmentModel.findOne({ _id: user.department });
+        user.department = department.name;
+      }
     }
-    let office = await roomModel.findOne({ _id: user.office });
-    let department = await departmentModel.findOne({ _id: user.department });
-    let faculty = await facultyModel.findOne({ _id: user.faculty });
-    if (department)
-      user.department = department.name;
-    if (faculty)
-      user.faculty = faculty;
-    res.send({ user: user, office: office });
+    else {
+      user.role = "HR";
+    }
+    res.send(user);
   });
 
 router.route("/view-attendance-records")
