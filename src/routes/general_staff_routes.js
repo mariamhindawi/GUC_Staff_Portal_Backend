@@ -228,6 +228,61 @@ router.route("/view-profile")
     res.send(user);
   });
 
+router.route("/update-profile")
+  .put(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id })
+      || await hrMemberModel.findOne({ id: req.token.id });
+
+    if (req.body.email) {
+      if (!new RegExp(process.env.MAIL_FORMAT).test(req.body.email)) {
+        res.status(400).send("Invalid email address");
+        return;
+      }
+      const otherUser = await hrMemberModel.findOne({ email: req.body.email })
+        || await academicMemberModel.findOne({ email: req.body.email });
+      if (otherUser && otherUser.id !== user.id) {
+        res.status(409).send("Email already exists");
+        return;
+      }
+      user.email = req.body.email;
+    }
+
+    if (req.body.office) {
+      var oldOffice = await roomModel.findOne({ _id: user.office });
+      var newOffice = await roomModel.findOne({ name: req.body.office });
+      if (!newOffice) {
+        res.status(422).send("Incorrect Office Name");
+        return;
+      }
+      if (oldOffice._id.toString() !== newOffice._id.toString()) {
+        if (newOffice.type !== "Office") {
+          res.status(422).send("Room must be an office");
+          return;
+        }
+        if (newOffice.remainingCapacity === 0) {
+          res.status(409).send("Office has full capacity");
+          return;
+        }
+        oldOffice.remainingCapacity++;
+        newOffice.remainingCapacity--;
+        user.office = newOffice._id;
+      }
+    }
+
+    try {
+      await user.save();
+      if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
+        await newOffice.save();
+        await oldOffice.save();
+      }
+      res.send("Profile updated successfully.");
+    }
+    catch (error) {
+      console.log(error.message);
+      res.status(400).send(error);
+    }
+  });
+
 router.route("/view-attendance-records")
   .get(async (req, res) => {
 
