@@ -283,9 +283,8 @@ router.route("/update-profile")
     }
   });
 
-router.route("/view-attendance-records")
+  router.route("/view-attendance-records")
   .get(async (req, res) => {
-
     if (!req.query.month && (req.query.year || req.query.year == 0)) {
       if (req.query.month !== 0) {
         res.send("No month specified");
@@ -307,23 +306,22 @@ router.route("/view-attendance-records")
         return;
       }
     }
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await hrMemberModel.findOne({ id: authAccessToken.id });
-    if (!user) {
-      user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    }
-    var userAttendanceRecords;
-    var month;
-    var year;
-    if (!req.body.month) {
-      month = new Date().getMonth();
-      year = new Date().getFullYear();
-      userAttendanceRecords = await attendanceRecordModel.find({
-        $or: [
-          { user: authAccessToken.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
-          { user: authAccessToken.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
-        ]
-      });
+    if (!req.query.month) {
+      const currentDate = new Date();
+      if (currentDate.getDate() >= 11) {
+        var month = currentDate.getMonth();
+        var year = currentDate.getFullYear();
+      }
+      else {
+        if (currentDate.getMonth() === 0) {
+          month = 11;
+          year = currentDate.getFullYear() - 1;
+        }
+        else {
+          month = currentDate.getMonth() - 1;
+          year = currentDate.getFullYear();
+        }
+      }
     }
     else {
       if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
@@ -340,16 +338,17 @@ router.route("/view-attendance-records")
         res.send("Not a valid year");
         return;
       }
-      userAttendanceRecords = await attendanceRecordModel.find({
-        $or: [
-          { user: authAccessToken.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
-          { user: authAccessToken.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
-        ]
-      });
     }
 
+    userAttendanceRecords = await attendanceRecordModel.find({
+      $or: [
+        { user: req.token.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
+        { user: req.token.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
+      ]
+    });
     res.send(userAttendanceRecords);
   });
+
 
 router.route("/view-missing-days")
   .get(async (req, res) => {
@@ -408,13 +407,10 @@ router.route("/view-missing-days")
         return;
       }
     }
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await hrMemberModel.findOne({ id: authAccessToken.id });
-    if (!user) {
-      user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    }
+    const user = await hrMemberModel.findOne({ id: req.token.id })
+      || await academicMemberModel.findOne({ id: req.token.id });
     const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: authAccessToken.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: req.token.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
     await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
       res.send(result.missingDays);
     }).catch(err => {
@@ -479,14 +475,10 @@ router.route("/view-hours")
         return;
       }
     }
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await hrMemberModel.findOne({ id: authAccessToken.id });
-    if (!user) {
-      user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    }
-
+    const user = await hrMemberModel.findOne({ id: req.token.id })
+      || await academicMemberModel.findOne({ id: req.token.id });
     const dayOff = convertDay(user.dayOff);
-    const userAttendanceRecords = await attendanceRecordModel.find({ user: authAccessToken.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
+    const userAttendanceRecords = await attendanceRecordModel.find({ user: req.token.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
     await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user).then(result => {
       res.send(result);
     }).catch(err => {
