@@ -63,6 +63,24 @@ const academicMemberSchema = new mongoose.Schema({
     type: Boolean,
     required: true,
     default: false
+  },
+  linkedin: {
+    type: String,
+    required: true,
+    unique: true,
+    default: "Not Specified"
+  },
+  github: {
+    type: String,
+    required: true,
+    unique: true,
+    default: "Not Specified"
+  },
+  facebook: {
+    type: String,
+    required: true,
+    unique: true,
+    default: "Not Specified"
   }
 });
 

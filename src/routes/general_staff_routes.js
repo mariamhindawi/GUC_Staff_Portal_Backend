@@ -269,6 +269,33 @@ router.route("/update-profile")
       }
     }
 
+    if (req.body.linkedin) {
+      const otherUser = await academicMemberModel.findOne({ linkedin: req.body.linkedin });
+      if (otherUser && otherUser.id !== user.id) {
+        res.status(409).send("Linkedin account is associated with another account");
+        return;
+      }
+      user.linkedin = req.body.linkedin;
+    }
+
+    if (req.body.github) {
+      const otherUser = await academicMemberModel.findOne({ github: req.body.github });
+      if (otherUser && otherUser.id !== user.id) {
+        res.status(409).send("Github account is associated with another account");
+        return;
+      }
+      user.github = req.body.github;
+    }
+
+    if (req.body.facebook) {
+      const otherUser = await academicMemberModel.findOne({ facebook: req.body.facebook });
+      if (otherUser && otherUser.id !== user.id) {
+        res.status(409).send("Facebook account is associated with another account");
+        return;
+      }
+      user.facebook = req.body.facebook;
+    }
+
     try {
       await user.save();
       if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
