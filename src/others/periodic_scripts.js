@@ -9,6 +9,6 @@ schedule.scheduleJob("0 0 0 11 * *", async () => {
   await academicMemberModel.updateMany({}, { $inc: { annualLeaveBalance: 2.5 } });
 });
 
-schedule.scheduleJob("0 /15 * * * *", async () => {
+schedule.scheduleJob("0 */15 * * * *", async () => {
   await authRefreshTokenModel.deleteMany({ expiresAt: { $lt: new Date() } });
 });
