@@ -217,10 +217,10 @@ async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecord
 
   const spentHours = timeDiffInSeconds / 3600;
   if (spentHours > requiredHours) {
-    return { missingHours: 0, extraHours: spentHours - requiredHours };
+    return { requiredHours: requiredHours, missingHours: 0, extraHours: spentHours - requiredHours };
   }
   else {
-    return { missingHours: requiredHours - spentHours, extraHours: 0 };
+    return { requiredHours: requiredHours, missingHours: requiredHours - spentHours, extraHours: 0 };
   }
 }
 
