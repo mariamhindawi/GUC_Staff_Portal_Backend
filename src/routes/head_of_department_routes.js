@@ -1,6 +1,5 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-
 const academicMemberModel = require("../models/academic_member_model");
 const departmentModel = require("../models/department_model");
 const courseModel = require("../models/course_model");

@@ -1,29 +1,21 @@
 const express = require("express");
-
+const { datesEqual } = require("../others/helpers");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 
 const router = express.Router();
 
-function compareDates(date1, date2) {
-  return date1.getDate() === date2.getDate()
-    && date1.getMonth() === date2.getMonth()
-    && date1.getFullYear() === date2.getFullYear();
-}
-
 router.route("/sign-in")
   .post(async (req, res) => {
-    let user = await hrMemberModel.findOne({ id: req.body.user });
+    const user = await hrMemberModel.findOne({ id: req.body.user })
+      || await academicMemberModel.findOne({ id: req.body.user });;
     if (!user) {
-      user = await academicMemberModel.findOne({ id: req.body.user });
-    }
-    if (!user) {
-      res.send("Invalid user id.");
+      res.status(422).send("Incorrect user id");
       return;
     }
 
-    let signInTime = new Date();
+    const signInTime = new Date();
     const newAttendanceRecord = new attendanceRecordModel({
       user: req.body.user,
       signInTime: signInTime,
@@ -36,29 +28,24 @@ router.route("/sign-in")
     }
     catch (error) {
       console.log(error.message);
-      res.send(error);
+      res.status(400).send(error);
     }
   });
 
 router.route("/sign-out")
   .post(async (req, res) => {
-    let user = await hrMemberModel.findOne({ id: req.body.user });
+    const user = await hrMemberModel.findOne({ id: req.body.user })
+      || await academicMemberModel.findOne({ id: req.body.user });;
     if (!user) {
-      user = await academicMemberModel.findOne({ id: req.body.user });
-    }
-    if (!user) {
-      res.send("Invalid user id.");
+      res.status(422).send("Incorrect user id");
       return;
     }
 
-    let signOutTime = new Date();
-    let attendanceRecords = await attendanceRecordModel.find({ user: req.body.user }).sort({ signInTime: 1 });
-    let attendanceRecord = attendanceRecords[attendanceRecords.length - 1];
-    let signInTime = attendanceRecords.length === 0 ? null : attendanceRecord.signInTime;
-
-    if (attendanceRecords.length === 0 || attendanceRecord.signOutTime !== null
-      || !compareDates(signOutTime, signInTime)) {
-      let newAttendanceRecord = new attendanceRecordModel({
+    const signOutTime = new Date();
+    const lastAttendanceRecord = (await attendanceRecordModel.find({ user: req.body.user }).sort({ signInTime: "desc" }).limit(1))[0];
+    if (!lastAttendanceRecord || lastAttendanceRecord.signOutTime !== null
+      || !datesEqual(lastAttendanceRecord.signInTime, signOutTime)) {
+      const newAttendanceRecord = new attendanceRecordModel({
         user: req.body.user,
         signInTime: null,
         signOutTime: signOutTime
@@ -67,22 +54,23 @@ router.route("/sign-out")
       try {
         await newAttendanceRecord.save();
         res.send(newAttendanceRecord);
+        return;
       }
       catch (error) {
         console.log(error.message);
-        res.send(error);
+        res.status(400).send(error);
+        return;
       }
-      return;
     }
 
-    attendanceRecord.signOutTime = signOutTime;
+    lastAttendanceRecord.signOutTime = signOutTime;
     try {
-      await attendanceRecord.save();
-      res.send(attendanceRecord);
+      await lastAttendanceRecord.save();
+      res.send(lastAttendanceRecord);
     }
     catch (error) {
       console.log(error.message);
-      res.send(error);
+      res.status(400).send(error);
     }
   });
 

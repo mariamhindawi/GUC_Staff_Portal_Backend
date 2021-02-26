@@ -12,6 +12,8 @@ const requestSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
+    enum: ["replacementRequest", "annualLeave", "accidentalLeave", "sickLeave",
+      "maternityLeave", "compensationRequest", "dayOffChangeRequest", "slotLinkingRequest"],
   },
   status: {
     type: String,
@@ -52,6 +54,7 @@ const replacementSchema = new mongoose.Schema({
     enum: ["Accepted", "Rejected", "Waiting for reply"]
   }
 });
+
 const annualLeaveSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -208,6 +211,10 @@ const compensationRequestSchema = new mongoose.Schema({
     required: true
   },
   day: {
+    type: Date,
+    required: true
+  },
+  compensationDay: {
     type: Date,
     required: true
   },

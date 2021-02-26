@@ -1,6 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const { getMissingDays, getHours } = require("../others/helpers");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
@@ -10,220 +10,10 @@ const facultyModel = require("../models/faculty_model");
 const attendanceRecordModel = require("../models/attendance_record_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const { requestModel, maternityLeaveModel } = require("../models/request_model");
+const { requestModel } = require("../models/request_model");
 const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
-
-function convertDay(day) {
-  switch (day) {
-    case "Sunday": return 0;
-    case "Monday": return 1;
-    case "Tuesday": return 2;
-    case "Wednesday": return 3;
-    case "Thursday": return 4;
-    case "Friday": return 5;
-    case "Saturday": return 6;
-  }
-  return -1;
-}
-
-function getNumberOfDaysInMonth(currMonth, currYear) {
-  switch (currMonth) {
-    //31 days
-    case 0:
-    case 2:
-    case 4:
-    case 6:
-    case 7:
-    case 9:
-    case 11:
-      return 31;
-    //30 days
-    case 3:
-    case 5:
-    case 8:
-    case 10:
-      return 30;
-    //28 days or 29 days
-    case 1:
-      if (currYear % 4 !== 0)
-        return 29;
-      return 28;
-  }
-  return -1;
-}
-
-function getExpectedDaysToAttend(dayOff, firstDay, numberOfDaysInMonth) {
-  let expectedDaysToAttend = 20;
-  if (numberOfDaysInMonth === 31) {
-    expectedDaysToAttend = 23;
-    if (firstDay % 7 === 5 || (firstDay + 1) % 7 === 5 || (firstDay + 2) % 7 === 5) {
-      expectedDaysToAttend--;
-    }
-    if (firstDay % 7 === dayOff || (firstDay + 1) % 7 === dayOff || (firstDay + 2) % 7 === dayOff) {
-      expectedDaysToAttend--;
-    }
-  }
-  else if (numberOfDaysInMonth === 30) {
-    expectedDaysToAttend = 22;
-    if (firstDay % 7 === 5 || (firstDay + 1) % 7 === 5) {
-      expectedDaysToAttend--;
-    }
-    if (firstDay % 7 === dayOff || (firstDay + 1) % 7 === dayOff) {
-      expectedDaysToAttend--;
-    }
-  }
-  else if (numberOfDaysInMonth === 29) {
-    expectedDaysToAttend = 21;
-    if (firstDay % 7 === 5) {
-      expectedDaysToAttend--;
-    }
-    if (firstDay % 7 === dayOff) {
-      expectedDaysToAttend--;
-    }
-  }
-  return expectedDaysToAttend;
-}
-
-async function getMissingDays(month, year, dayOff, userAttendanceRecords, user) {
-  const numberOfDaysInMonth = getNumberOfDaysInMonth(month, year);
-  let normalDaysAttended = [];
-  let daysOffAttended = [];
-
-  for (let i = 0; i < userAttendanceRecords.length; i++) {
-    let date = userAttendanceRecords[i].signInTime;
-    if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-      normalDaysAttended.push(date.getDate());
-    }
-    else if (!daysOffAttended.includes(date.getDate())) {
-      daysOffAttended.push(date.getDate());
-    }
-  }
-
-  let expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-  if (expectedDaysToAttend === normalDaysAttended.length) {
-    return { missingDays: [], numberOfDaysWithExcuse: 0 };
-  }
-
-  let missingDays = [];
-  for (let i = 0; i < numberOfDaysInMonth; i++) {
-    let date = new Date(year, month, 11 + i);
-    date.setTime(date.getTime() + (1000 * 60 * 60 * 2));
-    if (date.getDay() !== 5 && date.getDay() !== dayOff && !normalDaysAttended.includes(date.getDate())) {
-      missingDays.push(date);
-    }
-  }
-  let finalMissingDays = [];
-  let numberOfDaysWithExcuse = 0;
-  for (let i = 0; i < missingDays.length; i++) {
-    let date = missingDays[i];
-    let request = await requestModel.findOne({
-      requestedBy: user.id,
-      day: date,
-      type: { $ne: "slotLinkingRequest", $ne: "dayOffChangeRequest", $ne: "replacementRequest", $ne: "maternityLeave" },
-      status: "Accepted"
-    });
-
-    if (request) {
-      if (request.type !== "compensationRequest" || request.type === "compensationRequest" && daysOffAttended.includes(missingDays[i].getDate())) {
-
-        numberOfDaysWithExcuse++;
-      }
-    }
-    else {
-
-      request = await maternityLeaveModel.find({
-        requestedBy: user.id,
-        type: "maternityLeave",
-        status: "Accepted",
-        day: { $lte: missingDays[i] },
-      }).sort({ day: 1 });
-
-      if (request.length !== 0) {
-        request = request[request.length - 1];
-        if (missingDays[i] < request.day.setTime(request.day.getTime() + (request.duration * 24 * 60 * 60 * 1000))) {
-          numberOfDaysWithExcuse++;
-        }
-
-      }
-      else {
-        finalMissingDays.push(missingDays[i]);
-      }
-    }
-  }
-
-  return { missingDays: finalMissingDays, numberOfDaysWithExcuse: numberOfDaysWithExcuse };
-}
-
-async function getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user) {
-
-  const numberOfDaysInMonth = getNumberOfDaysInMonth(month);
-  const expectedDaysToAttend = getExpectedDaysToAttend(dayOff, new Date(year, month, 11).getDay(), numberOfDaysInMonth);
-  let numberOfDaysWithExcuse;
-  await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
-    numberOfDaysWithExcuse = result.numberOfDaysWithExcuse;
-  }).catch(err => {
-    console.log(err);
-    res.status(500).send("Error");
-  });
-  const requiredHours = (expectedDaysToAttend - numberOfDaysWithExcuse) * 8.4;
-
-  let timeDiffInSeconds = 0;
-  for (let i = 0; i < userAttendanceRecords.length; i++) {
-    let signInTime = userAttendanceRecords[i].signInTime;
-    let signOutTime = userAttendanceRecords[i].signOutTime;
-
-    if (signInTime.getHours() < 7) {
-      signInTime.setHours(7);
-      signInTime.setMinutes(0);
-      signInTime.setSeconds(0);
-      signInTime.setMilliseconds(0);
-    }
-    else if (signInTime.getHours() > 18) {
-      signInTime.setHours(19);
-      signInTime.setMinutes(0);
-      signInTime.setSeconds(0);
-      signInTime.setMilliseconds(0);
-    }
-    else {
-      signInTime.setMilliseconds(0);
-    }
-
-    if (signOutTime.getHours() < 7) {
-      signOutTime.setHours(7);
-      signOutTime.setMinutes(0);
-      signOutTime.setSeconds(0);
-      signOutTime.setMilliseconds(0);
-    }
-    else if (signOutTime.getHours() > 18) {
-      signOutTime.setHours(19);
-      signOutTime.setMinutes(0);
-      signOutTime.setSeconds(0);
-      signOutTime.setMilliseconds(0);
-    }
-    else {
-      signOutTime.setMilliseconds(0);
-    }
-
-    timeDiffInSeconds += (signOutTime - signInTime) / 1000;
-  }
-
-  // const spentHours = Math.floor(timeDiffInSeconds / 3600);
-  // timeDiffInSeconds %= 3600;
-  // const spentMinutes = Math.floor(timeDiffInSeconds / 60);
-  // timeDiffInSeconds %= 60;
-  // const spentSeconds = timeDiffInSeconds;
-
-  const spentHours = timeDiffInSeconds / 3600;
-  if (spentHours > requiredHours) {
-    return { requiredHours: requiredHours, missingHours: 0, extraHours: spentHours - requiredHours };
-  }
-  else {
-    return { requiredHours: requiredHours, missingHours: requiredHours - spentHours, extraHours: 0 };
-  }
-}
-
 
 router.use((req, res, next) => {
   if (req.token.role === "HR") {
@@ -233,7 +23,6 @@ router.use((req, res, next) => {
     res.status(403).send("Unauthorized access.");
   }
 });
-
 
 router.route("/get-hr-members")
   .get(async (req, res) => {
@@ -1147,380 +936,128 @@ router.route("/delete-course/:id")
 
 router.route("/view-staff-attendance-records")
   .get(async (req, res) => {
-    if (!req.query.month && (req.query.year || req.query.year == 0)) {
-      if (req.query.month !== 0) {
-        res.send("No month specified");
-        return;
-      }
-      if (req.query.month === 0) {
-        res.send("Not a valid month");
-        return;
-      }
-    }
-
-    if (!req.query.year && (req.query.month || req.query.month === 0)) {
-      if (req.query.year !== 0) {
-        res.send("No year specified");
-        return;
-      }
-      if (req.query.year === 0) {
-        res.send("Not a valid year");
-        return;
-      }
-    }
-    if (!req.query.id) {
-      res.send("No user entered.");
-      return;
-    }
-    if (typeof req.query.id !== "string") {
-      res.send("Wrong datatypes entered.");
-      return;
-    }
-    let user = await hrMemberModel.findOne({ id: req.query.id });
+    const month = req.query.month - 1;
+    const year = req.query.year;
+    const user = await hrMemberModel.findOne({ id: req.query.id })
+     || await academicMemberModel.findOne({ id: req.query.id });
     if (!user) {
-      user = await academicMemberModel.findOne({ id: req.query.id });
-    }
-    if (!user) {
-      res.send("Invalid user id.");
+      res.status(422).send("Invalid user id.");
       return;
     }
-    var userAttendanceRecords;
-    var month;
-    var year;
 
-    if (!req.query.month) {
-      month = new Date().getMonth();
-      year = new Date().getFullYear();
-      userAttendanceRecords = await attendanceRecordModel.find({
-        $or: [
-          { user: user.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
-          { user: user.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
-        ]
-      });
-    }
-    else {
-      if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-        res.send("Wrong data types entered.");
-        return;
-      }
-      month = req.query.month - 1;
-      year = req.query.year;
-      if (month < 0 || month > 11) {
-        res.send("Not a valid month");
-        return;
-      }
-      if (year < 2000) {
-        res.send("Not a valid year");
-        return;
-      }
-      userAttendanceRecords = await attendanceRecordModel.find({
-        $or: [
-          { user: req.query.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
-          { user: req.query.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
-        ]
-      });
-    }
-
+    const userAttendanceRecords = await attendanceRecordModel.find({
+      $or: [
+        { user: user.id, signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } },
+        { user: user.id, signOutTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) } }
+      ]
+    });
     res.send(userAttendanceRecords);
   });
 
 router.route("/view-staff-missing-days")
   .get(async (req, res) => {
-    if (!req.query.month && (req.query.year || req.query.year == 0)) {
-      if (req.query.month !== 0) {
-        res.send("No month specified");
-        return;
-      }
-      if (req.query.month === 0) {
-        res.send("Not a valid month");
-        return;
-      }
-    }
-
-    if (!req.query.year && (req.query.month || req.query.month === 0)) {
-      if (req.query.year !== 0) {
-        res.send("No year specified");
-        return;
-      }
-      if (req.query.year === 0) {
-        res.send("Not a valid year");
-        return;
-      }
-    }
-    if (!req.query.month) {
-      const currentDate = new Date();
-      if (currentDate.getDate() >= 11) {
-        var month = currentDate.getMonth();
-        var year = currentDate.getFullYear();
-      }
-      else {
-        if (currentDate.getMonth() === 0) {
-          month = 11;
-          year = currentDate.getFullYear() - 1;
-        }
-        else {
-          month = currentDate.getMonth() - 1;
-          year = currentDate.getFullYear();
-        }
-      }
-    }
-    else {
-
-      if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-        res.send("Wrong data types entered.");
-        return;
-      }
-      month = req.query.month - 1;
-      year = req.query.year;
-      if (month < 0 || month > 11) {
-        res.send("Not a valid month");
-        return;
-      }
-      if (year < 2000) {
-        res.send("Not a valid year");
-        return;
-      }
-    }
-
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingDays = [];
+    const month = req.query.month - 1;
+    const year = req.query.year;
+    const hrMembers = await hrMemberModel.find({});
+    const academicMembers = await academicMemberModel.find({});
+    const membersWithMissingDays = [];
 
     for (let i = 0; i < hrMembers.length; i++) {
-
-      let user = hrMembers[i];
-      let dayOff = convertDay(user.dayOff);
-      let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
-
-      await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
-        if (result.missingDays.length > 0) {
-          membersWithMissingDays.push({ id: user.id, missingDays: result.missingDays });
-        }
-      }).catch(err => {
-        console.log(err);
-        res.status(500).send("Error");
+      const user = hrMembers[i];
+      const userAttendanceRecords = await attendanceRecordModel.find({
+        user: user.id,
+        signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
+        signOutTime: { $ne: null },
       });
+      const missingDays = await getMissingDays(month, year, user, userAttendanceRecords);
+      if (missingDays.length > 0) {
+        membersWithMissingDays.push({ id: user.id, missingDays });
+      }
     }
+
     for (let i = 0; i < academicMembers.length; i++) {
-
-      let user = academicMembers[i];
-      let dayOff = convertDay(user.dayOff);
-      let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
-
-      await getMissingDays(month, year, dayOff, userAttendanceRecords, user).then(result => {
-        if (result.missingDays.length > 0) {
-          membersWithMissingDays.push({ id: user.id, missingDays: result.missingDays });
-        }
-      }).catch(err => {
-        console.log(err);
-        res.status(500).send("Error");
+      const user = academicMembers[i];
+      const userAttendanceRecords = await attendanceRecordModel.find({
+        user: user.id,
+        signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
+        signOutTime: { $ne: null },
       });
+      const missingDays = await getMissingDays(month, year, user, userAttendanceRecords);
+      if (missingDays.length > 0) {
+        membersWithMissingDays.push({ id: user.id, missingDays });
+      }
     }
+
     res.send(membersWithMissingDays);
   });
 
 router.route("/view-staff-missing-hours")
   .get(async (req, res) => {
-    if (!req.query.month && (req.query.year || req.query.year == 0)) {
-      if (req.query.month !== 0) {
-        res.send("No month specified");
-        return;
-      }
-      if (req.query.month === 0) {
-        res.send("Not a valid month");
-        return;
-      }
-    }
-
-    if (!req.query.year && (req.query.month || req.query.month === 0)) {
-      if (req.query.year !== 0) {
-        res.send("No year specified");
-        return;
-      }
-      if (req.query.year === 0) {
-        res.send("Not a valid year");
-        return;
-      }
-    }
-    if (!req.query.month) {
-      const currentDate = new Date();
-      if (currentDate.getDate() >= 11) {
-        var month = currentDate.getMonth();
-        var year = currentDate.getFullYear();
-      }
-      else {
-        if (currentDate.getMonth() === 0) {
-          month = 11;
-          year = currentDate.getFullYear() - 1;
-        }
-        else {
-          month = currentDate.getMonth() - 1;
-          year = currentDate.getFullYear();
-        }
-      }
-    }
-    else {
-
-      if (!(typeof req.query.month !== "number" || typeof req.query.year !== "number")) {
-        res.send("Wrong data types entered.");
-        return;
-      }
-      month = req.query.month - 1;
-      year = req.query.year;
-      if (month < 0 || month > 11) {
-        res.send("Not a valid month");
-        return;
-      }
-      if (year < 2000) {
-        res.send("Not a valid year");
-        return;
-      }
-    }
-
-    let hrMembers = await hrMemberModel.find({});
-    let academicMembers = await academicMemberModel.find({});
-    let membersWithMissingHours = [];
+    const month = req.query.month - 1;
+    const year = req.query.year;
+    const hrMembers = await hrMemberModel.find({});
+    const academicMembers = await academicMemberModel.find({});
+    const membersWithMissingHours = [];
 
     for (let i = 0; i < hrMembers.length; i++) {
-      let user = hrMembers[i];
-      let dayOff = convertDay(user.dayOff);
-      let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
-      let missingHours;
-      await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user).then(result => {
-        if (result.missingHours > 0) {
-          membersWithMissingHours.push({ id: user.id, missingHours: result.missingHours });
-        }
-
-      }).catch(err => {
-        console.log(err);
-        res.status(500).send("Error");
+      const user = hrMembers[i];
+      const userAttendanceRecords = await attendanceRecordModel.find({
+        user: user.id,
+        signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
+        signOutTime: { $ne: null },
       });
+      const { missingHours } = await getHours(month, year, user, userAttendanceRecords);
+      if (missingHours > 0) {
+        membersWithMissingHours.push({ id: user.id, missingHours });
+      }
     }
 
     for (let i = 0; i < academicMembers.length; i++) {
-      let user = academicMembers[i];
-      let dayOff = convertDay(user.dayOff);
-      let userAttendanceRecords = await attendanceRecordModel.find({ user: user.id, signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) }, signOutTime: { $ne: null } });
-      await getMissingAndExtraHours(month, year, dayOff, userAttendanceRecords, user)
-        .then(result => {
-          if (result.missingHours > 0) {
-            membersWithMissingHours.push({ id: user.id, missingHours: result.missingHours });
-          }
-        })
-        .catch(err => {
-          console.log(err);
-          res.status(500).send("Error");
-        });
+      const user = academicMembers[i];
+      const userAttendanceRecords = await attendanceRecordModel.find({
+        user: user.id,
+        signInTime: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
+        signOutTime: { $ne: null },
+      });
+      const { missingHours } = await getHours(month, year, user, userAttendanceRecords);
+      if (missingHours > 0) {
+        membersWithMissingHours.push({ id: user.id, missingHours });
+      }
     }
+
     res.send(membersWithMissingHours);
   });
 
-router.route("/add-missing-record")
+router.route("/add-missing-attendance-record")
   .post(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (req.body.id === authAccessToken.id) {
+    if (!req.body.id || !req.body.missingRecordType) {
+      res.send("Not all fields are entered");
+      return;
+    }
+
+    if (req.body.id === req.token.id) {
       res.send("Cannot add missing record for yourself");
       return;
     }
 
-    let user = await hrMemberModel.findOne({ id: req.body.id });
-    if (!user) {
-      user = await academicMemberModel.findOne({ id: req.body.id });
-    }
+    const user = await hrMemberModel.findOne({ id: req.body.id })
+      || await academicMemberModel.findOne({ id: req.body.id });
     if (!user) {
       res.send("Invalid user id.");
       return;
     }
 
-    let missingRecordType = req.body.missingRecordType;
-    let signInYear = req.body.signInYear;
-    let signInMonth = req.body.signInMonth;
-    let signInDay = req.body.signInDay;
-    let signInHour = req.body.signInHour;
-    let signInMinute = req.body.signInMinute;
-    let signOutYear = req.body.signOutYear;
-    let signOutMonth = req.body.signOutMonth;
-    let signOutDay = req.body.signOutDay;
-    let signOutHour = req.body.signOutHour;
-    let signOutMinute = req.body.signOutMinute;
-    let signInDate;
-    let signOutDate;
+    const missingRecordType = req.body.missingRecordType;
     let userRecord = {};
 
-    // if (!missingRecordType === "signOut" && !missingRecordType === "signIn" && !missingRecordType === "fullDay") {
-    //     res.send("Invalid missing record type.");
-    //     return;
-    // }
-    // if (signInYear === 0 || signOutYear === 0) {
-    //     res.send("Not a valid year");
-    //     return;
-    // }
-    // if (signInMonth === 0 || signOutMonth === 0) {
-    //     res.send("Not a valid month");
-    //     return;
-    // }
-    // if (signInDay === 0 || signOutDay === 0) {
-    //     res.send("Not a valid day");
-    //     return;
-    // }
-    // if (!signInYear || !signOutYear || !signInMonth || !signOutMonth || !signInDay || !signOutDay
-    //     || (!signInHour && signInHour !== 0) || (!signOutHour && signOutHour !== 0) || (!signInMinute && signInMinute !== 0) || (!signOutMinute && signOutMinute !== 0)) {
-    //     res.send("Not all fields are entered.");
-    //     return;
-    // }
-    // if (typeof signInYear !== "number" || typeof signOutYear !== "number" || typeof signInMonth !== "number" || typeof signOutMonth !== "number"
-    //     || typeof signInDay !== "number" || typeof signOutDay !== "number" || typeof signInHour !== "number" || typeof signOutHour !== "number"
-    //     || typeof signInMinute !== "number" || typeof signOutMinute !== "number" || typeof missingRecordType !== "string") {
-    //     res.send("Wrong data types entered.");
-    //     return;
-    // }
-    // if (signInYear < 2000 || signOutYear < 2000) {
-    //     res.send("Invalid year.");
-    //     return;
-    // }
-    // if (signInMonth <= 0 || signInMonth > 12 || signOutMonth <= 0 || signOutMonth > 12) {
-    //     res.send("Invalid month.");
-    //     return;
-    // }
-    // if (signInHour < 0 || signInHour > 23 || signOutHour < 0 || signOutHour > 23) {
-    //     res.send("Invalid hour.");
-    //     return;
-    // }
-    // if (signInMinute < 0 || signInMinute > 59 || signOutMinute < 0 || signOutMinute > 59) {
-    //     res.send("Invalid hour.");
-    //     return;
-    // }
-    // if (signInDay !== signOutDay || signInMonth !== signOutMonth || signInYear !== signOutYear) {
-    //     res.send("Cannot match these records together ");
-    //     return;
-    // }
-    // if (signInHour > signOutHour) {
-    //     res.send("Cannot have the sign in hour that is greater than the sign out hour.");
-    //     return;
-    // }
-    // if (signInHour === signOutHour && signInMinute > signOutMinute) {
-    //     res.send("Cannot have the sign in hour equal to the sign out hour if the sign in minute is greater than the sign out minute.");
-    //     return;
-    // }
-    // signInDate = new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 0, 0);
-    // signOutDate = new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 0, 0);
-
-
     if (missingRecordType === "signIn") {
-      userRecord = await attendanceRecordModel.findOne({
-        user: user.id, _id: req.body.record
-        // , signOutTime: {
-        //     $gte: signOutDate,
-        //     $lte: new Date(signOutYear, signOutMonth - 1, signOutDay, signOutHour, signOutMinute, 59, 0)
-        // }, signInTime: null
-      });
+      userRecord = await attendanceRecordModel.findOne({user: user.id, _id: req.body.record});
 
       if (!userRecord) {
         res.send("Could not find specified sign out time.");
         return;
       }
       else {
-        // userRecord.signInTime = signInDate;
         let signInTime = new Date(req.body.signInTime);
         userRecord.signInTime = signInTime;
         if (signInTime > userRecord.signOutTime) {
@@ -1541,10 +1078,6 @@ router.route("/add-missing-record")
 
       userRecord = await attendanceRecordModel.findOne({
         user: user.id, _id: req.body.record
-        // signInTime: {
-        //     $gte: signInDate,
-        //     $lte: new Date(signInYear, signInMonth - 1, signInDay, signInHour, signInMinute, 59, 0)
-        // }, signOutTime: null
       });
 
       if (!userRecord) {
@@ -1590,7 +1123,6 @@ router.route("/add-missing-record")
         res.status(403).send(error);
       }
     }
-
   });
 
 module.exports = router;

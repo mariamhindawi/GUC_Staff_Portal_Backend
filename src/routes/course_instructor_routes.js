@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
-
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
