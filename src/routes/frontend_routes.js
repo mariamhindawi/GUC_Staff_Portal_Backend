@@ -44,6 +44,11 @@ router.route("/get-ci-courses")
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
     let courses = await courseModel.find({ courseInstructors: academicMember.id });
+    for(let i=0;i<courses.length;i++){
+      let department = await departmentModel.findOne({_id: courses[i].department});
+      courses[i].department=department.name;
+
+    }
     res.send(courses);
   });
 
@@ -51,13 +56,11 @@ router.route("/get-my-courses")
   .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     const courses = await courseModel.find({ $or: [{ courseInstructors: authAccessToken.id }, { teachingAssistants: authAccessToken.id }] });
-    let departments = [];
-    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let department = await departmentModel.findOne({ _id: user.department });
     for (let i = 0; i < courses.length; i++) {
-      departments.push(department.name);
+      let department = await departmentModel.findOne({ _id: courses[i].department });
+      courses[i].department = department.name;
     }
-    res.send({ courses: courses, departments: departments });
+    res.send(courses);
   });
 
 router.get("/academic/notifications", async (req, res) => {
