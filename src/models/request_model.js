@@ -199,7 +199,6 @@ const maternityLeaveSchema = new mongoose.Schema({
   }
 });
 
-
 const compensationRequestSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -235,7 +234,6 @@ const compensationRequestSchema = new mongoose.Schema({
     required: true
   }
 });
-
 
 const dayOffChangeRequestSchema = new mongoose.Schema({
   type: {

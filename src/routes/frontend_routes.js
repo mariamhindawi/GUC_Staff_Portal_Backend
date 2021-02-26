@@ -12,54 +12,9 @@ const attendance_record_model = require("../models/attendance_record_model");
 
 const router = express.Router();
 
-router.route("/get-academic-department")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
-    const department = await departmentModel.findById(academicMember.department);
-    res.send(department);
-  });
-
-router.route("/get-courses-by-department")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
-    const department = await departmentModel.findById(academicMember.department);
-    let courses = await courseModel.find({ department: department._id });
-    let departments = [];
-    for (let i = 0; i < courses.length; i++) {
-      departments.push(department.name);
-    }
-    res.send({ courses: courses, departments: departments });
-  });
-
 router.route("/get-courses-by-academic")
   .get(async (req, res) => {
     const courses = await courseModel.find({ $or: [{ courseInstructors: req.query.id }, { teachingAssistants: req.query.id }] });
-    res.send(courses);
-  });
-
-router.route("/get-ci-courses")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let courses = await courseModel.find({ courseInstructors: academicMember.id });
-    for(let i=0;i<courses.length;i++){
-      let department = await departmentModel.findOne({_id: courses[i].department});
-      courses[i].department=department.name;
-
-    }
-    res.send(courses);
-  });
-
-router.route("/get-my-courses")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const courses = await courseModel.find({ $or: [{ courseInstructors: authAccessToken.id }, { teachingAssistants: authAccessToken.id }] });
-    for (let i = 0; i < courses.length; i++) {
-      let department = await departmentModel.findOne({ _id: courses[i].department });
-      courses[i].department = department.name;
-    }
     res.send(courses);
   });
 

@@ -57,7 +57,7 @@ router.route("/add-hr-member")
 
     const office = await roomModel.findOne({ name: req.body.office });
     if (!office) {
-      res.status(422).send("Incorrect Office Name");
+      res.status(404).send("Incorrect Office Name");
       return;
     }
     if (office.type !== "Office") {
@@ -94,8 +94,7 @@ router.route("/add-hr-member")
       res.send("User added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.messages);
+      res.status(500).send(error.messages);
     }
   });
 
@@ -138,7 +137,7 @@ router.route("/update-hr-member/:id")
     if (req.body.office) {
       var newOffice = await roomModel.findOne({ name: req.body.office });
       if (!newOffice) {
-        res.status(422).send("Incorrect office name");
+        res.status(404).send("Incorrect office name");
         return;
       }
       if (newOffice.type !== "Office") {
@@ -173,8 +172,7 @@ router.route("/update-hr-member/:id")
       res.send("User updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
@@ -197,7 +195,7 @@ router.route("/delete-hr-member/:id")
       res.send("User deleted successfully");
     }
     catch (error) {
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
@@ -239,7 +237,7 @@ router.route("/add-academic-member")
     if (req.body.department) {
       var department = await departmentModel.findOne({ name: req.body.department });
       if (!department) {
-        res.status(422).send("Incorrect department name");
+        res.status(404).send("Incorrect department name");
         return;
       }
     }
@@ -261,7 +259,7 @@ router.route("/add-academic-member")
 
     const office = await roomModel.findOne({ name: req.body.office });
     if (!office) {
-      res.status(422).send("Incorrect office name");
+      res.status(404).send("Incorrect office name");
       return;
     }
     if (office.type !== "Office") {
@@ -305,8 +303,7 @@ router.route("/add-academic-member")
       res.send("User added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
@@ -349,7 +346,7 @@ router.route("/update-academic-member/:id")
     if (req.body.department) {
       var department = await departmentModel.findOne({ name: req.body.department });
       if (!department) {
-        res.status(422).send("Incorrect department name");
+        res.status(404).send("Incorrect department name");
         return;
       }
       var oldDepartment = await departmentModel.findOne({ _id: user.department });
@@ -402,7 +399,7 @@ router.route("/update-academic-member/:id")
     if (req.body.office) {
       var newOffice = await roomModel.findOne({ name: req.body.office });
       if (!newOffice) {
-        res.status(422).send("Incorrect office name");
+        res.status(404).send("Incorrect office name");
         return;
       }
       if (newOffice.type !== "Office") {
@@ -447,8 +444,7 @@ router.route("/update-academic-member/:id")
       res.send("User updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
@@ -474,28 +470,28 @@ router.route("/delete-academic-member/:id")
       await office.save();
 
       if (user.role === "Teaching Assistant" || user.role === "Course Coordinator") {
-        let courses = await courseModel.find({ teachingAssistants: user.id });
+        const courses = await courseModel.find({ teachingAssistants: user.id });
         for (let i = 0; i < courses.length; i++) {
-          let course = courses[i];
-          let userIndex = course.teachingAssistants.indexOf(user.id);
+          const course = courses[i];
+          const userIndex = course.teachingAssistants.indexOf(user.id);
           course.teachingAssistants.splice(userIndex, 1);
           await course.save();
         }
       }
       else {
-        let courses = await courseModel.find({ courseInstructors: user.id });
+        const courses = await courseModel.find({ courseInstructors: user.id });
         for (let i = 0; i < courses.length; i++) {
-          let course = courses[i];
-          let userIndex = course.courseInstructors.indexOf(user.id);
+          const course = courses[i];
+          const userIndex = course.courseInstructors.indexOf(user.id);
           course.courseInstructors.splice(userIndex, 1);
           await course.save();
         }
       }
 
       if (user.role === "Course Coordinator") {
-        let courses = await courseModel.find({ courseCoordinator: user.id });
+        const courses = await courseModel.find({ courseCoordinator: user.id });
         for (let i = 0; i < courses.length; i++) {
-          let course = courses[i];
+          const course = courses[i];
           course.courseCoordinator = "UNASSIGNED";
           await course.save();
         }
@@ -514,7 +510,7 @@ router.route("/delete-academic-member/:id")
       res.send("User deleted successfully");
     }
     catch (error) {
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
@@ -538,14 +534,13 @@ router.route("/add-room")
       res.send("Room added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/update-room/:room")
   .put(async (req, res) => {
-    let room = await roomModel.findOne({ name: req.params.room });
+    const room = await roomModel.findOne({ name: req.params.room });
     if (!room) {
       res.status(404).send("Incorrect room name");
       return;
@@ -555,7 +550,7 @@ router.route("/update-room/:room")
       room.name = req.body.name;
     }
 
-    let personsAssigned = room.capacity - room.remainingCapacity;
+    const personsAssigned = room.capacity - room.remainingCapacity;
     if (req.body.capacity) {
       if (personsAssigned > req.body.capacity) {
         res.status(409).send("Cannot update capacity, Reassign people in office first");
@@ -585,14 +580,13 @@ router.route("/update-room/:room")
       res.send("Room updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/delete-room/:room")
   .delete(async (req, res) => {
-    let room = await roomModel.findOne({ name: req.params.room });
+    const room = await roomModel.findOne({ name: req.params.room });
     if (!room) {
       res.status(404).send("Incorrect room name");
       return;
@@ -610,7 +604,6 @@ router.route("/delete-room/:room")
     }
 
     await roomModel.findOneAndDelete({ name: req.params.room });
-
     res.send("Room deleted successfully");
   });
 
@@ -631,14 +624,13 @@ router.route("/add-faculty")
       res.send("Faculty added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/update-faculty/:faculty")
   .put(async (req, res) => {
-    let faculty = await facultyModel.findOne({ name: req.params.faculty });
+    const faculty = await facultyModel.findOne({ name: req.params.faculty });
     if (!faculty) {
       res.status(404).send("Incorrect faculty name");
       return;
@@ -650,22 +642,21 @@ router.route("/update-faculty/:faculty")
       res.send("Faculty updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/delete-faculty/:faculty")
   .delete(async (req, res) => {
-    let faculty = await facultyModel.findOneAndDelete({ name: req.params.faculty });
+    const faculty = await facultyModel.findOneAndDelete({ name: req.params.faculty });
     if (!faculty) {
       res.status(404).send("Incorrect faculty name");
       return;
     }
 
-    let departments = await departmentModel.find({ faculty: faculty._id });
-    for (i = 0; i < departments.length; i++) {
-      let department = departments[i];
+    const departments = await departmentModel.find({ faculty: faculty._id });
+    for (let i = 0; i < departments.length; i++) {
+      const department = departments[i];
       department.faculty = "UNASSIGNED";
       department.save();
     }
@@ -691,7 +682,7 @@ router.route("/add-department")
     if (req.body.faculty) {
       var faculty = await facultyModel.findOne({ name: req.body.faculty });
       if (!faculty) {
-        res.status(422).send("Incorrect faculty name");
+        res.status(404).send("Incorrect faculty name");
         return;
       }
     }
@@ -699,7 +690,7 @@ router.route("/add-department")
     if (req.body.headOfDepartment) {
       var headOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
       if (!headOfDepartment) {
-        res.status(422).send("Incorrect academic member id");
+        res.status(404).send("Incorrect academic member id");
         return;
       }
       if (headOfDepartment.role === "Head of Department") {
@@ -716,7 +707,7 @@ router.route("/add-department")
       }
     }
 
-    let newDepartment = new departmentModel({
+    const newDepartment = new departmentModel({
       name: req.body.name,
       faculty: faculty ? faculty._id : "UNASSIGNED",
       headOfDepartment: headOfDepartment ? headOfDepartment.id : "UNASSIGNED"
@@ -733,14 +724,13 @@ router.route("/add-department")
       res.send("Department added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/update-department/:department")
   .put(async (req, res) => {
-    let department = await departmentModel.findOne({ name: req.params.department });
+    const department = await departmentModel.findOne({ name: req.params.department });
     if (!department) {
       res.status(404).send("Incorrect department name");
       return;
@@ -756,7 +746,7 @@ router.route("/update-department/:department")
       else {
         const faculty = await facultyModel.findOne({ name: req.body.faculty });
         if (!faculty) {
-          res.status(422).send("Incorrect faculty name");
+          res.status(404).send("Incorrect faculty name");
           return;
         }
         department.faculty = faculty._id;
@@ -766,7 +756,7 @@ router.route("/update-department/:department")
     if (req.body.headOfDepartment) {
       var newHeadOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
       if (!newHeadOfDepartment) {
-        res.status(422).send("Incorrect academic member id");
+        res.status(404).send("Incorrect academic member id");
         return;
       }
       if (newHeadOfDepartment.role === "Head of Department") {
@@ -804,35 +794,34 @@ router.route("/update-department/:department")
       res.send("Department updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/delete-department/:department")
   .delete(async (req, res) => {
-    let department = await departmentModel.findOneAndDelete({ name: req.params.department });
+    const department = await departmentModel.findOneAndDelete({ name: req.params.department });
     if (!department) {
       res.status(404).send("Incorrect department name");
       return;
     }
 
-    let courses = await courseModel.find({ department: department._id });
-    for (i = 0; i < courses.length; i++) {
-      let course = courses[i];
+    const courses = await courseModel.find({ department: department._id });
+    for (let i = 0; i < courses.length; i++) {
+      const course = courses[i];
       course.department = "UNASSIGNED";
       await course.save();
     }
 
-    let academicMembers = await academicMemberModel.find({ department: department._id });
-    for (i = 0; i < academicMembers.length; i++) {
-      let academicMember = academicMembers[i];
+    const academicMembers = await academicMemberModel.find({ department: department._id });
+    for (let i = 0; i < academicMembers.length; i++) {
+      const academicMember = academicMembers[i];
       academicMember.department = "UNASSIGNED";
       await academicMember.save();
     }
 
     if (department.headOfDepartment !== "UNASSIGNED") {
-      let headOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
+      const headOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
       headOfDepartment.role = "Course Instructor";
       await headOfDepartment.save();
     }
@@ -858,7 +847,7 @@ router.route("/add-course")
     if (req.body.department) {
       var department = await departmentModel.findOne({ name: req.body.department });
       if (!department) {
-        res.status(422).send("Incorrect department name");
+        res.status(404).send("Incorrect department name");
         return;
       }
     }
@@ -874,14 +863,13 @@ router.route("/add-course")
       res.send("Course added successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/update-course/:id")
   .put(async (req, res) => {
-    let course = await courseModel.findOne({ id: req.params.id });
+    const course = await courseModel.findOne({ id: req.params.id });
     if (!course) {
       res.status(404).send("Incorrect course id");
       return;
@@ -896,7 +884,7 @@ router.route("/update-course/:id")
     if (req.body.department) {
       const department = await departmentModel.findOne({ name: req.body.department });
       if (!department) {
-        res.status(422).send("Incorrect department name");
+        res.status(404).send("Incorrect department name");
         return;
       }
       course.department = department._id;
@@ -908,22 +896,21 @@ router.route("/update-course/:id")
       res.send("Course updated successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
 router.route("/delete-course/:id")
   .delete(async (req, res) => {
-    let course = await courseModel.findOneAndDelete({ id: req.params.id });
+    const course = await courseModel.findOneAndDelete({ id: req.params.id });
     if (!course) {
       res.status(404).send("Incorrect course id");
       return;
     }
 
-    let otherCourse = await courseModel.findOne({ courseCoordinator: course.courseCoordinator });
+    const otherCourse = await courseModel.findOne({ courseCoordinator: course.courseCoordinator });
     if (!otherCourse) {
-      let courseCoordinator = await academicMemberModel.findOne({ id: course.courseCoordinator });
+      const courseCoordinator = await academicMemberModel.findOne({ id: course.courseCoordinator });
       courseCoordinator.role = "Teaching Assistant";
       await courseCoordinator.save();
     }
@@ -941,7 +928,7 @@ router.route("/view-staff-attendance-records")
     const user = await hrMemberModel.findOne({ id: req.query.id })
      || await academicMemberModel.findOne({ id: req.query.id });
     if (!user) {
-      res.status(422).send("Invalid user id.");
+      res.status(404).send("Incorrect user id");
       return;
     }
 
@@ -1043,12 +1030,12 @@ router.route("/add-missing-attendance-record")
     const user = await hrMemberModel.findOne({ id: req.body.id })
       || await academicMemberModel.findOne({ id: req.body.id });
     if (!user) {
-      res.send("Invalid user id.");
+      res.send("Invalid user id");
       return;
     }
 
     const missingRecordType = req.body.missingRecordType;
-    let userRecord = {};
+    const userRecord = {};
 
     if (missingRecordType === "signIn") {
       userRecord = await attendanceRecordModel.findOne({user: user.id, _id: req.body.record});
@@ -1058,7 +1045,7 @@ router.route("/add-missing-attendance-record")
         return;
       }
       else {
-        let signInTime = new Date(req.body.signInTime);
+        const signInTime = new Date(req.body.signInTime);
         userRecord.signInTime = signInTime;
         if (signInTime > userRecord.signOutTime) {
           res.status(403).send("Sign in time cannot be after the sign out time");
@@ -1085,7 +1072,7 @@ router.route("/add-missing-attendance-record")
         return;
       }
       else {
-        let signOutTime = new Date(req.body.signOutTime);
+        const signOutTime = new Date(req.body.signOutTime);
         if (signOutTime < userRecord.signInTime) {
           res.status(403).send("Sign out time cannot be before the sign in time");
           return;
@@ -1102,8 +1089,8 @@ router.route("/add-missing-attendance-record")
       }
     }
     else if (missingRecordType === "fullDay") {
-      let signInTime = new Date(req.body.signInTime);
-      let signOutTime = new Date(req.body.signOutTime);
+      const signInTime = new Date(req.body.signInTime);
+      const signOutTime = new Date(req.body.signOutTime);
       if (signInTime > signOutTime) {
         res.status(403).send("Sign out time cannot be before the sign in time");
         return;

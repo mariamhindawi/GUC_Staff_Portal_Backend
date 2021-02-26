@@ -49,7 +49,7 @@ router.route("/update-profile")
       var oldOffice = await roomModel.findOne({ _id: user.office });
       var newOffice = await roomModel.findOne({ name: req.body.office });
       if (!newOffice) {
-        res.status(422).send("Incorrect Office Name");
+        res.status(404).send("Incorrect Office Name");
         return;
       }
       if (oldOffice._id.toString() !== newOffice._id.toString()) {
@@ -103,8 +103,7 @@ router.route("/update-profile")
       res.send("Profile updated successfully.");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error);
+      res.status(500).send(error);
     }
   });
 
@@ -159,7 +158,6 @@ router.route("/view-salary")
       signInTime: { $ne: null, $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
       signOutTime: { $ne: null },
     });
-
     const missingDays = await getMissingDays(month, year, user, userAttendanceRecords);
     const { missingHours } = await getHours(month, year, user, userAttendanceRecords);
     const calculatedSalary = calculateSalary(baseSalary, missingDays.length, missingHours)

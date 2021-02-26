@@ -323,7 +323,6 @@ router.put("/staff-requests/:reqId/reject", async (req, res) => {
     res.send(request)
 })
 
-
 router.get("/staff-requests", async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let hod = await academicMemberModel.findOne({ id: authAccessToken.id });

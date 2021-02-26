@@ -122,7 +122,7 @@ async function getMissingDays(month, year, user, userAttendanceRecords) {
       const request = (
         await requestModel.findOne({
           requestedBy: user.id,
-          type: { $eq: "annualLeave", $eq: "accidentalLeave", $eq: "sickLeave", $eq: "compensationRequest" },
+          type: { $in: ["annualLeave", "accidentalLeave", "sickLeave", "compensationRequest"] },
           day: date,
           status: "Accepted",
         }) ||
@@ -150,7 +150,7 @@ async function getNumberOfDaysWithExcuse(month, year, user) {
 
   const requests = await requestModel.find({
     requestedBy: user.id,
-    type: { $eq: "annualLeave", $eq: "accidentalLeave", $eq: "sickLeave", $eq: "compensationRequest" },
+    type: { $in: ["annualLeave", "accidentalLeave", "sickLeave", "compensationRequest"] },
     day: { $gte: new Date(year, month, 11), $lt: new Date(year, month + 1, 11) },
     status: "Accepted",
   });

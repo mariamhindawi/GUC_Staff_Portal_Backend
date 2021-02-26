@@ -2,8 +2,8 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
-const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
+const departmentModel = require("../models/department_model");
 const roomModel = require("../models/room_model");
 const courseModel = require("../models/course_model");
 const slotModel = require("../models/slot_model");
@@ -23,6 +23,102 @@ router.use((req, res, next) => {
     res.status(403).send("Unauthorized access.");
   }
 });
+
+router.route("/get-department-courses")
+  .get(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findById(user.department);
+    const courses = await courseModel.find({ department: department._id });
+    for (let i = 0; i < courses.length; i++) {
+      courses[i].department = department.name;
+    }
+    res.send(courses);
+  });
+
+router.route("/get-my-courses")
+  .get(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findById(user.department);
+    const courses = await courseModel.find({ $or: [{ courseInstructors: user.id }, { teachingAssistants: user.id }] });
+    for (let i = 0; i < courses.length; i++) {
+      courses[i].department = department ? department.name : "UNASSIGNED";
+    }
+    res.send(courses);
+  });
+
+router.route("/get-department-staff")
+  .get(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findById(user.department);
+    const courseInstructors = await academicMemberModel.find({
+      department: department._id,
+      role: { $in: ["Course Instructor", "Head of Department"] },
+    });
+    const teachingAssistants = await academicMemberModel.find({
+      department: department._id,
+      role: { $in: ["Teaching Assistant", "Course Coordinator"] },
+    });
+    for (let i = 0; i < courseInstructors.length; i++) {
+      const courseInstructor = courseInstructors[i];
+      const office = await roomModel.findOne({ _id: courseInstructor.office });
+      courseInstructor.office = office.name;
+      courseInstructor.department = department.name;
+    }
+    for (let i = 0; i < teachingAssistants.length; i++) {
+      const teachingAssistant = teachingAssistants[i];
+      const office = await roomModel.findOne({ _id: teachingAssistant.office });
+      teachingAssistant.office = office.name;
+      teachingAssistant.department = department.name;
+    }
+    res.send({ courseInstructors, teachingAssistants });
+  });
+
+router.route("/get-staff/:course")
+  .get(async (req, res) => {
+    if (!req.params.course) {
+      res.status(400).send("Not all fields are entered");
+      return;
+    }
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const course = await courseModel.findOne({ id: req.params.course });
+    if (!course) {
+      res.status(404).send("Incorrect course name");
+      return;
+    }
+    if (user.department === "UNASSIGNED" && !course.courseInstructors.includes(req.token.id)) {
+      res.status(403).send("You are not assigned to this course");
+      return;
+    }
+    if (course.department.toString() !== user.department.toString()) {
+      res.status(403).send("Course is in different department");
+      return;
+    }
+    if (user.department === "UNASSIGNED" && !course.courseInstructors.includes(req.token.id)) {
+      res.status(403).send("You are not assigned to this course");
+      return;
+    }
+
+    const department = await departmentModel.findById(user.department);
+    const courseInstructors = course.courseInstructors;
+    const teachingAssistants = course.teachingAssistants;
+
+    for (let i = 0; i < courseInstructors.length; i++) {
+      const courseInstructor = await academicMemberModel.findOne({ id: courseInstructors[i] });
+      const office = await roomModel.findOne({ _id: courseInstructor.office });
+      courseInstructor.office = office.name;
+      courseInstructor.department = department ? department.name : "UNASSIGNED";
+      courseInstructors[i] = courseInstructor;
+    }
+    for (let i = 0; i < teachingAssistants.length; i++) {
+      const teachingAssistant = await academicMemberModel.findOne({ id: teachingAssistants[i] });
+      const office = await roomModel.findOne({ _id: teachingAssistant.office });
+      teachingAssistant.office = office.name;
+      teachingAssistant.department = department ? department.name : "UNASSIGNED";
+      teachingAssistants[i] = teachingAssistant;
+    }
+
+    res.send({ courseInstructors, teachingAssistants });
+  });
 
 router.post("/send-replacement-request", async (req, res) => {
   const authAccessToken = jwt.decode(req.headers["auth-access-token"]);

@@ -11,7 +11,7 @@ router.route("/sign-in")
     const user = await hrMemberModel.findOne({ id: req.body.user })
       || await academicMemberModel.findOne({ id: req.body.user });;
     if (!user) {
-      res.status(422).send("Incorrect user id");
+      res.status(404).send("Incorrect user id");
       return;
     }
 
@@ -27,8 +27,7 @@ router.route("/sign-in")
       res.send(newAttendanceRecord);
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error);
+      res.status(500).send(error);
     }
   });
 
@@ -37,7 +36,7 @@ router.route("/sign-out")
     const user = await hrMemberModel.findOne({ id: req.body.user })
       || await academicMemberModel.findOne({ id: req.body.user });;
     if (!user) {
-      res.status(422).send("Incorrect user id");
+      res.status(404).send("Incorrect user id");
       return;
     }
 
@@ -69,8 +68,7 @@ router.route("/sign-out")
       res.send(lastAttendanceRecord);
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error);
+      res.status(500).send(error);
     }
   });
 
