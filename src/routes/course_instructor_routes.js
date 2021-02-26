@@ -183,51 +183,46 @@ router.route("/assign-teaching-assistant/:id/:course")
 
 router.route("/unassign-teaching-assistant/:id/:course")
   .delete(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let course = await courseModel.findOne({ id: req.params.course });
-    let ta = await academicMemberModel.findOne({ id: req.params.id });
-    console.log(course);
-    console.log(ta);
-    if (!ta || (ta.role === "Course Instructor" || ta.role === "Head of Department")) {
-      res.send("TA does not exist.");
+    const course = await courseModel.findOne({ id: req.params.course });
+    const teachingAssistant = await academicMemberModel.findOne({ id: req.params.id });
+    if (!teachingAssistant) {
+      res.status(404).send("Incorrect TA id");
+      return;
+    }
+    if (teachingAssistant.role === "Course Instructor" || teachingAssistant.role === "Head of Department") {
+      res.status(422).send("User is not a TA");
       return;
     }
     if (!course) {
-      res.send("Course does not exist.");
+      res.status(404).send("Incorrect course id");
       return;
     }
-    if (!course.courseInstructors.includes(user.id)) {
-      res.send("You are not assigned to this course.");
+    if (!course.courseInstructors.includes(req.token.id)) {
+      res.status(403).send("You are not assigned to this course");
       return;
     }
-    if (ta.department !== user.department) {
-      res.send("Cannot remove a TA that is not in your department.");
-      return;
-    }
-    if (!course.teachingAssistants.includes(ta.id)) {
-      res.send("TA is not assiged to this course");
+    if (!course.teachingAssistants.includes(teachingAssistant.id)) {
+      res.status(422).send("TA is not assiged to this course");
       return;
     }
 
-    if (course.courseCoordinator === ta.id) {
+    if (course.courseCoordinator === teachingAssistant.id) {
       course.courseCoordinator = "UNASSIGNED";
     }
-    let allCourses = await courseModel.find({ courseCoordinator: ta.id });
-    if (allCourses.length === 0) {
-      ta.role = "Teaching Assistant";
+    const coordinatorCourses = await courseModel.find({ courseCoordinator: teachingAssistant.id });
+    if (coordinatorCourses.length === 1) {
+      teachingAssistant.role = "Teaching Assistant";
     }
-    const indx = course.teachingAssistants.findIndex(v => v === ta);
-    course.teachingAssistants.splice(indx, 1);
+    const index = course.teachingAssistants.indexOf(teachingAssistant.id);
+    course.teachingAssistants.splice(index, 1);
+
     try {
       await course.save();
       res.send("TA deleted from course successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.messages);
+      res.status(500).send(error.messages);
     }
-
   });
 
 router.route("/view-teaching-assignments")
