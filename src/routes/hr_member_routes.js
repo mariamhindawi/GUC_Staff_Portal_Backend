@@ -140,16 +140,16 @@ router.route("/update-hr-member/:id")
         res.status(404).send("Incorrect office name");
         return;
       }
-      if (newOffice.type !== "Office") {
-        res.status(422).send("Room must be an office");
-        return;
-      }
-      if (newOffice.remainingCapacity === 0 && newOffice._id.toString() !== user.office) {
-        res.status(409).send("Office has full capacity");
-        return;
-      }
-      var oldOffice = await roomModel.findOne({ _id: user.office });
-      if (oldOffice._id.toString() !== newOffice._id.toString()) {
+      if (user.office !== newOffice._id.toString()) {
+        if (newOffice.type !== "Office") {
+          res.status(422).send("Room must be an office");
+          return;
+        }
+        if (newOffice.remainingCapacity === 0) {
+          res.status(409).send("Office has full capacity");
+          return;
+        }
+        var oldOffice = await roomModel.findById(user.office);
         oldOffice.remainingCapacity++;
         newOffice.remainingCapacity--;
         user.office = newOffice._id;
@@ -162,9 +162,9 @@ router.route("/update-hr-member/:id")
 
     try {
       await user.save();
-      if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
-        await newOffice.save();
+      if (oldOffice) {
         await oldOffice.save();
+        await newOffice.save();
       }
       if (req.body.password) {
         await authRefreshTokenModel.deleteMany({ user: user.id });
@@ -343,79 +343,119 @@ router.route("/update-academic-member/:id")
       user.gender = req.body.gender;
     }
 
-    if (req.body.department) {
-      var department = await departmentModel.findOne({ name: req.body.department });
-      if (!department) {
-        res.status(404).send("Incorrect department name");
-        return;
-      }
-      var oldDepartment = await departmentModel.findOne({ _id: user.department });
-      if (!req.body.role && user.role === "Head of Department") {
-        if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
-          res.status(409).send("Department already has a head");
-          return;
-        }
-        oldDepartment.headOfDepartment = "UNASSIGNED";
-        department.headOfDepartment = user.id;
-      }
-      if (req.body.role === "Head of Department") {
-        if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
-          res.status(409).send("Department already has a head");
-          return;
-        }
-        if (user.role === "Head of Department") {
-          oldDepartment.headOfDepartment = "UNASSIGNED";
-        }
-        department.headOfDepartment = user.id;
-      }
-      user.department = department._id;
-    }
-
-    if (req.body.role) {
-      if (req.body.role === "Course Coordinator" && user.role !== "Course Coordinator") {
-        res.status(403).send("You cannot assign an academic member to be a course coordinator");
-        return;
-      }
-      if (req.body.role === "Head of Department" && !req.body.department) {
-        var department = await departmentModel.findOne({ _id: user.department });
-        if (department.headOfDepartment !== "UNASSIGNED" && department.headOfDepartment !== user.id) {
-          res.status(409).send("Department already has a head");
-          return;
-        }
-        department.headOfDepartment = user.id;
-      }
-      if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
-        if (req.body.department) {
-          oldDepartment.headOfDepartment = "UNASSIGNED";
-        }
-        else {
-          department = await departmentModel.findOne({ _id: user.department });
-          department.headOfDepartment = "UNASSIGNED";
-        }
-      }
-      user.role = req.body.role;
-    }
-
     if (req.body.office) {
       var newOffice = await roomModel.findOne({ name: req.body.office });
       if (!newOffice) {
         res.status(404).send("Incorrect office name");
         return;
       }
-      if (newOffice.type !== "Office") {
-        res.status(422).send("Room must be an office");
-        return;
-      }
-      if (newOffice.remainingCapacity === 0 && newOffice._id.toString() !== user.office) {
-        res.status(409).send("Office has full capacity");
-        return;
-      }
-      var oldOffice = await roomModel.findOne({ _id: user.office });
-      if (oldOffice._id.toString() !== newOffice._id.toString()) {
+      if (user.office !== newOffice._id.toString()) {
+        if (newOffice.type !== "Office") {
+          res.status(422).send("Room must be an office");
+          return;
+        }
+        if (newOffice.remainingCapacity === 0) {
+          res.status(409).send("Office has full capacity");
+          return;
+        }
+        var oldOffice = await roomModel.findById(user.office);
         oldOffice.remainingCapacity++;
         newOffice.remainingCapacity--;
         user.office = newOffice._id;
       }
+    }
+
+    if (req.body.department) {
+      if (req.body.department !== "UNASSIGNED") {
+        var newDepartment = await departmentModel.findOne({ name: req.body.department });
+        if (!newDepartment) {
+          res.status(404).send("Incorrect department name");
+          return;
+        }
+        if (user.department !== "UNASSIGNED") {
+          var oldDepartment = await departmentModel.findById(user.department);
+        }
+        if (!oldDepartment || oldDepartment._id.toString() !== newDepartment._id.toString()) {
+          const assignedCourses = await courseModel.find({ $or: [{ courseInstructors: user.id }, { teachingAssistants: user.id }] });
+          if (assignedCourses.length !== 0) {
+            res.status(409).send("Cannot update department. Academic is already assigned courses in this department");
+            return;
+          }
+          if (req.body.role === "Head of Department" || (user.role === "Head of Department" && !req.body.role)) {
+            if (newDepartment.headOfDepartment !== "UNASSIGNED") {
+              res.status(409).send("Department already has a head");
+              return;
+            }
+            if (user.role === "Head of Department") {
+              oldDepartment.headOfDepartment = "UNASSIGNED";
+            }
+            newDepartment.headOfDepartment = user.id;
+          }
+          else if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
+            oldDepartment.headOfDepartment = "UNASSIGNED";
+          }
+          user.department = newDepartment._id;
+        }
+      }
+      else if (user.department !== "UNASSIGNED") {
+        if (req.body.role === "Head of Department" || (user.role === "Head of Department" && !req.body.role)) {
+          res.status(409).send("Cannot update role. Academic is not assigned to a department");
+          return;
+        }
+        const assignedCourses = await courseModel.find({ $or: [{ courseInstructors: user.id }, { teachingAssistants: user.id }] });
+        if (assignedCourses.length !== 0) {
+          res.status(409).send("Cannot update department. Academic is already assigned courses in this department");
+          return;
+        }
+        if (user.role === "Head of Department") {
+          oldDepartment = await departmentModel.findById(user.department);
+          oldDepartment.headOfDepartment = "UNASSIGNED";
+        }
+        user.department = "UNASSIGNED";
+      }
+    }
+
+    if (req.body.role) {
+      const taRoles = ["Teaching Assistant", "Course Coordinator"];
+      const instructorRoles = ["Course Instructor", "Head of Department"];
+      if (instructorRoles.includes(user.role) && !instructorRoles.includes(req.body.role)) {
+        const assignedCourses = await courseModel.find({ courseInstructors: user.id });
+        if (assignedCourses.length !== 0) {
+          res.status(409).send("Cannot update role. Academic is already assigned courses as an Instructor. Unassign from courses first");
+          return;
+        }
+      }
+      if (taRoles.includes(user.role) && !taRoles.includes(req.body.role)) {
+        const assignedCourses = await courseModel.find({ teachingAssistants: user.id });
+        if (assignedCourses.length !== 0) {
+          res.status(409).send("Cannot update role. Academic is already assigned courses as a TA. Unassign from courses first");
+          return;
+        }
+      }
+      if (req.body.role === "Course Coordinator" && user.role !== "Course Coordinator") {
+        res.status(403).send("Cannot assign an academic member to be a course coordinator");
+        return;
+      }
+      if (!req.body.department || !oldDepartment || !newDepartment || oldDepartment._id.toString() === newDepartment._id.toString()) {
+        if (!oldDepartment && user.department !== "UNASSIGNED") {
+          oldDepartment = await departmentModel.findById(user.department);
+        }
+        if (req.body.role === "Head of Department" && user.department === "UNASSIGNED") {
+          res.status(409).send("Cannot update role. Academic is not assigned to a department");
+          return;
+        }
+        if (req.body.role === "Head of Department" && user.role !== "Head of Department" && oldDepartment) {
+          if (oldDepartment.headOfDepartment !== "UNASSIGNED") {
+            res.status(409).send("Department already has a head");
+            return;
+          }
+          oldDepartment.headOfDepartment = user.id;
+        }
+        else if (req.body.role !== "Head of Department" && user.role === "Head of Department") {
+          oldDepartment.headOfDepartment = "UNASSIGNED";
+        }
+      }
+      user.role = req.body.role;
     }
 
     if (req.body.salary) {
@@ -428,15 +468,15 @@ router.route("/update-academic-member/:id")
 
     try {
       await user.save();
-      if (req.body.office && oldOffice._id.toString() !== newOffice._id.toString()) {
-        await newOffice.save();
+      if (oldOffice) {
         await oldOffice.save();
-      }
-      if (department) {
-        await department.save();
+        await newOffice.save();
       }
       if (oldDepartment) {
         await oldDepartment.save();
+      }
+      if (newDepartment) {
+        await newDepartment.save();
       }
       if (req.body.password) {
         await authRefreshTokenModel.deleteMany({ user: user.id });
@@ -553,7 +593,7 @@ router.route("/update-room/:room")
     const personsAssigned = room.capacity - room.remainingCapacity;
     if (req.body.capacity) {
       if (personsAssigned > req.body.capacity) {
-        res.status(409).send("Cannot update capacity, Reassign people in office first");
+        res.status(409).send("Cannot update capacity. Reassign people in office first");
         return;
       }
       room.capacity = req.body.capacity;
@@ -739,6 +779,7 @@ router.route("/update-department/:department")
     if (req.body.name) {
       department.name = req.body.name;
     }
+
     if (req.body.faculty) {
       if (req.body.faculty === "UNASSIGNED") {
         department.faculty = "UNASSIGNED";
@@ -750,43 +791,46 @@ router.route("/update-department/:department")
           return;
         }
         department.faculty = faculty._id;
-
       }
     }
+
     if (req.body.headOfDepartment) {
-      var newHeadOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
-      if (!newHeadOfDepartment) {
-        res.status(404).send("Incorrect academic member id");
-        return;
+      if (req.body.headOfDepartment === "UNASSIGNED") {
+        var oldHeadOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
+        if (oldHeadOfDepartment) {
+          oldHeadOfDepartment.role = "Course Instructor";
+        }
+        department.headOfDepartment = "UNASSIGNED";
       }
-      if (newHeadOfDepartment.role === "Head of Department") {
-        if (!(newHeadOfDepartment.department === departmentModel._id)) {
-          res.status(409).send("Academic member is already the head of another department");
+      else {
+        var newHeadOfDepartment = await academicMemberModel.findOne({ id: req.body.headOfDepartment });
+        if (!newHeadOfDepartment) {
+          res.status(404).send("Incorrect academic member id");
           return;
         }
+        if (newHeadOfDepartment.id !== department.headOfDepartment) {
+          if (newHeadOfDepartment.department !== department._id.toString()) {
+            res.status(409).send("Academic member is in another department");
+            return;
+          }
+          if (newHeadOfDepartment.role !== "Course Instructor") {
+            res.status(409).send("Academic member is not an instructor");
+            return;
+          }
+          var oldHeadOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
+          if (oldHeadOfDepartment) {
+            oldHeadOfDepartment.role = "Course Instructor";
+          }
+          newHeadOfDepartment.role = "Head of Department";
+          department.headOfDepartment = newHeadOfDepartment.id;
+        }
       }
-      if (newHeadOfDepartment.role !== "Course Instructor") {
-        res.status(409).send("Academic member is not an instructor");
-        return;
-      }
-      if (newHeadOfDepartment.department !== department._id.toString() && newHeadOfDepartment.department !== "UNASSIGNED") {
-        res.status(409).send("Academic member is in another department");
-        return;
-      }
-      var oldHeadOfDepartment = await academicMemberModel.findOne({ id: department.headOfDepartment });
-      if (oldHeadOfDepartment) {
-        oldHeadOfDepartment.role = "Course Instructor";
-      }
-      newHeadOfDepartment.role = "Head of Department";
-      newHeadOfDepartment.department = department._id;
-      department.headOfDepartment = newHeadOfDepartment.id;
     }
 
     try {
       await department.save();
       if (newHeadOfDepartment) {
         await newHeadOfDepartment.save();
-
       }
       if (oldHeadOfDepartment) {
         await oldHeadOfDepartment.save();
@@ -878,18 +922,35 @@ router.route("/update-course/:id")
     if (req.body.id) {
       course.id = req.body.id;
     }
+
     if (req.body.name) {
       course.name = req.body.name;
     }
-    if (req.body.department) {
-      const department = await departmentModel.findOne({ name: req.body.department });
-      if (!department) {
-        res.status(404).send("Incorrect department name");
-        return;
-      }
-      course.department = department._id;
-    }
 
+    if (req.body.department) {
+      if (req.body.department === "UNASSIGNED") {
+        if (course.department !== req.body.department
+          && (course.courseInstructors.length !== 0 || course.teachingAssistants.length !== 0)) {
+          res.status(409).send("Cannot update department. Reassign course academics first");
+          return;
+        }
+        course.department = "UNASSIGNED";
+      }
+      else {
+        const department = await departmentModel.findOne({ name: req.body.department });
+        if (!department) {
+          res.status(404).send("Incorrect department name");
+          return;
+        }
+        if (course.department !== department._id.toString()) {
+          if (course.courseInstructors.length !== 0 || course.teachingAssistants.length !== 0) {
+            res.status(409).send("Cannot update department. Reassign course academics first");
+            return;
+          }
+          course.department = department._id;
+        }
+      }
+    }
 
     try {
       await course.save();
@@ -926,7 +987,7 @@ router.route("/view-staff-attendance-records")
     const month = req.query.month - 1;
     const year = req.query.year;
     const user = await hrMemberModel.findOne({ id: req.query.id })
-     || await academicMemberModel.findOne({ id: req.query.id });
+      || await academicMemberModel.findOne({ id: req.query.id });
     if (!user) {
       res.status(404).send("Incorrect user id");
       return;
@@ -1038,7 +1099,7 @@ router.route("/add-missing-attendance-record")
     const userRecord = {};
 
     if (missingRecordType === "signIn") {
-      userRecord = await attendanceRecordModel.findOne({user: user.id, _id: req.body.record});
+      userRecord = await attendanceRecordModel.findOne({ user: user.id, _id: req.body.record });
 
       if (!userRecord) {
         res.send("Could not find specified sign out time.");
