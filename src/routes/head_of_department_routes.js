@@ -138,10 +138,37 @@ router.route("/assign-course-instructor")
   });
 
 router.route("/unassign-course-instructor/:id/:course")
-  .delete(async (req, res) => {
-    const user = await academicMemberModel.findOne({ id: req.token.id });
-    const course = await courseModel.findOne({ id: req.params.course });
-    const courseInstructor = await academicMemberModel.findOne({ id: req.params.id });
+    .delete(async (req, res) => {
+      const user = await academicMemberModel.findOne({id: req.token.id});
+      const course = await courseModel.findOne({ id: req.params.course });
+      const courseInstructor = await academicMemberModel.findOne({ id: req.params.id });
+      if (!courseInstructor) {
+        res.status(404).send("Incorrect course instructor Id");
+        return;
+      }
+      if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
+        res.status(422).send("User is not a course instructor");
+        return;
+      }
+      if (!course) {
+        res.status(404).send("Incorrect course Id");
+        return;
+      }
+      const department = await departmentModel.find({_id:user.department});
+      if (!course.department===user.department) {
+        res.status(403).send("You are not assigned to this department");
+        return;
+      }
+      if (department.headOfDepartment !== user.department){
+        res.status(403).send("You are not Head of this department");
+        return;
+      }
+      if (!course.courseInstructors.includes(courseInstructor.id)) {
+        res.status(422).send("Course instructor is not assiged to this course");
+        return;
+      }
+      const index = course.courseInstructors.indexOf(courseInstructor.id);
+      course.courseInstructors.splice(index, 1);
 
     if (!courseInstructor) {
       res.status(404).send("Incorrect course instructor id");
@@ -236,14 +263,14 @@ router.route("/update-course-instructor/:idDelete/:course")
 router.route("/staff-requests/:reqId/accept")
   .put(async (req, res) => {
     if (isNaN(req.params.reqId)) {
-      res.status(403).send("Invalid request id");
-      return;
+        res.status(404).send("Invalid request id")
+        return
     }
     let request = await requestModel.findOne({ id: req.params.reqId });
     let requester = await academicMemberModel.findOne({ id: request.requestedBy });
     if (request.status !== "Under review") {
-      res.status(403).send("Already responded");
-      return;
+        res.status(409).send("Already responded")
+        return
     }
     if (request.type === "annualLeave") {
       if (requester.annualLeaveBalance >= 1) {
@@ -298,13 +325,13 @@ router.route("/staff-requests/:reqId/accept")
 router.route("/staff-requests/:reqId/reject")
   .put(async (req, res) => {
     if (isNaN(req.params.reqId)) {
-      res.status(403).send("Invalid request id");
-      return;
+        res.status(404).send("Invalid request id")
+        return
     }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId });
     if (request.status !== "Under review") {
-      res.status(403).send("Already responded");
-      return;
+        res.status(409).send("Already responded")
+        return
     }
     request.HODComment = req.body.HODComment;
     request.status = "Rejected";
@@ -312,7 +339,7 @@ router.route("/staff-requests/:reqId/reject")
       await request.save();
     }
     catch (error) {
-      res.status(403).send(error);
+        res.status(500).send(error)
     }
     let notification = new notificationModel({
       user: request.requestedBy,
@@ -322,11 +349,9 @@ router.route("/staff-requests/:reqId/reject")
     res.send(request);
   });
 
-router.route("/staff-requests")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] });
+router.get("/staff-requests", async (req, res) => {
+    let hod = await academicMemberModel.findOne({ id: req.token.id });
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] })
     for (let i = 0; i < requests.length; i++) {
       let request = requests[i];
       let staffMember = await academicMemberModel.findOne({ id: request.requestedBy });
@@ -338,25 +363,21 @@ router.route("/staff-requests")
     res.send(requests);
   });
 
-router.route("/get-department-courses-coverage")
-  .get(async (req, res) => {
-    let hod = await academicMemberModel.findOne({ id: req.token.id });
-    let department = await departmentModel.findOne({ headOfDepartment: hod.id });
-    let courses = await courseModel.find({ department: department._id });
-    let coverages = [];
+//view the coverage of each course in his/her department
+router.route("/get-departments-course-coverage").get(async (req, res) => {
+    const hod = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findOne({ headOfDepartment: hod.id });
+    const courses = await courseModel.find({ department: department._id });
+    const coursesCoverage = [];
     for (let i = 0; i < courses.length; i++) {
-      let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
-      let totalSlots = await slotModel.find({ course: courses[i]._id });
-      if (totalSlots.length == 0) {
-        coverages.push("0");
-      }
-      else {
-        let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-        coverages.push(Math.round(coverage));
-      }
+        course.department = department ? department.name : "UNASSIGNED";
+        let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
+        let totalSlots = await slotModel.find({ course: courses[i]._id });
+        const coverage = totalSlots.length === 0 ? 0 : ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+        coursesCoverage.push(coverage);
 
     }
-    res.send({ courses: courses, coverages: coverages });
+    res.send({courses: courses, coursesCoverage: coverages});
 
   });
 

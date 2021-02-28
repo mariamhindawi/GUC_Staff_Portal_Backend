@@ -36,12 +36,14 @@ router.put("/academic/mark-notifications-seen", async (req, res) => {
 });
 
 router.get("/course-slots/:course", async (req, res) => {
+  console.log(req.params.course);
 
   if (!req.params.course) {
     res.send("Not all fields are entered");
     return;
   }
   let course = await courseModel.findOne({ id: req.params.course });
+  console.log(course)
 
   if (!course) {
     res.status(404).send("Invalid Course Id");

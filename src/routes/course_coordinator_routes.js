@@ -21,20 +21,19 @@ router.use((req, res, next) => {
 });
 
 router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   if (isNaN(req.params.reqId)) {
-    res.status(403).send("Invalid request id");
+    res.status(404).send("Invalid request id");
     return;
   }
   let request = await slotLinkingModel.findOne({ id: req.params.reqId });
   let slot = await slotModel.findOne({ _id: request.slot });
   let course = await courseModel.findOne({ _id: slot.course });
-  if (authAccessToken.id !== course.courseCoordinator) {
+  if (req.token.id !== course.courseCoordinator) {
     res.status(403).send("Invalid credentials");
     return;
   }
   if (request.status === "Accepted" || request.status === "Rejected") {
-    res.status(403).send("Already replied to request");
+    res.status(409).send("Already replied to request");
     return;
   }
   if (slot.staffMember !== "UNASSIGNED") {
@@ -61,20 +60,19 @@ router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
 });
 
 router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   if (isNaN(req.params.reqId)) {
-    res.status(403).send("Invalid request id");
+    res.status(404).send("Invalid request id");
     return;
   }
   let request = await slotLinkingModel.findOne({ id: req.params.reqId });
   let slot = await slotModel.findOne({ _id: request.slot });
   let course = await courseModel.findOne({ _id: slot.course });
-  if (authAccessToken.id !== course.courseCoordinator) {
+  if (req.token.id !== course.courseCoordinator) {
     res.status(403).send("Invalid credentials");
     return;
   }
   if (request.status === "Accepted" || request.status === "Rejected") {
-    res.status(403).send("Already replied to request");
+    res.status(409).send("Already replied to request");
     return;
   }
   request.status = "Rejected";
@@ -83,7 +81,7 @@ router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
     await request.save();
   }
   catch (error) {
-    res.status(403).send(error);
+    res.status(500).send(error);
   }
   let notification = new notificationModel({
     user: request.requestedBy,
@@ -169,19 +167,16 @@ router.route("/add-course-slot")
 
 router.route("/update-course-slot/:day/:slotNumber/:room/:course")
   .put(async (req, res) => {
-
-    if (typeof req.params.day !== "string" || typeof req.params.slotNumber !== "string" || typeof req.body.room !== "string" || typeof req.params.course !== "string") {
-      res.status(400).send("Wrong datatypes entered");
-      return;
-    }
     let academicMember = await academicMemberModel.findOne({ id: req.token.id });
     let oldCourse = await courseModel.findOne({ id: req.params.course });
-    if (!(oldCourse.courseCoordinator === academicMember.id)) {
+
+    if (oldCourse.courseCoordinator !== academicMember.id) {
       res.status(403).send("You are not a course coordinator in this course");
       return;
     }
-    let oldRoom = await roomModel.findOne({_id:req.params.room});
-    let oldSlot = await slotModel.findOne({ day: req.params.day, room: oldRoom._id, slotNumber: req.params.slotNumber });
+    let oldRoom = await roomModel.findOne({name:req.params.room});
+    let oldSlot = await slotModel.findOne({ day: req.params.day, room: oldRoom._id, slotNumber: req.params.slotNumber, course: req.params.course });
+
     if (!oldSlot) {
       res.status(404).send("No slot to update");
       return;
@@ -191,14 +186,11 @@ router.route("/update-course-slot/:day/:slotNumber/:room/:course")
     let room = oldSlot.room;
     let type = oldSlot.type;
     let course = oldSlot.course;
-    if (req.body.updatedRoom) {
-      if(typeof req.body.room !== "string"){
-        res.status(400).send("Wrong datatypes entered");
-        return;
-      }
-      newRoom = await roomModel.findOne({ name: req.body.room });
+
+    if (req.body.room) {
+      let newRoom = await roomModel.findOne({ name: req.body.room });
       if (!newRoom) {
-        res.send("Invalid room");
+        res.send("Incorrect room name");
         return;
       }
       if (newRoom.type === "Office") {
@@ -209,43 +201,28 @@ router.route("/update-course-slot/:day/:slotNumber/:room/:course")
         res.status(422).send("Room type and slot type do not match");
         return;
       }
-     room=newRoom._id;
+     room=newRoom.name;
     }
     if (req.body.day) {
-      if(typeof req.body.day !== "string"){
-        res.status(400).send("Wrong datatypes entered");
-        return;
-      }
       day=req.body.day;
     }
     if (req.body.slotNumber) {
-      if(typeof req.body.slotNumber !== "string"){
-        res.status(400).send("Wrong datatypes entered");
-        return;
-      }
       slotNumber=req.body.slotNumber;
     }
     if (req.body.course) {
-      if(typeof req.body.course !== "string"){
-        res.status(400).send("Wrong datatypes entered");
-        return;
-      }
-      let newCourse=await courseModel.find({id: req.body.course});
+      let newCourse=await courseModel.findOne({id: req.body.course});
       if(! newCourse){
         res.status(404).send("Invalid Course Id");
         return;
       }
       if (newCourse.courseCoordinator !== academicMember.id){
-        res.status(503).send("You are not a course coordinator in this course");
+        res.status(403).send("You are not a course coordinator in this course");
         return;
       }
-      course=newCourse;
+      course=newCourse.id;
     }
     if (req.body.type) {
-      if(typeof req.body.updatedType !== "string"){
-        res.status(400).send("Wrong datatypes entered");
-        return;
-      }
+
       if (!req.body.room || (newRoom.type !== req.body.type)){
         res.status(422).send("Room type and slot type do not match");
         return;
@@ -253,8 +230,8 @@ router.route("/update-course-slot/:day/:slotNumber/:room/:course")
       type=req.body.type;
     }
 
-    let updatedSlot = await slotModel.findOne({ day:day, room: room._id, slotNumber: slotNumber });
-    if (updatedSlot) {
+    let updatedSlot = await slotModel.findOne({ day:day, room: room, slotNumber: slotNumber, course:course });
+    if (updatedSlot && updatedSlot._id !== oldSlot._id) {
       res.status(409).send("This slot is occupied");
       return;
     }
@@ -272,31 +249,14 @@ router.route("/update-course-slot/:day/:slotNumber/:room/:course")
     }
   });
 
-router.route("/delete-course-slot/:day/:slotNumber/:room/:course")
+router.route("/delete-course-slot/:slotId")
   .delete(async (req, res) => {
-    let academicMember = await academicMemberModel.findOne({ id: req.token.id });
-    let course = await courseModel.findOne({ id: req.params.course });
-    if (!course){
-      res.status(404).send("Incorrect course Id");
-    }
-    if (!(course.courseCoordinator === academicMember.id)) {
-      res.status(403).send("You are not a course coordinator in this course");
-      return;
-    }
-    if (typeof req.params.room !== "string" || typeof req.params.day !== "string" || typeof req.params.slotNumber !== "string" || typeof req.params.course !== "string") {
-      res.status(400).send("Wrong datatypes entered");
-      return;
-    }
-    let room = await roomModel.findOne({ name: req.params.room });
-    if (!room){
-      res.status(404).send("Incorrect room Id");
-    }
-    let slot = await slotModel.findOne({ day: req.params.day, room: room._id, slotNumber: req.params.slotNumber });
+    let slot = await slotModel.findOne({ _id: req.params.slotId });
     if (!slot) {
       res.status(404).send("Incorrect slot details");
       return;
     }
-    await slotModel.findOneAndDelete({ day: req.params.day, room: room._id, slotNumber: req.params.slotNumber });
+    await slotModel.findOneAndDelete({ _id: req.params.slotId });
     res.send("Slot deleted successfully ");
   });
 
