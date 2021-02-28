@@ -10,7 +10,6 @@ const { annualLeaveModel, dayOffChangeModel, requestModel } = require("../models
 
 const router = express.Router();
 
-
 router.use((req, res, next) => {
   const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   if (authAccessToken.role === "Head of Department") {
@@ -234,132 +233,133 @@ router.route("/update-course-instructor/:idDelete/:course")
 
   });
 
-router.put("/staff-requests/:reqId/accept", async (req, res) => {
-  if (isNaN(req.params.reqId)) {
-    res.status(403).send("Invalid request id");
-    return;
-  }
-  let request = await requestModel.findOne({ id: req.params.reqId });
-  let requester = await academicMemberModel.findOne({ id: request.requestedBy });
-  if (request.status !== "Under review") {
-    res.status(403).send("Already responded");
-    return;
-  }
-  if (request.type === "annualLeave") {
-    if (requester.annualLeaveBalance >= 1) {
-      requester.annualLeaveBalance -= 1;
+router.route("/staff-requests/:reqId/accept")
+  .put(async (req, res) => {
+    if (isNaN(req.params.reqId)) {
+      res.status(403).send("Invalid request id");
+      return;
+    }
+    let request = await requestModel.findOne({ id: req.params.reqId });
+    let requester = await academicMemberModel.findOne({ id: request.requestedBy });
+    if (request.status !== "Under review") {
+      res.status(403).send("Already responded");
+      return;
+    }
+    if (request.type === "annualLeave") {
+      if (requester.annualLeaveBalance >= 1) {
+        requester.annualLeaveBalance -= 1;
+        requester.save();
+        request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
+      }
+      else {
+        request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave balance" }, { new: true });
+        let notification = new notificationModel({
+          user: request.requestedBy,
+          message: `Your request(${req.params.reqId}) has been rejected.`
+        });
+        notification.save();
+      }
+    }
+    if (request.type === "accidentalLeave") {
+      if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1) {
+        requester.annualLeaveBalance -= 1;
+        requester.accidentalLeaveBalance -= 1;
+        requester.save();
+        request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
+      }
+      else {
+        request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave/accidental leave balance" }, { new: true });
+        let notification = new notificationModel({
+          user: request.requestedBy,
+          message: `Your request(${req.params.reqId}) has been rejected.`
+        });
+        notification.save();
+      }
+    }
+    if (request.type === "sickLeave" || request.type === "maternityLeave" || request.type === "compensationRequest") {
+      request = await requestModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
+    }
+    if (request.type === "dayOffChangeRequest") {
+      request = await dayOffChangeModel.findOne({ id: req.params.reqId });
+      let day = request.dayOff;
+      requester.dayOff = day;
+      request.status = "Accepted";
+      request.save();
       requester.save();
-      request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
     }
-    else {
-      request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave balance" }, { new: true });
-      let notification = new notificationModel({
-        user: request.requestedBy,
-        message: `Your request(${req.params.reqId}) has been rejected.`
-      });
-      notification.save();
-    }
-  }
-  if (request.type === "accidentalLeave") {
-    if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1) {
-      requester.annualLeaveBalance -= 1;
-      requester.accidentalLeaveBalance -= 1;
-      requester.save();
-      request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
-    }
-    else {
-      request = await annualLeaveModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Rejected", HODComment: "Request has been rejected due to insufficient leave/accidental leave balance" }, { new: true });
-      let notification = new notificationModel({
-        user: request.requestedBy,
-        message: `Your request(${req.params.reqId}) has been rejected.`
-      });
-      notification.save();
-    }
-  }
-  if (request.type === "sickLeave" || request.type === "maternityLeave" || request.type === "compensationRequest") {
-    request = await requestModel.findOneAndUpdate({ id: req.params.reqId }, { status: "Accepted" }, { new: true });
-  }
-  if (request.type === "dayOffChangeRequest") {
-    request = await dayOffChangeModel.findOne({ id: req.params.reqId });
-    let day = request.dayOff;
-    requester.dayOff = day;
-    request.status = "Accepted";
-    request.save();
-    requester.save();
-  }
-  let notification = new notificationModel({
-    user: request.requestedBy,
-    message: `Your request(${req.params.reqId}) has been accepted`
+    let notification = new notificationModel({
+      user: request.requestedBy,
+      message: `Your request(${req.params.reqId}) has been accepted`
+    });
+    notification.save();
+    res.send(request);
   });
-  notification.save();
-  res.send(request);
-});
 
-router.put("/staff-requests/:reqId/reject", async (req, res) => {
-  if (isNaN(req.params.reqId)) {
-    res.status(403).send("Invalid request id");
-    return;
-  }
-  let request = await annualLeaveModel.findOne({ id: req.params.reqId });
-  if (request.status !== "Under review") {
-    res.status(403).send("Already responded");
-    return;
-  }
-  request.HODComment = req.body.HODComment;
-  request.status = "Rejected";
-  try {
-    await request.save();
-  }
-  catch (error) {
-    res.status(403).send(error);
-  }
-  let notification = new notificationModel({
-    user: request.requestedBy,
-    message: `Your request(${req.params.reqId}) has been rejected by the hod.`
+router.route("/staff-requests/:reqId/reject")
+  .put(async (req, res) => {
+    if (isNaN(req.params.reqId)) {
+      res.status(403).send("Invalid request id");
+      return;
+    }
+    let request = await annualLeaveModel.findOne({ id: req.params.reqId });
+    if (request.status !== "Under review") {
+      res.status(403).send("Already responded");
+      return;
+    }
+    request.HODComment = req.body.HODComment;
+    request.status = "Rejected";
+    try {
+      await request.save();
+    }
+    catch (error) {
+      res.status(403).send(error);
+    }
+    let notification = new notificationModel({
+      user: request.requestedBy,
+      message: `Your request(${req.params.reqId}) has been rejected by the hod.`
+    });
+    notification.save();
+    res.send(request);
   });
-  notification.save();
-  res.send(request);
-});
 
-router.get("/staff-requests", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
-  let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] });
-  for (let i = 0; i < requests.length; i++) {
-    let request = requests[i];
-    let staffMember = await academicMemberModel.findOne({ id: request.requestedBy });
-    if (staffMember.department !== hod.department) {
-      requests.splice(i);
-      i--;
+router.route("/staff-requests")
+  .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] });
+    for (let i = 0; i < requests.length; i++) {
+      let request = requests[i];
+      let staffMember = await academicMemberModel.findOne({ id: request.requestedBy });
+      if (staffMember.department !== hod.department) {
+        requests.splice(i);
+        i--;
+      }
     }
-  }
-  res.send(requests);
-});
+    res.send(requests);
+  });
 
-//view the coverage of each course in his/her department
-router.route("/view-coverage").get(async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
-  let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
-  let courses = await courseModel.find({ department: dep._id });
-  let coverages = [];
-  for (let i = 0; i < courses.length; i++) {
-    let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
-    let totalSlots = await slotModel.find({ course: courses[i]._id });
-    if (totalSlots.length == 0) {
-      coverages.push("0%");
+router.route("/get-department-courses-coverage")
+  .get(async (req, res) => {
+    let hod = await academicMemberModel.findOne({ id: req.token.id });
+    let department = await departmentModel.findOne({ headOfDepartment: hod.id });
+    let courses = await courseModel.find({ department: department._id });
+    let coverages = [];
+    for (let i = 0; i < courses.length; i++) {
+      let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
+      let totalSlots = await slotModel.find({ course: courses[i]._id });
+      if (totalSlots.length == 0) {
+        coverages.push("0");
+      }
+      else {
+        let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+        coverages.push(Math.round(coverage));
+      }
+
     }
-    else {
-      let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-      coverages.push(Math.round(coverage) + "%");
-    }
+    res.send({ courses: courses, coverages: coverages });
 
-  }
-  res.send({ courses: courses, coverages: coverages });
+  });
 
-});
-
-//view teaching assignments
 router.route("/view-teaching-assignments")
   .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
