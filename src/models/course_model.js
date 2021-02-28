@@ -28,9 +28,6 @@ const courseSchema = new mongoose.Schema({
     required: true,
     default: "UNASSIGNED"
   },
-  totalSlotsNumber: {
-    type: Number
-  }
 });
 
 module.exports = mongoose.model("course", courseSchema);

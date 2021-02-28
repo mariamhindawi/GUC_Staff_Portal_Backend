@@ -336,23 +336,19 @@ router.get("/staff-requests", async (req, res) => {
 
 //view the coverage of each course in his/her department
 router.route("/get-departments-course-coverage").get(async (req, res) => {
-    let hod = await academicMemberModel.findOne({ id: req.token.id });
-    let department = await departmentModel.findOne({ headOfDepartment: hod.id });
-    let courses = await courseModel.find({ department: department._id });
-    let coverages = [];
+    const hod = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findOne({ headOfDepartment: hod.id });
+    const courses = await courseModel.find({ department: department._id });
+    const coursesCoverage = [];
     for (let i = 0; i < courses.length; i++) {
+        course.department = department ? department.name : "UNASSIGNED";
         let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
         let totalSlots = await slotModel.find({ course: courses[i]._id });
-        if (totalSlots.length==0) {
-            coverages.push("0");
-        }
-        else {
-            let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-            coverages.push(Math.round(coverage));
-        }
+        const coverage = totalSlots.length === 0 ? 0 : ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+        coursesCoverage.push(coverage);
 
     }
-    res.send({courses: courses, coverages: coverages});
+    res.send({courses: courses, coursesCoverage: coverages});
 
 })
 
