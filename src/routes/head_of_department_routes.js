@@ -138,49 +138,46 @@ router.route("/assign-course-instructor")
         }
     });
 
-router.route("/delete-course-instructor")
+router.route("/unassign-course-instructort/:id/:course")
     .delete(async (req, res) => {
-        const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+      const user = await academicMemberModel.findOne({id: req.token.id});
+      const course = await courseModel.findOne({ id: req.params.course });
+      const courseInstructor = await academicMemberModel.findOne({ id: req.params.id });
+      if (!courseInstructor) {
+        res.status(404).send("Incorrect course instructor Id");
+        return;
+      }
+      if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
+        res.status(422).send("User is not a course instructor");
+        return;
+      }
+      if (!course) {
+        res.status(404).send("Incorrect course Id");
+        return;
+      }
+      const department = await departmentModel.find({_id:user.department});
+      if (!course.department===user.department) {
+        res.status(403).send("You are not assigned to this department");
+        return;
+      }
+      if (department.headOfDepartment !== user.department){
+        res.status(403).send("You are not Head of this department");
+        return;
+      }
+      if (!course.courseInstructors.includes(courseInstructor.id)) {
+        res.status(422).send("Course instructor is not assiged to this course");
+        return;
+      }
+      const index = course.courseInstructors.indexOf(courseInstructor.id);
+      course.courseInstructors.splice(index, 1);
 
-        let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-        let instructor = await academicMemberModel.findOne({ id: req.body.id });
-        let course = await courseModel.findOne({ id: req.body.course});
-
-        if( !instructor ){
-            res.send( "Instructor does not exist.");
-            return;
-        }
-        if( instructor.role !== "Course Instructor" && instructor.role !== "Head of Department") {
-            res.send("This is not an instructor");
-            return;
-        }
-        if (!course) {
-            res.send("Course does not exist");
-            return;
-        }
-        if(course.department !== user.department){
-            res.send("Course does not exist in your department.");
-            return;
-        }
-        if(instructor.department !==user.department){
-            res.send("Instructor is not in your department.");
-            return;
-        }
-        if(!course.courseInstructors.includes(instructor)){
-            res.send("Instructor is not assigned to this course.");
-            return;
-        }
-
-        const indx = course.courseInstructors.findIndex(v => v === instructor);
-        course.courseInstructors.splice(indx,1);
-        try {
-            await course.save();
-            res.send("Instructor deleted from course successfully");
-        }
-        catch (error) {
-            console.log(error.message)
-            res.status(400).send(error.messages);
-        }
+      try {
+        await course.save();
+        res.send("Course instructor unassigned from course successfully");
+      }
+      catch (error) {
+        res.status(400).send(error.messages);
+      }
     });
 
 router.route("/update-course-instructor/:idDelete/:course")

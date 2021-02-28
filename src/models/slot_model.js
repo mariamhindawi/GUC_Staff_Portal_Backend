@@ -7,9 +7,9 @@ const slotSchema = new mongoose.Schema({
     enum: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
   },
   slotNumber: {
-    type: Number,
+    type: String,
     required: true,
-    enum: [1, 2, 3, 4, 5]
+    enum: ["1", "2", "3", "4", "5"]
   },
   room: {
     type: String,

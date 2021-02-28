@@ -555,6 +555,26 @@ router.get("/schedule", async (req, res) => {
   }
   res.send(schedule);
 });
+router.get("/get-slots/:course", async (req, res) => {
+
+  if(!req.params.course){
+    res.send("Not all fields are entered");
+    return;
+  }
+  let course = await courseModel.findOne({ id: req.params.course });
+
+  if(!course){
+    res.status(404).send("Invalid Course Id");
+    return;
+  }
+  let slots = await slotModel.find({ course: course._id });
+  for (let i = 0; i < slots.length; i++) {
+    let room = await roomModel.findById(slots[i].room);
+    slots[i].room = room.name;
+    slots[i].course = course.id;
+    }
+  res.send(slots);
+});
 
 Date.prototype.addDays = function (days) {
   var date = new Date(this.valueOf());
