@@ -124,8 +124,12 @@ router.route("/refresh-token")
       res.send("Access token refreshed successfully");
     }
     catch (error) {
-      res.clearCookie("auth-refresh-token");
-      res.status(401).send("Invalid refresh token");
+      if (error.message === "Refresh token does not exist") {
+        res.clearCookie("auth-refresh-token");
+        res.status(401).send("Invalid refresh token");
+        return;
+      }
+      res.status(500).send(error.message);
     }
   });
 

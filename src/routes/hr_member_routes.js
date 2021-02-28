@@ -537,7 +537,7 @@ router.route("/delete-academic-member/:id")
         }
       }
       else if (user.role === "Head of Department") {
-        let department = await departmentModel.findOne({ headOfDepartment: user.id });
+        const department = await departmentModel.findOne({ headOfDepartment: user.id });
         department.headOfDepartment = "UNASSIGNED";
         await department.save();
       }
