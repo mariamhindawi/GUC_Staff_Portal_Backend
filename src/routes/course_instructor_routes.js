@@ -198,6 +198,7 @@ router.route("/unassign-teaching-assistant/:id/:course")
     const coordinatorCourses = await courseModel.find({ courseCoordinator: teachingAssistant.id });
     if (coordinatorCourses.length === 1) {
       teachingAssistant.role = "Teaching Assistant";
+      await teachingAssistant.save();
     }
     const index = course.teachingAssistants.indexOf(teachingAssistant.id);
     course.teachingAssistants.splice(index, 1);

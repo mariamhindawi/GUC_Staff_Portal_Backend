@@ -37,13 +37,13 @@ router.put("/academic/mark-notifications-seen", async (req, res) => {
 
 router.get("/course-slots/:course", async (req, res) => {
 
-  if(!req.params.course){
+  if (!req.params.course) {
     res.send("Not all fields are entered");
     return;
   }
   let course = await courseModel.findOne({ id: req.params.course });
 
-  if(!course){
+  if (!course) {
     res.status(404).send("Invalid Course Id");
     return;
   }
@@ -63,12 +63,6 @@ router.get("/user-records", async (req, res) => {
   res.send(records);
 });
 
-Date.prototype.addDays = function (days) {
-  var date = new Date(this.valueOf());
-  date.setDate(date.getDate() + days);
-  return date;
-};
-
 router.route("/view-staff-profile/:id")
   .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
@@ -85,5 +79,11 @@ router.route("/view-staff-profile/:id")
       user.faculty = faculty;
     res.send({ user: user, office: office });
   });
+
+Date.prototype.addDays = function (days) {
+  var date = new Date(this.valueOf());
+  date.setDate(date.getDate() + days);
+  return date;
+};
 
 module.exports = router;
