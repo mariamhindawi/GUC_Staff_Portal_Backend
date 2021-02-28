@@ -138,7 +138,7 @@ router.route("/assign-course-instructor")
         }
     });
 
-router.route("/unassign-course-instructort/:id/:course")
+router.route("/unassign-course-instructor/:id/:course")
     .delete(async (req, res) => {
       const user = await academicMemberModel.findOne({id: req.token.id});
       const course = await courseModel.findOne({ id: req.params.course });
@@ -235,13 +235,13 @@ router.route("/update-course-instructor/:idDelete/:course")
 
 router.put("/staff-requests/:reqId/accept", async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(403).send("Invalid request id")
+        res.status(404).send("Invalid request id")
         return
     }
     let request = await requestModel.findOne({ id: req.params.reqId })
     let requester = await academicMemberModel.findOne({ id: request.requestedBy })
     if (request.status !== "Under review") {
-        res.status(403).send("Already responded")
+        res.status(409).send("Already responded")
         return
     }
     if (request.type === "annualLeave") {
@@ -296,12 +296,12 @@ router.put("/staff-requests/:reqId/accept", async (req, res) => {
 
 router.put("/staff-requests/:reqId/reject", async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(403).send("Invalid request id")
+        res.status(404).send("Invalid request id")
         return
     }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
     if (request.status !== "Under review") {
-        res.status(403).send("Already responded")
+        res.status(409).send("Already responded")
         return
     }
     request.HODComment = req.body.HODComment
@@ -310,7 +310,7 @@ router.put("/staff-requests/:reqId/reject", async (req, res) => {
         await request.save()
     }
     catch (error) {
-        res.status(403).send(error)
+        res.status(500).send(error)
     }
     let notification = new notificationModel({
         user: request.requestedBy,
@@ -321,8 +321,7 @@ router.put("/staff-requests/:reqId/reject", async (req, res) => {
 })
 
 router.get("/staff-requests", async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
+    let hod = await academicMemberModel.findOne({ id: req.token.id });
     let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] })
     for (let i = 0; i < requests.length; i++) {
         let request = requests[i]
@@ -336,21 +335,20 @@ router.get("/staff-requests", async (req, res) => {
 });
 
 //view the coverage of each course in his/her department
-router.route("/view-coverage").get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let dep = await departmentModel.findOne({ headOfDepartment: hod.id });
-    let courses = await courseModel.find({ department: dep._id });
+router.route("/get-departments-course-coverage").get(async (req, res) => {
+    let hod = await academicMemberModel.findOne({ id: req.token.id });
+    let department = await departmentModel.findOne({ headOfDepartment: hod.id });
+    let courses = await courseModel.find({ department: department._id });
     let coverages = [];
     for (let i = 0; i < courses.length; i++) {
         let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
         let totalSlots = await slotModel.find({ course: courses[i]._id });
         if (totalSlots.length==0) {
-            coverages.push("0%");
+            coverages.push("0");
         }
         else {
             let coverage = ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-            coverages.push(Math.round(coverage)+"%");
+            coverages.push(Math.round(coverage));
         }
 
     }

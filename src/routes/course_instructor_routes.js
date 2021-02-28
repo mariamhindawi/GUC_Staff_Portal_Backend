@@ -196,7 +196,7 @@ router.route("/unassign-teaching-assistant/:id/:course")
       course.courseCoordinator = "UNASSIGNED";
     }
     const coordinatorCourses = await courseModel.find({ courseCoordinator: teachingAssistant.id });
-    if (coordinatorCourses.length === 1) {
+    if (coordinatorCourses.length === 0) {
       teachingAssistant.role = "Teaching Assistant";
     }
     const index = course.teachingAssistants.indexOf(teachingAssistant.id);
