@@ -35,13 +35,22 @@ router.put("/academic/mark-notifications-seen", async (req, res) => {
   res.send("Done");
 });
 
-router.get("/course-slots", async (req, res) => {
-  let course = await courseModel.findOne({ id: req.query.id });
+router.get("/course-slots/:course", async (req, res) => {
+
+  if(!req.params.course){
+    res.send("Not all fields are entered");
+    return;
+  }
+  let course = await courseModel.findOne({ id: req.params.course });
+
+  if(!course){
+    res.status(404).send("Invalid Course Id");
+    return;
+  }
   let slots = await slot_model.find({ course: course._id });
   for (let i = 0; i < slots.length; i++) {
     let room = await roomModel.findById(slots[i].room);
     slots[i].room = room.name;
-    let course = await courseModel.findById(slots[i].course);
     slots[i].course = course.name;
   }
   res.send(slots);

@@ -36,43 +36,36 @@ router.route("/get-my-courses-coverage")
     res.send({ courses, coursesCoverage });
   });
 
-router.route("/assign-course-coordinator")
+router.route("/assign-course-coordinator/:id/:course")
   .post(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (!req.body.course || !req.body.id) {
-      res.send("Not all fields are entered");
-      return;
-    }
-    if (typeof req.body.id !== "string" || typeof req.body.course !== "string") {
-      res.send("Wrong data types entered");
-      return;
-    }
+
     let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let course = await courseModel.findOne({ id: req.body.course });
-    let academic = await academicMemberModel.findOne({ id: req.body.id });
+    let course = await courseModel.findOne({ id: req.params.course });
+    let academic = await academicMemberModel.findOne({ id: req.params.id });
 
     if (!course) {
-      res.send("Course does not exist");
+      res.status(404).send("Incorrect course Id");
       return;
     }
     if (!course.courseInstructors.includes(user.id)) {
-      res.send("You are not assigned to this course");
+      res.status(403).send("You are not assigned to this course");
       return;
     }
     if (course.courseCoordinator !== "UNASSIGNED") {
-      res.send("There is a course coordinator assigned to this course");
+      res.status(422).send("There is a course coordinator assigned to this course");
       return;
     }
     if (!academic) {
-      res.send("Academic does not exist");
+      res.status(404).send("Incorrect academic Id");
       return;
     }
     if (!course.teachingAssistants.includes(academic.id) && !course.courseInstructors.includes(academic.id)) {
-      res.send("Academic is not assigned to this course");
+      res.status(422).send("Academic is not assigned to this course");
       return;
     }
     if (course.courseInstructors.includes(academic.id)) {
-      res.send("Academic is not a TA in this course");
+      res.status(422).send("Academic is not a teaching assistant in this course");
       return;
     }
 
@@ -93,40 +86,33 @@ router.route("/assign-course-coordinator")
 router.route("/unassign-course-coordinator/:id/:course")
   .put(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (!req.params.course || !req.params.id) {
-      res.send("Not all fields are entered");
-      return;
-    }
-    if (typeof req.params.id !== "string" || typeof req.params.course !== "string") {
-      res.send("Wrong data types entered");
-      return;
-    }
+
     let user = await academicMemberModel.findOne({ id: authAccessToken.id });
     let course = await courseModel.findOne({ id: req.params.course });
     let academic = await academicMemberModel.findOne({ id: req.params.id });
 
     if (!course) {
-      res.send("Course does not exist");
+      res.status(404).send("Incorrect course Id");
       return;
     }
     if (!course.courseInstructors.includes(user.id)) {
-      res.send("You are not assigned to this course");
+      res.status(403).send("You are not assigned to this course");
       return;
     }
     if (!academic) {
-      res.send("Academic does not exist");
+      res.status(404).send("Incorrect Academic Id");
       return;
     }
     if (!course.teachingAssistants.includes(academic.id) && !course.courseInstructors.includes(academic.id)) {
-      res.send("Academic is not assigned to this course");
+      res.status(422).send("Academic is not assigned to this course");
       return;
     }
-    if (course.courseInstructors.includes(academic.id)) {
-      res.send("Academic is not a TA in this course");
+    if (!course.teachingAssistants.includes(academic.id)) {
+      res.status(422).send("Academic is not a teaching assistant in this course");
       return;
     }
     if (course.courseCoordinator !== academic.id) {
-      res.send("This TA is not a course coordinator for this course");
+      res.status(422).send("This teaching assistant is not a course coordinator for this course");
       return;
     }
 
@@ -155,19 +141,19 @@ router.route("/assign-teaching-assistant/:id/:course")
     let ta = await academicMemberModel.findOne({ id: req.params.id });
 
     if (!ta || (ta.role === "Course Instructor" || ta.role === "Head of Department")) {
-      res.send("TA does not exist.");
+      res.status(404).send("Incorrect Teaching assistant Id");
       return;
     }
     if (!course) {
-      res.send("Course does not exist.");
+      res.status(404).send("Incorrect course Id");
       return;
     }
     if (!course.courseInstructors.includes(user.id)) {
-      res.send("You are not assigned to this course.");
+      res.status(403).send("You are not assigned to this course.");
       return;
     }
     if (ta.department !== user.department) {
-      res.send("Cannot add a ta that is not in your department.");
+      res.status(403).send("Cannot add a teaching assistant that is not in your department.");
       return;
     }
     course.teachingAssistants.push(ta.id);
@@ -186,15 +172,15 @@ router.route("/unassign-teaching-assistant/:id/:course")
     const course = await courseModel.findOne({ id: req.params.course });
     const teachingAssistant = await academicMemberModel.findOne({ id: req.params.id });
     if (!teachingAssistant) {
-      res.status(404).send("Incorrect TA id");
+      res.status(404).send("Incorrect teaching assistant Id");
       return;
     }
     if (teachingAssistant.role === "Course Instructor" || teachingAssistant.role === "Head of Department") {
-      res.status(422).send("User is not a TA");
+      res.status(422).send("User is not a teaching assistant");
       return;
     }
     if (!course) {
-      res.status(404).send("Incorrect course id");
+      res.status(404).send("Incorrect course Id");
       return;
     }
     if (!course.courseInstructors.includes(req.token.id)) {
@@ -202,7 +188,7 @@ router.route("/unassign-teaching-assistant/:id/:course")
       return;
     }
     if (!course.teachingAssistants.includes(teachingAssistant.id)) {
-      res.status(422).send("TA is not assiged to this course");
+      res.status(422).send("Teaching assistant is not assiged to this course");
       return;
     }
 
@@ -218,10 +204,10 @@ router.route("/unassign-teaching-assistant/:id/:course")
 
     try {
       await course.save();
-      res.send("TA deleted from course successfully");
+      res.send("Teaching assistant unassigned from course successfully");
     }
     catch (error) {
-      res.status(500).send(error.messages);
+      res.status(400).send(error.messages);
     }
   });
 
