@@ -114,6 +114,11 @@ router.route("/unassign-teaching-assistant/:academicId/:courseId")
       res.status(422).send("TA is not assiged to this course");
       return;
     }
+    const slots = await slotModel.find({ course: course._id, staffMember: teachingAssistant.id });
+    if (slots.length !== 0) {
+      res.status(409).send("Cannot unassign TA. Reassign slots first");
+      return;
+    }
 
     if (course.courseCoordinator === teachingAssistant.id) {
       course.courseCoordinator = "UNASSIGNED";
@@ -194,10 +199,10 @@ router.route("/assign-course-coordinator")
 router.route("/unassign-course-coordinator/:academicId/:courseId")
   .put(async (req, res) => {
     const user = await academicMemberModel.findOne({ id: req.token.id });
-    const courseCoordinator = await academicMemberModel.findOne({ id: req.params.academicId });
+    const teachingAssistant = await academicMemberModel.findOne({ id: req.params.academicId });
     const course = await courseModel.findOne({ id: req.params.courseId });
 
-    if (!courseCoordinator) {
+    if (!teachingAssistant) {
       res.status(404).send("Incorrect Academic Id");
       return;
     }
@@ -217,24 +222,24 @@ router.route("/unassign-course-coordinator/:academicId/:courseId")
       res.status(422).send("Academic is not a TA");
       return;
     }
-    if (!course.teachingAssistants.includes(courseCoordinator.id)) {
+    if (!course.teachingAssistants.includes(teachingAssistant.id)) {
       res.status(422).send("TA is not assigned to this course");
       return;
     }
-    if (course.courseCoordinator !== courseCoordinator.id) {
+    if (course.courseCoordinator !== teachingAssistant.id) {
       res.status(422).send("TA is not a course coordinator for this course");
       return;
     }
 
     course.courseCoordinator = "UNASSIGNED";
-    const coordinatorCourses = await courseModel.find({ courseCoordinator: courseCoordinator.id });
+    const coordinatorCourses = await courseModel.find({ courseCoordinator: teachingAssistant.id });
     if (coordinatorCourses.length === 1) {
-      courseCoordinator.role = "Teaching Assistant";
+      teachingAssistant.role = "Teaching Assistant";
     }
     try {
       await course.save();
       if (coordinatorCourses.length === 1) {
-        await courseCoordinator.save();
+        await teachingAssistant.save();
       }
       res.send("Course coordinator unassigned from course successfully");
     }

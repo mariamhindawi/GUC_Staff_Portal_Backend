@@ -184,6 +184,11 @@ router.route("/unassign-course-instructor/:academicId/:courseId")
       res.status(422).send("Course instructor is not assiged to this course");
       return;
     }
+    const slots = await slotModel.find({ course: course._id, staffMember: courseInstructor.id });
+    if (slots.length !== 0) {
+      res.status(409).send("Cannot unassign course instructor. Reassign slots first");
+      return;
+    }
 
     const index = course.courseInstructors.indexOf(courseInstructor.id);
     course.courseInstructors.splice(index, 1);

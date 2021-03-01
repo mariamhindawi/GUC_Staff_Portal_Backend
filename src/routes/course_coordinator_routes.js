@@ -19,91 +19,6 @@ router.use((req, res, next) => {
   }
 });
 
-router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
-  if (isNaN(req.params.reqId)) {
-    res.status(404).send("Invalid request id");
-    return;
-  }
-  let request = await slotLinkingModel.findOne({ id: req.params.reqId });
-  let slot = await slotModel.findOne({ _id: request.slot });
-  let course = await courseModel.findOne({ _id: slot.course });
-  if (req.token.id !== course.courseCoordinator) {
-    res.status(403).send("Invalid credentials");
-    return;
-  }
-  if (request.status === "Accepted" || request.status === "Rejected") {
-    res.status(409).send("Already replied to request");
-    return;
-  }
-  if (slot.staffMember !== "UNASSIGNED") {
-    request.status = "Rejected";
-    request.ccComment = "Slot was assigned to another staff member";
-    let notification = new notificationModel({
-      user: request.requestedBy,
-      message: "Your slot-linking request request has been rejected."
-    });
-    notification.save();
-  }
-  else {
-    request.status = "Accepted";
-    slot.staffMember = request.requestedBy;
-    slot.save();
-    let notification = new notificationModel({
-      user: request.requestedBy,
-      message: "Your slot-linking request request has been accepted."
-    });
-    notification.save();
-  }
-  request.save();
-  res.send(request);
-});
-
-router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
-  if (isNaN(req.params.reqId)) {
-    res.status(404).send("Invalid request id");
-    return;
-  }
-  let request = await slotLinkingModel.findOne({ id: req.params.reqId });
-  let slot = await slotModel.findOne({ _id: request.slot });
-  let course = await courseModel.findOne({ _id: slot.course });
-  if (req.token.id !== course.courseCoordinator) {
-    res.status(403).send("Invalid credentials");
-    return;
-  }
-  if (request.status === "Accepted" || request.status === "Rejected") {
-    res.status(409).send("Already replied to request");
-    return;
-  }
-  request.status = "Rejected";
-  request.ccComment = req.body.ccComment;
-  try {
-    await request.save();
-  }
-  catch (error) {
-    res.status(500).send(error);
-  }
-  let notification = new notificationModel({
-    user: request.requestedBy,
-    message: "Your slot-linking request has been rejected."
-  });
-  notification.save();
-  res.send(request);
-});
-
-router.get("/slot-linking-requests", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  let slots = await slotModel.find();
-  let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
-  let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
-  let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
-  let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Under review" });
-  let myRequests = allRequests.filter(request => myCourseSlotsids.includes(request.slot));
-  for (let i = 0; i < myRequests.length; i++) {
-    myRequests[i].slot = await slotModel.findOne({ _id: myRequests[i].slot });
-  }
-  res.send(myRequests);
-});
-
 router.route("/get-course-coordinator-courses")
   .get(async (req, res) => {
     let courses = await courseModel.find({ courseCoordinator: req.token.id });
@@ -164,7 +79,7 @@ router.route("/add-course-slot")
     }
   });
 
-router.route("/update-course-slot/:day/:slotNumber/:room/:course")
+router.route("/update-course-slot/:slotId")
   .put(async (req, res) => {
     let academicMember = await academicMemberModel.findOne({ id: req.token.id });
     let oldCourse = await courseModel.findOne({ id: req.params.course });
@@ -259,5 +174,92 @@ router.route("/delete-course-slot/:slotId")
     res.send("Slot deleted successfully ");
   });
 
+router.route("/slot-linking-requests/:reqId/accept")
+  .put(async (req, res) => {
+  if (isNaN(req.params.reqId)) {
+    res.status(404).send("Invalid request id");
+    return;
+  }
+  let request = await slotLinkingModel.findOne({ id: req.params.reqId });
+  let slot = await slotModel.findOne({ _id: request.slot });
+  let course = await courseModel.findOne({ _id: slot.course });
+  if (req.token.id !== course.courseCoordinator) {
+    res.status(403).send("Invalid credentials");
+    return;
+  }
+  if (request.status === "Accepted" || request.status === "Rejected") {
+    res.status(409).send("Already replied to request");
+    return;
+  }
+  if (slot.staffMember !== "UNASSIGNED") {
+    request.status = "Rejected";
+    request.ccComment = "Slot was assigned to another staff member";
+    let notification = new notificationModel({
+      user: request.requestedBy,
+      message: "Your slot-linking request request has been rejected."
+    });
+    notification.save();
+  }
+  else {
+    request.status = "Accepted";
+    slot.staffMember = request.requestedBy;
+    slot.save();
+    let notification = new notificationModel({
+      user: request.requestedBy,
+      message: "Your slot-linking request request has been accepted."
+    });
+    notification.save();
+  }
+  request.save();
+  res.send(request);
+});
+
+router.route("/slot-linking-requests/:reqId/reject")
+  .put(async (req, res) => {
+  if (isNaN(req.params.reqId)) {
+    res.status(404).send("Invalid request id");
+    return;
+  }
+  let request = await slotLinkingModel.findOne({ id: req.params.reqId });
+  let slot = await slotModel.findOne({ _id: request.slot });
+  let course = await courseModel.findOne({ _id: slot.course });
+  if (req.token.id !== course.courseCoordinator) {
+    res.status(403).send("Invalid credentials");
+    return;
+  }
+  if (request.status === "Accepted" || request.status === "Rejected") {
+    res.status(409).send("Already replied to request");
+    return;
+  }
+  request.status = "Rejected";
+  request.ccComment = req.body.ccComment;
+  try {
+    await request.save();
+  }
+  catch (error) {
+    res.status(500).send(error);
+  }
+  let notification = new notificationModel({
+    user: request.requestedBy,
+    message: "Your slot-linking request has been rejected."
+  });
+  notification.save();
+  res.send(request);
+});
+
+router.route("/slot-linking-requests")
+  .get(async (req, res) => {
+  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+  let slots = await slotModel.find();
+  let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
+  let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
+  let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
+  let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Under review" });
+  let myRequests = allRequests.filter(request => myCourseSlotsids.includes(request.slot));
+  for (let i = 0; i < myRequests.length; i++) {
+    myRequests[i].slot = await slotModel.findOne({ _id: myRequests[i].slot });
+  }
+  res.send(myRequests);
+});
 
 module.exports = router;
