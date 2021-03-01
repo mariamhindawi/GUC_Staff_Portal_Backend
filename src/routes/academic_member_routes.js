@@ -11,6 +11,7 @@ const notificationModel = require("../models/notification_model");
 const { replacementModel, annualLeaveModel, accidentalLeaveModel,
   maternityLeaveModel, dayOffChangeModel,
   slotLinkingModel, compensationLeaveModel, sickLeaveModel, requestModel } = require("../models/request_model");
+  const { convertDay } = require("../others/helpers");
 
 const router = express.Router();
 
@@ -496,12 +497,22 @@ router.post("/send-leave-request", async (req, res) => {
   }
   else if (req.body.type === "compensationRequest") {
     if (date > new Date()) {
-      res.status(403).send("Please enter a valid date");
+      res.status(422).send("Please enter a valid date");
       return;
     }
+    if (!req.body.compensationDate) {
+      res.status(404).send("Please enter a compensation date");
+      return;
+    }
+    let dayOff=convertDay(requester.dayOff);
+if((new Date(req.body.compensationDate)).getDay()!== dayOff){
+  res.status(422).send("Compensation date must be on your day off");
+      return;
+}
     request = new compensationLeaveModel({
       id: id,
       day: req.body.day,
+      compensationDay: req.body.compensationDate,
       requestedBy: req.token.id,
       reason: req.body.reason
     });
