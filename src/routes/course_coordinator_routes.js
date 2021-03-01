@@ -21,10 +21,6 @@ router.use((req, res, next) => {
 });
 
 router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
-  if (isNaN(req.params.reqId)) {
-    res.status(404).send("Invalid request id");
-    return;
-  }
   let request = await slotLinkingModel.findOne({ id: req.params.reqId });
   let slot = await slotModel.findOne({ _id: request.slot });
   let course = await courseModel.findOne({ _id: slot.course });
@@ -56,7 +52,7 @@ router.put("/slot-linking-requests/:reqId/accept", async (req, res) => {
     notification.save();
   }
   request.save();
-  res.send(request);
+  res.status(200).send(request);
 });
 
 router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
@@ -92,9 +88,8 @@ router.put("/slot-linking-requests/:reqId/reject", async (req, res) => {
 });
 
 router.get("/slot-linking-requests", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   let slots = await slotModel.find();
-  let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
+  let courses = await courseModel.find({ courseCoordinator: req.token.id });
   let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
   let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
   let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Under review" });

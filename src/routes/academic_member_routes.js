@@ -121,11 +121,10 @@ router.route("/get-staff/:course")
   });
 
 router.post("/send-replacement-request", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
   let id = (Number.parseInt(config.requestCounter)) + 1;
   config.requestCounter = id + "";
-  let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
+  let requester = await academicMemberModel.findOne({ id: req.token.id });
   if (requester.annualLeaveBalance < 1) {
     res.status(422).send("Insufficient leave balance");
     return;
@@ -147,7 +146,7 @@ router.post("/send-replacement-request", async (req, res) => {
     res.status(404).send("Please enter a valid slot number");
     return;
   }
-  const slot = await slotModel.findOne({ staffMember: authAccessToken.id, day: day, slotNumber: req.body.slot });
+  const slot = await slotModel.findOne({ staffMember: req.token.id, day: day, slotNumber: req.body.slot });
   if (!slot) {
     res.status(404).send("Invalid slot");
     return;
@@ -168,7 +167,7 @@ router.post("/send-replacement-request", async (req, res) => {
   }
   const request = new replacementModel({
     id: id,
-    requestedBy: authAccessToken.id,
+    requestedBy: req.token.id,
     day: req.body.day,
     slot: slot._id,
     replacementID: req.body.replacementID,
@@ -237,7 +236,7 @@ router.put("/replacement-requests/:id/reject", async (req, res) => {
 });
 
 router.get("/replacement-requests", async (req, res) => {
-  let myRequests = await replacementModel.find({ requestedBy: authAccessToken.id, type: "replacementRequest" });
+  let myRequests = await replacementModel.find({ requestedBy: req.token.id, type: "replacementRequest" });
   let requestedFromMe = await replacementModel.find({ replacementID: req.token.id, type: "replacementRequest", replacementReply: "Waiting for reply" });
   for (let i = 0; i < myRequests.length; i++) {
     let slot = await slotModel.findOne({ _id: myRequests[i].slot });
@@ -251,9 +250,8 @@ router.get("/replacement-requests", async (req, res) => {
 });
 
 router.post("/send-slot-linking-request", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
   let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-  let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
+  let requester = await academicMemberModel.findOne({ id: req.token.id });
   let id = (Number.parseInt(config.requestCounter)) + 1;
   config.requestCounter = id + "";
   if (typeof req.body.room !== "string") {
@@ -275,7 +273,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
     res.status(404).send("Course does not exist");
     return;
   }
-  if (!course.teachingAssistants.includes(authAccessToken.id) && !course.courseInstructors.includes(authAccessToken.id)) {
+  if (!course.teachingAssistants.includes(req.token.id) && !course.courseInstructors.includes(req.token.id)) {
     res.status(403).send("You are not assigned to this course");
     return;
   }
@@ -288,7 +286,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
     return;
   }
   const prev = await slotLinkingModel.findOne({
-    requestedBy: authAccessToken.id,
+    requestedBy: req.token.id,
     slot: slot._id,
     status: "Under review"
   });
@@ -298,7 +296,7 @@ router.post("/send-slot-linking-request", async (req, res) => {
   }
   const request = new slotLinkingModel({
     id: id,
-    requestedBy: authAccessToken.id,
+    requestedBy: req.token.id,
     slot: slot._id
   });
   try {
@@ -433,7 +431,7 @@ router.post("/send-leave-request", async (req, res) => {
     }
     request = new annualLeaveModel({
       id: id,
-      requestedBy: authAccessToken.id,
+      requestedBy: req.token.id,
       day: req.body.day,
       slots: slots,
       replacementIDs: replacements,
@@ -448,7 +446,7 @@ router.post("/send-leave-request", async (req, res) => {
     if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
       request = new accidentalLeaveModel({
         id: id,
-        requestedBy: authAccessToken.id,
+        requestedBy: req.token.id,
         day: req.body.day,
         reason: req.body.reason
       });
@@ -467,7 +465,7 @@ router.post("/send-leave-request", async (req, res) => {
     if (myDate.addDays(3) >= new Date())
       request = new sickLeaveModel({
         id: id,
-        requestedBy: authAccessToken.id,
+        requestedBy: req.token.id,
         day: req.body.day,
         document: req.body.document,
         reason: req.body.reason
@@ -478,7 +476,7 @@ router.post("/send-leave-request", async (req, res) => {
     }
   }
   else if (req.body.type === "maternityLeave") {
-    let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
+    let requester = await academicMemberModel.findOne({ id: req.token.id });
     if (isNaN(req.body.duration) || req.body.duration > 90) {
       res.status(400).send("Please enter a valid leave duration. Maximum duration is 90 days.");
       return;
@@ -486,7 +484,7 @@ router.post("/send-leave-request", async (req, res) => {
     if (requester.gender === "Female")
       request = new maternityLeaveModel({
         id: id,
-        requestedBy: authAccessToken.id,
+        requestedBy: req.token.id,
         day: req.body.day,
         duration: req.body.duration,
         document: req.body.document,
@@ -521,17 +519,17 @@ router.post("/send-leave-request", async (req, res) => {
   }
   catch (error) {
     res.status(500).send(error);
+    console.log(error);
   }
 });
 
 router.get("/schedule", async (req, res) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  let schedule = await slotModel.find({ staffMember: authAccessToken.id });
+  let schedule = await slotModel.find({ staffMember: req.token.id });
   let date = new Date();
-  let replacementRequests = await annualLeaveModel.find({ type: "annualLeave", replacementIDs: authAccessToken.id, status: "Accepted", day: { $lt: date.addDays(7), $gte: date } });
+  let replacementRequests = await annualLeaveModel.find({ type: "annualLeave", replacementIDs: req.token.id, status: "Accepted", day: { $lt: date.addDays(7), $gte: date } });
   for (let i = 0; i < replacementRequests.length; i++) {
     for (let j = 0; j < replacementRequests[i].replacementIDs.length; j++) {
-      if (replacementRequests[i].replacementIDs[j] === authAccessToken.id) {
+      if (replacementRequests[i].replacementIDs[j] === req.token.id) {
         schedule.push(replacementRequests[i].slots[j]);
       }
     }
@@ -563,6 +561,12 @@ router.get("/get-slots/:course", async (req, res) => {
     slots[i].course = course.id;
     }
   res.send(slots);
+});
+router.route("/get-academic-department")
+.get(async (req, res) => {
+    const academicMember = await academicMemberModel.findOne({id: req.token.id});
+    const department = await departmentModel.findById(academicMember.department);
+    res.send(department);
 });
 
 Date.prototype.addDays = function (days) {

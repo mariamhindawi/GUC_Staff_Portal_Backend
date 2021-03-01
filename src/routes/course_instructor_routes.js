@@ -226,36 +226,38 @@ router.route("/view-teaching-assignments")
 
 router.route("/assign-academic-member-to-slot")
   .put(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let academicMember = await academicMemberModel.findOne({ id: req.body.id });
-    if (!academicMember) {
-      res.send("No TA with such id");
-      return;
-    }
-    if (!(academicMember.role === "Teaching Assistant" || academicMember.role === "Course Coordinator")) {
-      res.send("academic member is not a TA");
-      return;
-    }
     let room = await roomModel.findOne({ name: req.body.room });
-    let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, room: room._id });
+    if (!academicMember) {
+      res.status(404).send("Incorrect academic id");
+      return;
+    }
+    if (academicMember.role !== "Teaching Assistant" && academicMember.role !=="Course Coordinator" && room.type !=="Lecture"){
+      res.status(403).send("Cannot assign course instructor to a tutorial or lab");
+      return;
+    }
+    if (academicMember.role !== "Head of Department" && academicMember.role !=="Course Instructor" && room.type ==="Lecture"){
+      res.status(403).send("Cannot assign teaching assistant to a lecture");
+      return;
+    }
+    let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber+"", room: room._id });
     if (!slot) {
-      res.body.send("No such slot");
+      res.status(404).send("Invalid slot");
       return;
     }
     if (!(slot.staffMember === "UNASSIGNED")) {
-      res.send("Slot already assigned.. try updating it");
+      res.status(499).send("Slot is already assigned");
       return;
     }
     let otherSlot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, staffMember: academicMember.id });
-    console.log(otherSlot);
     if (otherSlot) {
-      res.send("This TA is assigned to another slot in the same time");
+      res.send("Academic is assigned to another slot in the same time");
       return;
     }
     slot.staffMember = academicMember.id;
     try {
       await slot.save();
-      res.send(slot);
+      res.send("Slot assigned successfully");
     }
     catch (error) {
       res.body.send(error);
@@ -300,7 +302,6 @@ router.route("/delete-academic-member-from-slot")
       res.send("No such slot");
       return;
     }
-    console.log(slot);
     slot.staffMember = "UNASSIGNED";
     try {
       await slot.save();

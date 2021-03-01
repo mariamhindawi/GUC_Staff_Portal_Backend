@@ -6,7 +6,7 @@ const courseModel = require("../models/course_model");
 const roomModel = require("../models/room_model");
 const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
-const { annualLeaveModel, dayOffChangeModel, requestModel } = require("../models/request_model");
+const { annualLeaveModel, dayOffChangeModel, requestModel, replacementModel, accidentalLeaveModel, compensationLeaveModel, maternityLeaveModel, sickLeaveModel, slotLinkingModel } = require("../models/request_model");
 
 const router = express.Router();
 
@@ -295,12 +295,24 @@ router.put("/staff-requests/:reqId/accept", async (req, res) => {
 })
 
 router.put("/staff-requests/:reqId/reject", async (req, res) => {
-    if (isNaN(req.params.reqId)) {
-        res.status(404).send("Invalid request id")
-        return
-    }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId })
+    if(request.type==='replacementRequest')
+      request=await replacementModel.findOne({id:req.params.reqId})
+      if(request.type==='accidentalLeave')
+        request=await accidentalLeaveModel.findOne({id:req.params.reqId})
+        if(request.type==='sickLeave')
+          request=await sickLeaveModel.findOne({id:req.params.reqId})
+          if(request.type==='maternityLeave')
+            request=await maternityLeaveModel.findOne({id:req.params.reqId})
+            if(request.type==='compensationRequest')
+              request=await compensationLeaveModel.findOne({id:req.params.reqId})
+              if(request.type==='dayOffChangeRequest'){
+                request=await dayOffChangeModel.findOne({id:req.params.reqId})}
+                if(request.type==='slotLinkingRequest')
+                  request=await slotLinkingModel.findOne({id:req.params.reqId})
     if (request.status !== "Under review") {
+      console.log(request);
+      console.log(request.status);
         res.status(409).send("Already responded")
         return
     }
@@ -311,6 +323,7 @@ router.put("/staff-requests/:reqId/reject", async (req, res) => {
     }
     catch (error) {
         res.status(500).send(error)
+        return;
     }
     let notification = new notificationModel({
         user: request.requestedBy,
