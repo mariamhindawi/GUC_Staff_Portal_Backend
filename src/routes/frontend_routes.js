@@ -52,7 +52,6 @@ router.route("/course-slots/:course")
       slots[i].room = room.name;
       slots[i].course = course.name;
     }
-    console.log(slots);
     res.send(slots);
   });
 

@@ -239,3 +239,5 @@ module.exports.datesEqual = datesEqual;
 module.exports.getMissingDays = getMissingDays;
 module.exports.getHours = getHours;
 module.exports.calculateSalary = calculateSalary;
+module.exports.convertDay = convertDay;
+

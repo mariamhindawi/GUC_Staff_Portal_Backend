@@ -332,17 +332,16 @@ router.route("/update-academic-member-to-slot")
 
 router.route("/delete-academic-member-from-slot")
   .delete(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let room = await roomModel.findOne({ name: req.body.room });
     let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, room: room._id });
     if (!slot) {
-      res.send("No such slot");
+      res.status(400).send("Incorrect slot details");
       return;
     }
     slot.staffMember = "UNASSIGNED";
     try {
       await slot.save();
-      res.send("Deleted successfully");
+      res.send("Unassigned successfully");
 
     }
     catch (error) {
