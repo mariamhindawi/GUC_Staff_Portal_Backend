@@ -11,8 +11,7 @@ const { annualLeaveModel, dayOffChangeModel, requestModel } = require("../models
 const router = express.Router();
 
 router.use((req, res, next) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  if (authAccessToken.role === "Head of Department") {
+  if (req.token.role === "Head of Department") {
     next();
   }
   else {

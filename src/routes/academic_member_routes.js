@@ -15,8 +15,7 @@ const { replacementModel, annualLeaveModel, accidentalLeaveModel,
 const router = express.Router();
 
 router.use((req, res, next) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  if (authAccessToken.role !== "HR") {
+  if (req.token.role !== "HR") {
     next();
   }
   else {

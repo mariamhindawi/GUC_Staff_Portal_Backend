@@ -10,8 +10,7 @@ const slotModel = require("../models/slot_model");
 const router = express.Router();
 
 router.use((req, res, next) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  if (authAccessToken.role === "Course Instructor" || authAccessToken.role === "Head of Department") {
+  if (req.token.role === "Course Instructor" || req.token.role === "Head of Department") {
     next();
   }
   else {

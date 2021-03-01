@@ -11,8 +11,7 @@ const { slotLinkingModel } = require("../models/request_model");
 const router = express.Router();
 
 router.use((req, res, next) => {
-  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-  if (authAccessToken.role === "Course Coordinator") {
+  if (req.token.role === "Course Coordinator") {
     next();
   }
   else {
