@@ -20,17 +20,33 @@ router.use((req, res, next) => {
   }
 });
 
+router.route("/get-department-courses-coverage")
+  .get(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const department = await departmentModel.findById(user.department);
+    const courses = await courseModel.find({ department: user.department });
+    const coursesCoverage = [];
+    for (let i = 0; i < courses.length; i++) {
+      const course = courses[i];
+      const unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
+      const totalSlots = await slotModel.find({ course: courses[i]._id });
+      const coverage = totalSlots.length === 0 ? 0 : ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
+      coursesCoverage.push(Math.round(coverage));
+      course.department = department.name;
+    }
+    res.send({ courses, coursesCoverage });
+  });
+
 router.route("/view-staff")
   .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let output = await academicMemberModel.find({ department: user.department });
-    let department = await departmentModel.findOne({ _id: user.department });
-    let departments = [];
-    let rooms = [];
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const output = await academicMemberModel.find({ department: user.department });
+    const department = await departmentModel.findOne({ _id: user.department });
+    const departments = [];
+    const rooms = [];
     for (let i = 0; i < output.length; i++) {
       departments.push(department.name);
-      let room = await roomModel.findOne({ _id: output[i].office });
+      const room = await roomModel.findOne({ _id: output[i].office });
       rooms.push(room.name);
     }
     res.send({ staff: output, departments: departments, rooms: rooms });
@@ -38,9 +54,8 @@ router.route("/view-staff")
 
 router.route("/view-staff/:course")
   .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let course = await courseModel.findOne({ name: req.params.course });
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const course = await courseModel.findOne({ name: req.params.course });
 
     if (!course) {
       res.send("Course does not exist");
@@ -50,29 +65,28 @@ router.route("/view-staff/:course")
       res.send("Course is not in your department");
       return;
     }
-    let output = [];
-    let instructors = course.courseInstructors;
-    let tas = course.teachingAssistants;
+    const output = [];
+    const instructors = course.courseInstructors;
+    const tas = course.teachingAssistants;
 
     for (let i = 0; i < instructors.length; i++) {
-      let instructor = await academicMemberModel.findOne({ id: instructors[i] });
+      const instructor = await academicMemberModel.findOne({ id: instructors[i] });
       output.push(instructor);
     }
     for (let i = 0; i < tas.length; i++) {
-      let ta = await academicMemberModel.findOne({ id: tas[i] });
+      const ta = await academicMemberModel.findOne({ id: tas[i] });
       output.push(ta);
     }
-    let department = await departmentModel.findOne({ _id: user.department });
-    let departments = [];
-    let rooms = [];
+    const department = await departmentModel.findOne({ _id: user.department });
+    const departments = [];
+    const rooms = [];
 
     for (let i = 0; i < output.length; i++) {
       departments.push(department.name);
-      let room = await roomModel.findOne({ _id: output[i].office });
+      const room = await roomModel.findOne({ _id: output[i].office });
       rooms.push(room.name);
     }
     res.send({ staff: output, departments: departments, rooms: rooms });
-
   });
 
 router.route("/view-staff-dayoff")
@@ -94,81 +108,58 @@ router.route("/view-staff-dayoff/:id")
 
 router.route("/assign-course-instructor")
   .post(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (!req.body.course || !req.body.id) {
+    if (!req.body.courseId || !req.body.academicId) {
       res.send("Not all fields are entered");
       return;
     }
-    if (typeof req.body.id !== "string" || typeof req.body.course !== "string") {
+    if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
       res.send("Wrong data types entered");
       return;
     }
-    let user = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let instructor = await academicMemberModel.findOne({ id: req.body.id });
-    let course = await courseModel.findOne({ id: req.body.course });
-    if (!instructor) {
-      res.send("User does not exist");
-      return;
-    }
-    if (instructor.role === "Teaching Assistant" || instructor.role === "Course Coordinator") {
-      res.send("This user is not an instructor");
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const courseInstructor = await academicMemberModel.findOne({ id: req.body.academicId });
+    const course = await courseModel.findOne({ id: req.body.courseId });
+
+    if (!courseInstructor) {
+      res.status(404).send("Incorrect course instructor id");
       return;
     }
     if (!course) {
-      res.send("Course does not exist");
+      res.status(404).send("Incorrect course Id");
       return;
     }
     if (course.department !== user.department) {
-      res.send("Course does not exist in your department");
+      res.status(422).send("Course is in a different department");
       return;
     }
-    if (instructor.department !== user.department) {
-      res.send("Instructor does not exist in your department");
+    if (courseInstructor.department !== user.department) {
+      res.status(422).send("Course instructor is in a different department");
       return;
     }
-    course.courseInstructors.push(instructor.id);
+    if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
+      res.status(422).send("Academic is not a course instructor");
+      return;
+    }
+    if (course.courseInstructors.includes(courseInstructor.id)) {
+      res.status(409).send("Course instructor is already assigned to this course");
+      return;
+    }
+
+    course.courseInstructors.push(courseInstructor.id);
     try {
       await course.save();
       res.send("Instructor assigned to course successfully");
     }
     catch (error) {
-      console.log(error.message);
-      res.status(400).send(error.message);
+      res.status(500).send(error.message);
     }
   });
 
-router.route("/unassign-course-instructor/:id/:course")
-    .delete(async (req, res) => {
-      const user = await academicMemberModel.findOne({id: req.token.id});
-      const course = await courseModel.findOne({ id: req.params.course });
-      const courseInstructor = await academicMemberModel.findOne({ id: req.params.id });
-      if (!courseInstructor) {
-        res.status(404).send("Incorrect course instructor Id");
-        return;
-      }
-      if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
-        res.status(422).send("User is not a course instructor");
-        return;
-      }
-      if (!course) {
-        res.status(404).send("Incorrect course Id");
-        return;
-      }
-      const department = await departmentModel.find({_id:user.department});
-      if (!course.department===user.department) {
-        res.status(403).send("You are not assigned to this department");
-        return;
-      }
-      if (department.headOfDepartment !== user.department){
-        res.status(403).send("You are not Head of this department");
-        return;
-      }
-      if (!course.courseInstructors.includes(courseInstructor.id)) {
-        res.status(422).send("Course instructor is not assiged to this course");
-        return;
-      }
-      const index = course.courseInstructors.indexOf(courseInstructor.id);
-      course.courseInstructors.splice(index, 1);
+router.route("/unassign-course-instructor/:academicId/:courseId")
+  .put(async (req, res) => {
+    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const course = await courseModel.findOne({ id: req.params.courseId });
+    const courseInstructor = await academicMemberModel.findOne({ id: req.params.academicId });
 
     if (!courseInstructor) {
       res.status(404).send("Incorrect course instructor id");
@@ -178,26 +169,25 @@ router.route("/unassign-course-instructor/:id/:course")
       res.status(404).send("Incorrect course id");
       return;
     }
-    if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
-      res.status(422).send("User is not a course instructor");
-      return;
-    }
-    const department = await departmentModel.findById(user.department);
     if (course.department !== user.department) {
-      res.status(403).send("You are not assigned to this department");
+      res.status(422).send("Course is in a different department");
       return;
     }
-    if (department.headOfDepartment !== user.id) {
-      res.status(403).send("You are not head of this department");
+    if (courseInstructor.department !== user.department) {
+      res.status(422).send("Course instructor is in a different department");
+      return;
+    }
+    if (courseInstructor.role === "Teaching Assistant" || courseInstructor.role === "Course Coordinator") {
+      res.status(422).send("Academic is not a course instructor");
       return;
     }
     if (!course.courseInstructors.includes(courseInstructor.id)) {
       res.status(422).send("Course instructor is not assiged to this course");
       return;
     }
+
     const index = course.courseInstructors.indexOf(courseInstructor.id);
     course.courseInstructors.splice(index, 1);
-
     try {
       await course.save();
       res.send("Course instructor unassigned from course successfully");
@@ -263,14 +253,14 @@ router.route("/update-course-instructor/:idDelete/:course")
 router.route("/staff-requests/:reqId/accept")
   .put(async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(404).send("Invalid request id")
-        return
+      res.status(404).send("Invalid request id");
+      return;
     }
     let request = await requestModel.findOne({ id: req.params.reqId });
     let requester = await academicMemberModel.findOne({ id: request.requestedBy });
     if (request.status !== "Under review") {
-        res.status(409).send("Already responded")
-        return
+      res.status(409).send("Already responded");
+      return;
     }
     if (request.type === "annualLeave") {
       if (requester.annualLeaveBalance >= 1) {
@@ -325,13 +315,13 @@ router.route("/staff-requests/:reqId/accept")
 router.route("/staff-requests/:reqId/reject")
   .put(async (req, res) => {
     if (isNaN(req.params.reqId)) {
-        res.status(404).send("Invalid request id")
-        return
+      res.status(404).send("Invalid request id");
+      return;
     }
     let request = await annualLeaveModel.findOne({ id: req.params.reqId });
     if (request.status !== "Under review") {
-        res.status(409).send("Already responded")
-        return
+      res.status(409).send("Already responded");
+      return;
     }
     request.HODComment = req.body.HODComment;
     request.status = "Rejected";
@@ -339,7 +329,7 @@ router.route("/staff-requests/:reqId/reject")
       await request.save();
     }
     catch (error) {
-        res.status(500).send(error)
+      res.status(500).send(error);
     }
     let notification = new notificationModel({
       user: request.requestedBy,
@@ -349,9 +339,10 @@ router.route("/staff-requests/:reqId/reject")
     res.send(request);
   });
 
-router.get("/staff-requests", async (req, res) => {
+router.route("/staff-requests")
+  .get(async (req, res) => {
     let hod = await academicMemberModel.findOne({ id: req.token.id });
-    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] })
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] });
     for (let i = 0; i < requests.length; i++) {
       let request = requests[i];
       let staffMember = await academicMemberModel.findOne({ id: request.requestedBy });
@@ -361,24 +352,6 @@ router.get("/staff-requests", async (req, res) => {
       }
     }
     res.send(requests);
-  });
-
-//view the coverage of each course in his/her department
-router.route("/get-departments-course-coverage").get(async (req, res) => {
-    const hod = await academicMemberModel.findOne({ id: req.token.id });
-    const department = await departmentModel.findOne({ headOfDepartment: hod.id });
-    const courses = await courseModel.find({ department: department._id });
-    const coursesCoverage = [];
-    for (let i = 0; i < courses.length; i++) {
-        course.department = department ? department.name : "UNASSIGNED";
-        let unassignedSlots = await slotModel.find({ course: courses[i]._id, staffMember: "UNASSIGNED" });
-        let totalSlots = await slotModel.find({ course: courses[i]._id });
-        const coverage = totalSlots.length === 0 ? 0 : ((totalSlots.length - unassignedSlots.length) / (totalSlots.length)) * 100;
-        coursesCoverage.push(coverage);
-
-    }
-    res.send({courses: courses, coursesCoverage: coverages});
-
   });
 
 router.route("/view-teaching-assignments")
