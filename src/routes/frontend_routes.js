@@ -6,9 +6,8 @@ const academicMemberModel = require("../models/academic_member_model");
 const hrMemberModel = require("../models/hr_member_model");
 const roomModel = require("../models/room_model");
 const facultyModel = require("../models/faculty_model");
-const notification_model = require("../models/notification_model");
-const slot_model = require("../models/slot_model");
-const attendance_record_model = require("../models/attendance_record_model");
+const slotModel = require("../models/slot_model");
+const attendanceRecordModel = require("../models/attendance_record_model");
 
 const router = express.Router();
 
@@ -35,25 +34,6 @@ router.route("/get-courses-by-academic")
     res.send(courses);
   });
 
-router.route("/academic/notifications")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let notifications = await notification_model.find({ user: authAccessToken.id }).sort({ createdAt: -1 });
-    res.send(notifications);
-  });
-
-router.route("/academic/mark-notifications-seen")
-  .put(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let seenNotifications = req.body.seenNotifications;
-    for (let i = 0; i < seenNotifications.length; i++) {
-      let noti = await notification_model.findOne({ _id: seenNotifications[i]._id });
-      noti.seen = true;
-      noti.save();
-    }
-    res.send("Done");
-  });
-
 router.route("/course-slots/:course")
   .get(async (req, res) => {
     if (!req.params.course) {
@@ -66,7 +46,7 @@ router.route("/course-slots/:course")
       res.status(404).send("Invalid Course Id");
       return;
     }
-    let slots = await slot_model.find({ course: course._id });
+    let slots = await slotModel.find({ course: course._id });
     for (let i = 0; i < slots.length; i++) {
       let room = await roomModel.findById(slots[i].room);
       slots[i].room = room.name;
@@ -80,7 +60,7 @@ router.route("/user-records")
   .get(async (req, res) => {
     let dateStringParts = req.query.day.split("T")[0].split("-");
     let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
-    records = await attendance_record_model.find({ user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date } });
+    records = await attendanceRecordModel.find({ user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date } });
     res.send(records);
   });
 

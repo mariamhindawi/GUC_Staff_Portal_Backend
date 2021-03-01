@@ -23,6 +23,23 @@ router.use((req, res, next) => {
   }
 });
 
+router.route("/notifications")
+  .get(async (req, res) => {
+    const notifications = await notificationModel.find({ user: req.token.id }).sort({ createdAt: -1 });
+    res.send(notifications);
+  });
+
+router.route("/mark-notifications-seen")
+  .put(async (req, res) => {
+    const seenNotifications = req.body.seenNotifications;
+    for (let i = 0; i < seenNotifications.length; i++) {
+      const notification = await notificationModel.findOne({ _id: seenNotifications[i]._id });
+      notification.seen = true;
+      await notification.save();
+    }
+    res.send("Notifications updated successully");
+  });
+
 router.route("/get-department-courses")
   .get(async (req, res) => {
     const user = await academicMemberModel.findOne({ id: req.token.id });
