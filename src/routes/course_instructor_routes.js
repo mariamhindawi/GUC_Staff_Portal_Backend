@@ -38,11 +38,11 @@ router.route("/get-my-courses-coverage")
 router.route("/assign-teaching-assistant")
   .post(async (req, res) => {
     if (!req.body.courseId || !req.body.academicId) {
-      res.send("Not all fields are entered");
+      res.status(400).send("Not all fields are entered");
       return;
     }
     if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
-      res.send("Wrong data types entered");
+      res.status(400).send("Wrong data types entered");
       return;
     }
     const user = await academicMemberModel.findOne({ id: req.token.id });
@@ -144,11 +144,11 @@ router.route("/unassign-teaching-assistant/:academicId/:courseId")
 router.route("/assign-course-coordinator")
   .post(async (req, res) => {
     if (!req.body.courseId || !req.body.academicId) {
-      res.send("Not all fields are entered");
+      res.status(400).send("Not all fields are entered");
       return;
     }
     if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
-      res.send("Wrong data types entered");
+      res.status(400).send("Wrong data types entered");
       return;
     }
     const user = await academicMemberModel.findOne({ id: req.token.id });
