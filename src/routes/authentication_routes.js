@@ -88,25 +88,23 @@ router.route("/login")
   });
 
 router.route("/refresh-token")
-  .post(async (req, res) => {
+  .get(async (req, res) => {
     if (!req.cookies["auth-refresh-token"]) {
       res.status(401).send("No refresh token");
       return;
     }
 
     try {
-      const decodedAuthRefreshToken = jwt.decode(req.cookies["auth-refresh-token"]);
-
       const authRefreshToken = await authRefreshTokenModel.findOne({
-        user: decodedAuthRefreshToken.id,
         token: req.cookies["auth-refresh-token"],
         expiresAt: { $gt: new Date() }
       });
 
       if (!authRefreshToken) {
-        throw new Error("Refresh token does not exist");
+        throw new Error("Invalid refresh token");
       }
 
+      const decodedAuthRefreshToken = jwt.decode(req.cookies["auth-refresh-token"]);
       const user = await hrMemberModel.findOne({ id: decodedAuthRefreshToken.id })
         || await academicMemberModel.findOne({ id: decodedAuthRefreshToken.id });
 
@@ -123,9 +121,9 @@ router.route("/refresh-token")
       res.send("Access token refreshed successfully");
     }
     catch (error) {
-      if (error.message === "Refresh token does not exist") {
+      if (error.message === "Invalid refresh token") {
         res.clearCookie("auth-refresh-token");
-        res.status(401).send("Invalid refresh token");
+        res.status(401).send(error.message);
         return;
       }
       res.status(500).send(error.message);
