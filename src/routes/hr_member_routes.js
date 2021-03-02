@@ -15,6 +15,13 @@ const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
 
+Date.prototype.addDays = function (days) {
+  var date = new Date(this.valueOf());
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
+
 router.use((req, res, next) => {
   if (req.token.role === "HR") {
     next();
@@ -981,6 +988,16 @@ router.route("/delete-course/:id")
 
     res.send("Course deleted successfully");
   });
+  router.route("/user-records")
+  .get(async (req, res) => {
+    let dateStringParts = req.query.day.split("T")[0].split("-");
+    let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
+    records = await attendanceRecordModel.find({
+      $or:[{user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date}},
+          {user: req.query.user, signOutTime: { $lt: date.addDays(1), $gte: date}}]
+    });
+    res.send(records);
+  });
 
 router.route("/view-staff-attendance-records")
   .get(async (req, res) => {
@@ -1096,7 +1113,7 @@ router.route("/add-missing-attendance-record")
     }
 
     const missingRecordType = req.body.missingRecordType;
-    const userRecord = {};
+    let userRecord = {};
 
     if (missingRecordType === "signIn") {
       userRecord = await attendanceRecordModel.findOne({ user: user.id, _id: req.body.record });

@@ -76,7 +76,6 @@ router.route("/login")
 
       res.header("auth-access-token", getAuthAccessToken(user));
       res.cookie("auth-refresh-token", authRefreshToken.token, {
-        // secure: true, TODO: test with https + domains
         sameSite: "strict",
         httpOnly: true,
         expires: new Date(refreshTokenExpiryDate.getTime() + 2 * 1000 * parseInt(process.env.AUTH_ACCESS_TOKEN_AGE))
@@ -116,7 +115,6 @@ router.route("/refresh-token")
 
       res.header("auth-access-token", getAuthAccessToken(user));
       res.cookie("auth-refresh-token", authRefreshToken.token, {
-        // secure: true, TODO: test with https + domains
         sameSite: "strict",
         httpOnly: true,
         expires: new Date(authRefreshToken.expiresAt.getTime() + 2 * 1000 * parseInt(process.env.AUTH_ACCESS_TOKEN_AGE))
