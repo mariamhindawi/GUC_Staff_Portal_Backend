@@ -982,7 +982,7 @@ router.route("/delete-course/:id")
     res.send("Course deleted successfully");
   });
 
-router.route("/view-staff-attendance-records")
+router.route("/get-staff-attendance-records")
   .get(async (req, res) => {
     const month = req.query.month - 1;
     const year = req.query.year;
@@ -1002,7 +1002,7 @@ router.route("/view-staff-attendance-records")
     res.send(userAttendanceRecords);
   });
 
-router.route("/get-user-records")
+router.route("/get-user-attendance-records")
   .get(async (req, res) => {
     let dateStringParts = req.query.day.split("T")[0].split("-");
     let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
@@ -1013,7 +1013,7 @@ router.route("/get-user-records")
     res.send(records);
   });
 
-router.route("/view-staff-missing-days")
+router.route("/get-staff-missing-days")
   .get(async (req, res) => {
     const month = req.query.month - 1;
     const year = req.query.year;
@@ -1050,7 +1050,7 @@ router.route("/view-staff-missing-days")
     res.send(membersWithMissingDays);
   });
 
-router.route("/view-staff-missing-hours")
+router.route("/get-staff-missing-hours")
   .get(async (req, res) => {
     const month = req.query.month - 1;
     const year = req.query.year;
