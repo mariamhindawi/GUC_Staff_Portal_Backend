@@ -15,13 +15,6 @@ const authRefreshTokenModel = require("../models/refresh_token_model");
 
 const router = express.Router();
 
-Date.prototype.addDays = function (days) {
-  var date = new Date(this.valueOf());
-  date.setDate(date.getDate() + days);
-  return date;
-};
-
-
 router.use((req, res, next) => {
   if (req.token.role === "HR") {
     next();
@@ -988,16 +981,6 @@ router.route("/delete-course/:id")
 
     res.send("Course deleted successfully");
   });
-  router.route("/user-records")
-  .get(async (req, res) => {
-    let dateStringParts = req.query.day.split("T")[0].split("-");
-    let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
-    records = await attendanceRecordModel.find({
-      $or:[{user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date}},
-          {user: req.query.user, signOutTime: { $lt: date.addDays(1), $gte: date}}]
-    });
-    res.send(records);
-  });
 
 router.route("/view-staff-attendance-records")
   .get(async (req, res) => {
@@ -1017,6 +1000,17 @@ router.route("/view-staff-attendance-records")
       ]
     });
     res.send(userAttendanceRecords);
+  });
+
+router.route("/get-user-records")
+  .get(async (req, res) => {
+    let dateStringParts = req.query.day.split("T")[0].split("-");
+    let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
+    records = await attendanceRecordModel.find({
+      $or: [{ user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date } },
+      { user: req.query.user, signOutTime: { $lt: date.addDays(1), $gte: date } }]
+    });
+    res.send(records);
   });
 
 router.route("/view-staff-missing-days")
@@ -1096,19 +1090,19 @@ router.route("/view-staff-missing-hours")
 router.route("/add-missing-attendance-record")
   .post(async (req, res) => {
     if (!req.body.id || !req.body.missingRecordType) {
-      res.send("Not all fields are entered");
+      res.status(400).send("Not all fields are entered");
       return;
     }
 
     if (req.body.id === req.token.id) {
-      res.send("Cannot add missing record for yourself");
+      res.status(403).send("Cannot add missing record for yourself");
       return;
     }
 
     const user = await hrMemberModel.findOne({ id: req.body.id })
       || await academicMemberModel.findOne({ id: req.body.id });
     if (!user) {
-      res.send("Invalid user id");
+      res.status(404).send("Invalid user id");
       return;
     }
 
@@ -1119,23 +1113,22 @@ router.route("/add-missing-attendance-record")
       userRecord = await attendanceRecordModel.findOne({ user: user.id, _id: req.body.record });
 
       if (!userRecord) {
-        res.send("Could not find specified sign out time.");
+        res.status(404).send("Could not find specified sign out time.");
         return;
       }
       else {
         const signInTime = new Date(req.body.signInTime);
-        userRecord.signInTime = signInTime;
         if (signInTime > userRecord.signOutTime) {
-          res.status(403).send("Sign in time cannot be after the sign out time");
+          res.status(422).send("Sign in time cannot be after the sign out time");
           return;
         }
+        userRecord.signInTime = signInTime;
         try {
           await userRecord.save();
           res.send(userRecord);
         }
         catch (error) {
-          console.log(error.message);
-          res.status(403).send(error);
+          res.status(500).send(error);
         }
       }
     }
@@ -1146,13 +1139,14 @@ router.route("/add-missing-attendance-record")
       });
 
       if (!userRecord) {
-        res.send("Could not find specified sign in time.");
+        res.status(404).send("Could not find specified sign in time.");
         return;
       }
       else {
         const signOutTime = new Date(req.body.signOutTime);
+
         if (signOutTime < userRecord.signInTime) {
-          res.status(403).send("Sign out time cannot be before the sign in time");
+          res.status(422).send("Sign out time cannot be before the sign in time");
           return;
         }
         userRecord.signOutTime = signOutTime;
@@ -1161,8 +1155,7 @@ router.route("/add-missing-attendance-record")
           res.send(userRecord);
         }
         catch (error) {
-          console.log(error.message);
-          res.send(error);
+          res.status(500).send(error);
         }
       }
     }
@@ -1170,7 +1163,7 @@ router.route("/add-missing-attendance-record")
       const signInTime = new Date(req.body.signInTime);
       const signOutTime = new Date(req.body.signOutTime);
       if (signInTime > signOutTime) {
-        res.status(403).send("Sign out time cannot be before the sign in time");
+        res.status(422).send("Sign out time cannot be before the sign in time");
         return;
       }
       userRecord = new attendanceRecordModel({
@@ -1184,10 +1177,15 @@ router.route("/add-missing-attendance-record")
         res.send("Added successfully");
       }
       catch (error) {
-        console.log(error.message);
-        res.status(403).send(error);
+        res.status(500).send(error);
       }
     }
   });
+
+Date.prototype.addDays = function (days) {
+  var date = new Date(this.valueOf());
+  date.setDate(date.getDate() + days);
+  return date;
+};
 
 module.exports = router;
