@@ -13,7 +13,6 @@ const academicMemberRoutes = require("./routes/academic_member_routes");
 const headOfDepartmentRoutes = require("./routes/head_of_department_routes");
 const courseInstructorRoutes = require("./routes/course_instructor_routes");
 const courseCoordinatorRoutes = require("./routes/course_coordinator_routes");
-const frontEndRoutes = require("./routes/frontend_routes");
 
 const app = express();
 const corsOptions = {
@@ -37,7 +36,5 @@ app.use("/staff/academic", academicMemberRoutes);
 app.use("/staff/hod", headOfDepartmentRoutes);
 app.use("/staff/ci", courseInstructorRoutes);
 app.use("/staff/cc", courseCoordinatorRoutes);
-
-app.use("/staff/fe", frontEndRoutes);
 
 module.exports.app = app;
