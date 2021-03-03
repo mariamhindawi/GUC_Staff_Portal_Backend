@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const { addDays, isSameDay, parseISO, set } = require('date-fns');
 const { getMissingDays, getHours } = require("../others/helpers");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
@@ -982,12 +983,12 @@ router.route("/delete-course/:id")
     res.send("Course deleted successfully");
   });
 
-router.route("/get-staff-attendance-records")
+router.route("/get-user-month-attendance-records")
   .get(async (req, res) => {
     const month = req.query.month - 1;
     const year = req.query.year;
-    const user = await hrMemberModel.findOne({ id: req.query.id })
-      || await academicMemberModel.findOne({ id: req.query.id });
+    const user = await hrMemberModel.findOne({ id: req.query.user })
+      || await academicMemberModel.findOne({ id: req.query.user });
     if (!user) {
       res.status(404).send("Incorrect user id");
       return;
@@ -1002,13 +1003,21 @@ router.route("/get-staff-attendance-records")
     res.send(userAttendanceRecords);
   });
 
-router.route("/get-user-attendance-records")
+router.route("/get-user-day-attendance-records")
   .get(async (req, res) => {
-    let dateStringParts = req.query.day.split("T")[0].split("-");
-    let date = new Date(dateStringParts[0], dateStringParts[1] - 1, dateStringParts[2], 2).addDays(1);
+    const user = await hrMemberModel.findOne({ id: req.query.user })
+      || await academicMemberModel.findOne({ id: req.query.user });
+    if (!user) {
+      res.status(404).send("Incorrect user id");
+      return;
+    }
+
+    const date = set(parseISO(req.query.day), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 });
     records = await attendanceRecordModel.find({
-      $or: [{ user: req.query.user, signInTime: { $lt: date.addDays(1), $gte: date } },
-      { user: req.query.user, signOutTime: { $lt: date.addDays(1), $gte: date } }]
+      $or: [
+        { user: req.query.user, signInTime: { $lt: addDays(date, 1), $gte: date } },
+        { user: req.query.user, signOutTime: { $lt: addDays(date, 1), $gte: date } }
+      ]
     });
     res.send(records);
   });
@@ -1089,50 +1098,92 @@ router.route("/get-staff-missing-hours")
 
 router.route("/add-missing-attendance-record")
   .post(async (req, res) => {
-    const user = await hrMemberModel.findOne({ id: req.body.id })
-      || await academicMemberModel.findOne({ id: req.body.id });
+    const user = await hrMemberModel.findOne({ id: req.body.userId })
+      || await academicMemberModel.findOne({ id: req.body.userId });
     if (!user) {
       res.status(404).send("Incorrect user id");
       return;
     }
     if (user.id === req.token.id) {
-      res.status(403).send("Cannot add missing record for yourself");
+      res.status(403).send("Cannot add missing attendance record for yourself");
       return;
     }
 
-    let record;
-    if (req.body.recordType !== "Full Record") {
-      record = await attendanceRecordModel.findById(req.body.recordId);
-      if (!record) {
+    let attendanceRecord;
+    if (req.body.recordType === "Sign In") {
+      attendanceRecord = await attendanceRecordModel.findById(req.body.recordId);
+      if (!attendanceRecord) {
         res.status(404).send("Incorrect record id");
         return;
       }
-    }
-
-    if (req.body.recordType === "Sign In") {
+      if (attendanceRecord.signInTime) {
+        res.status(409).send("Attendance record already have a sign-in time");
+        return;
+      }
+      if (!attendanceRecord.signOutTime) {
+        res.status(422).send("Attendance record does not have a sign-out time");
+        return;
+      }
       const signInTime = new Date(req.body.signInTime);
-      if (signInTime > record.signOutTime) {
-        res.status(422).send("Sign in time cannot be after the sign out time");
+      if (!isSameDay(signInTime, attendanceRecord.signOutTime)) {
+        res.status(422).send("Sign-in and sign-out times must be on the same day");
         return;
       }
-      record.signInTime = signInTime;
+      if (signInTime > attendanceRecord.signOutTime) {
+        res.status(422).send("Sign-in time cannot be after sign-out time");
+        return;
+      }
+      if (signInTime >= set(Date.now(), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })) {
+        res.status(422).send("Attendance record must be before current day");
+        return;
+      }
+      attendanceRecord.signInTime = signInTime;
     }
-    else if (req.body.recordType === "signOut") {
-      const signOutTime = new Date(req.body.signOutTime);
-      if (signOutTime < record.signInTime) {
-        res.status(422).send("Sign out time cannot be before the sign in time");
+    else if (req.body.recordType === "Sign Out") {
+      attendanceRecord = await attendanceRecordModel.findById(req.body.recordId);
+      if (!attendanceRecord) {
+        res.status(404).send("Incorrect record id");
         return;
       }
-      record.signOutTime = signOutTime;
+      if (attendanceRecord.signOutTime) {
+        res.status(409).send("Attendance record already have a sign-out time");
+        return;
+      }
+      if (!attendanceRecord.signInTime) {
+        res.status(422).send("Attendance record does not have a sign-in time");
+        return;
+      }
+      const signOutTime = new Date(req.body.signOutTime);
+      if (!isSameDay(attendanceRecord.signInTime, signOutTime)) {
+        res.status(422).send("Sign-in and sign-out times must be on the same day");
+        return;
+      }
+      if (signOutTime < attendanceRecord.signInTime) {
+        res.status(422).send("Sign-out time cannot be before sign-in time");
+        return;
+      }
+      if (signOutTime >= set(Date.now(), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })) {
+        res.status(422).send("Attendance record must be before current day");
+        return;
+      }
+      attendanceRecord.signOutTime = signOutTime;
     }
     else if (req.body.recordType === "Full Record") {
       const signInTime = new Date(req.body.signInTime);
       const signOutTime = new Date(req.body.signOutTime);
-      if (signInTime > signOutTime) {
-        res.status(422).send("Sign out time cannot be before the sign in time");
+      if (!isSameDay(signInTime, signOutTime)) {
+        res.status(422).send("Sign-in and sign-out times must be on the same day");
         return;
       }
-      record = new attendanceRecordModel({
+      if (signInTime > signOutTime) {
+        res.status(422).send("Sign-out time cannot be before sign-in time");
+        return;
+      }
+      if (signOutTime >= set(Date.now(), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 })) {
+        res.status(422).send("Attendance record must be before current day");
+        return;
+      }
+      attendanceRecord = new attendanceRecordModel({
         user: user.id,
         signInTime: req.body.signInTime,
         signOutTime: req.body.signOutTime
@@ -1140,7 +1191,7 @@ router.route("/add-missing-attendance-record")
     }
 
     try {
-      await record.save();
+      await attendanceRecord.save();
       const message = req.body.recordType === "Full Record"
         ? "Attendance record added successfully" : "Attendance record updated successfully";
       res.send(message);
@@ -1150,10 +1201,14 @@ router.route("/add-missing-attendance-record")
     }
   });
 
-Date.prototype.addDays = function (days) {
-  var date = new Date(this.valueOf());
-  date.setDate(date.getDate() + days);
-  return date;
-};
+router.route("/delete-attendance-record/:attendanceRecordId")
+  .delete(async (req, res) => {
+    const attendanceRecord = await attendanceRecordModel.findOneAndDelete({ _id: req.params.attendanceRecordId });
+    if (!attendanceRecord) {
+      res.status(404).send("Incorrect attendance record id");
+      return;
+    }
+    res.send("Attendance record deleted successfully ");
+  });
 
 module.exports = router;
