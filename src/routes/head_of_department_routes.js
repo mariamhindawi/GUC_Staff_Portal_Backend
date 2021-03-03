@@ -108,7 +108,7 @@ router.route("/view-staff-dayoff/:id")
 router.route("/assign-course-instructor")
   .post(async (req, res) => {
     if (!req.body.courseId || !req.body.academicId) {
-      res.status(400).send("Not all fields are entered");
+      res.status(400).send("Not all required fields are entered");
       return;
     }
     if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
@@ -205,7 +205,7 @@ router.route("/update-course-instructor/:idDelete/:course")
   .put(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (!req.body.idUpdate) {
-      res.send("Not all fields are entered");
+      res.send("Not all required fields are entered");
       return;
     }
     if (typeof req.body.idUpdate !== "string") {

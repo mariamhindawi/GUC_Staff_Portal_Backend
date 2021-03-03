@@ -38,7 +38,7 @@ router.route("/get-my-courses-coverage")
 router.route("/assign-teaching-assistant")
   .post(async (req, res) => {
     if (!req.body.courseId || !req.body.academicId) {
-      res.status(400).send("Not all fields are entered");
+      res.status(400).send("Not all required fields are entered");
       return;
     }
     if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
@@ -144,7 +144,7 @@ router.route("/unassign-teaching-assistant/:academicId/:courseId")
 router.route("/assign-course-coordinator")
   .post(async (req, res) => {
     if (!req.body.courseId || !req.body.academicId) {
-      res.status(400).send("Not all fields are entered");
+      res.status(400).send("Not all required fields are entered");
       return;
     }
     if (typeof req.body.academicId !== "string" || typeof req.body.courseId !== "string") {
@@ -351,7 +351,7 @@ router.route("/delete-academic-member-from-slot")
   router.route("/course-slots/:course")
   .get(async (req, res) => {
     if (!req.params.course) {
-      res.send("Not all fields are entered");
+      res.send("Not all required fields are entered");
       return;
     }
     let course = await courseModel.findOne({ id: req.params.course });

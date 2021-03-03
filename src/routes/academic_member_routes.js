@@ -93,7 +93,7 @@ router.route("/get-department-staff")
 router.route("/get-staff/:course")
   .get(async (req, res) => {
     if (!req.params.course) {
-      res.status(400).send("Not all fields are entered");
+      res.status(400).send("Not all required fields are entered");
       return;
     }
     const user = await academicMemberModel.findOne({ id: req.token.id });
@@ -572,7 +572,7 @@ router.get("/schedule", async (req, res) => {
 router.get("/get-slots/:course", async (req, res) => {
 
   if (!req.params.course) {
-    res.send("Not all fields are entered");
+    res.send("Not all required fields are entered");
     return;
   }
   let course = await courseModel.findOne({ id: req.params.course });

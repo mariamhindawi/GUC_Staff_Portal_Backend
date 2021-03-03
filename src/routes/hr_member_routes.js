@@ -1089,96 +1089,64 @@ router.route("/get-staff-missing-hours")
 
 router.route("/add-missing-attendance-record")
   .post(async (req, res) => {
-    if (!req.body.id || !req.body.missingRecordType) {
-      res.status(400).send("Not all fields are entered");
+    const user = await hrMemberModel.findOne({ id: req.body.id })
+      || await academicMemberModel.findOne({ id: req.body.id });
+    if (!user) {
+      res.status(404).send("Incorrect user id");
       return;
     }
-
-    if (req.body.id === req.token.id) {
+    if (user.id === req.token.id) {
       res.status(403).send("Cannot add missing record for yourself");
       return;
     }
 
-    const user = await hrMemberModel.findOne({ id: req.body.id })
-      || await academicMemberModel.findOne({ id: req.body.id });
-    if (!user) {
-      res.status(404).send("Invalid user id");
-      return;
-    }
-
-    const missingRecordType = req.body.missingRecordType;
-    let userRecord = {};
-
-    if (missingRecordType === "signIn") {
-      userRecord = await attendanceRecordModel.findOne({ user: user.id, _id: req.body.record });
-
-      if (!userRecord) {
-        res.status(404).send("Could not find specified sign out time.");
+    let record;
+    if (req.body.recordType !== "Full Record") {
+      record = await attendanceRecordModel.findById(req.body.recordId);
+      if (!record) {
+        res.status(404).send("Incorrect record id");
         return;
       }
-      else {
-        const signInTime = new Date(req.body.signInTime);
-        if (signInTime > userRecord.signOutTime) {
-          res.status(422).send("Sign in time cannot be after the sign out time");
-          return;
-        }
-        userRecord.signInTime = signInTime;
-        try {
-          await userRecord.save();
-          res.send(userRecord);
-        }
-        catch (error) {
-          res.status(500).send(error);
-        }
-      }
     }
-    else if (missingRecordType === "signOut") {
 
-      userRecord = await attendanceRecordModel.findOne({
-        user: user.id, _id: req.body.record
-      });
-
-      if (!userRecord) {
-        res.status(404).send("Could not find specified sign in time.");
+    if (req.body.recordType === "Sign In") {
+      const signInTime = new Date(req.body.signInTime);
+      if (signInTime > record.signOutTime) {
+        res.status(422).send("Sign in time cannot be after the sign out time");
         return;
       }
-      else {
-        const signOutTime = new Date(req.body.signOutTime);
-
-        if (signOutTime < userRecord.signInTime) {
-          res.status(422).send("Sign out time cannot be before the sign in time");
-          return;
-        }
-        userRecord.signOutTime = signOutTime;
-        try {
-          await userRecord.save();
-          res.send(userRecord);
-        }
-        catch (error) {
-          res.status(500).send(error);
-        }
-      }
+      record.signInTime = signInTime;
     }
-    else if (missingRecordType === "fullDay") {
+    else if (req.body.recordType === "signOut") {
+      const signOutTime = new Date(req.body.signOutTime);
+      if (signOutTime < record.signInTime) {
+        res.status(422).send("Sign out time cannot be before the sign in time");
+        return;
+      }
+      record.signOutTime = signOutTime;
+    }
+    else if (req.body.recordType === "Full Record") {
       const signInTime = new Date(req.body.signInTime);
       const signOutTime = new Date(req.body.signOutTime);
       if (signInTime > signOutTime) {
         res.status(422).send("Sign out time cannot be before the sign in time");
         return;
       }
-      userRecord = new attendanceRecordModel({
+      record = new attendanceRecordModel({
         user: user.id,
         signInTime: req.body.signInTime,
         signOutTime: req.body.signOutTime
-
       });
-      try {
-        await userRecord.save();
-        res.send("Added successfully");
-      }
-      catch (error) {
-        res.status(500).send(error);
-      }
+    }
+
+    try {
+      await record.save();
+      const message = req.body.recordType === "Full Record"
+        ? "Attendance record added successfully" : "Attendance record updated successfully";
+      res.send(message);
+    }
+    catch (error) {
+      res.status(500).send(error.message);
     }
   });
 
