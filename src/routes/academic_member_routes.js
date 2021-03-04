@@ -1,7 +1,4 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
-const fs = require("fs");
-const path = require("path");
 const { convertDay } = require("../others/helpers");
 const academicMemberModel = require("../models/academic_member_model");
 const departmentModel = require("../models/department_model");
@@ -139,9 +136,6 @@ router.route("/get-staff/:course")
 
 router.route("/send-replacement-request")
   .post(async (req, res) => {
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-    let id = (Number.parseInt(config.requestCounter)) + 1;
-    config.requestCounter = id + "";
     let requester = await academicMemberModel.findOne({ id: req.token.id });
     if (requester.annualLeaveBalance < 1) {
       res.status(422).send("Insufficient leave balance");
@@ -184,7 +178,6 @@ router.route("/send-replacement-request")
       return;
     }
     const request = new replacementModel({
-      id: id,
       requestedBy: req.token.id,
       day: req.body.day,
       slot: slot._id,
@@ -193,8 +186,7 @@ router.route("/send-replacement-request")
     });
     try {
       await request.save();
-      fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
-      let notification = new notificationModel({
+      const notification = new notificationModel({
         user: req.body.replacementID,
         message: "You have received a replacement request"
       });
@@ -272,10 +264,7 @@ router.route("/replacement-requests")
 
 router.route("/send-slot-linking-request")
   .post(async (req, res) => {
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
     let requester = await academicMemberModel.findOne({ id: req.token.id });
-    let id = (Number.parseInt(config.requestCounter)) + 1;
-    config.requestCounter = id + "";
     if (typeof req.body.room !== "string") {
       res.status(404).send("Please enter a valid room name");
       return;
@@ -317,13 +306,11 @@ router.route("/send-slot-linking-request")
       return;
     }
     const request = new slotLinkingModel({
-      id: id,
       requestedBy: req.token.id,
       slot: slot._id
     });
     try {
       await request.save();
-      fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
       res.send("Request submitted");
     }
     catch (error) {
@@ -343,18 +330,13 @@ router.route("/slot-linking-requests")
 
 router.route("/change-day-off-request")
   .post(async (req, res) => {
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-    let id = (Number.parseInt(config.requestCounter)) + 1;
-    config.requestCounter = id + "";
     const request = new dayOffChangeModel({
-      id: id,
       requestedBy: req.token.id,
       dayOff: req.body.dayOff,
       reason: req.body.reason
     });
     try {
       await request.save();
-      fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
       res.send("Request submitted");
     }
     catch (error) {
@@ -418,8 +400,6 @@ router.route("/cancel-request/:id")
 router.route("/send-leave-request")
   .post(async (req, res) => {
     let requester = await academicMemberModel.findOne({ id: req.token.id });
-    let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-    let id = (Number.parseInt(config.requestCounter)) + 1;
     let request;
     if (!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)) {
       res.status(400).send("Please enter the date in a valid format (yyyy-mm-dd)");
@@ -460,7 +440,6 @@ router.route("/send-leave-request")
         replacements[index] = replacementRequests[i].replacementID;
       }
       request = new annualLeaveModel({
-        id: id,
         requestedBy: req.token.id,
         day: req.body.day,
         slots: slots,
@@ -475,7 +454,6 @@ router.route("/send-leave-request")
       }
       if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
         request = new accidentalLeaveModel({
-          id: id,
           requestedBy: req.token.id,
           day: req.body.day,
           reason: req.body.reason
@@ -494,7 +472,6 @@ router.route("/send-leave-request")
       let myDate = new Date(parts[0], parts[1] - 1, parts[2]);
       if (myDate.addDays(3) >= new Date())
         request = new sickLeaveModel({
-          id: id,
           requestedBy: req.token.id,
           day: req.body.day,
           document: req.body.document,
@@ -513,7 +490,6 @@ router.route("/send-leave-request")
       }
       if (requester.gender === "Female")
         request = new maternityLeaveModel({
-          id: id,
           requestedBy: req.token.id,
           day: req.body.day,
           duration: req.body.duration,
@@ -540,7 +516,6 @@ router.route("/send-leave-request")
         return;
       }
       request = new compensationLeaveModel({
-        id: id,
         day: req.body.day,
         compensationDay: req.body.compensationDate,
         requestedBy: req.token.id,
@@ -553,8 +528,6 @@ router.route("/send-leave-request")
     }
     try {
       await request.save();
-      config.requestCounter = id + "";
-      fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
       res.status(200).send("Request submitted for review to the HOD");
     }
     catch (error) {

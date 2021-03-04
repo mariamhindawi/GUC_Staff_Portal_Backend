@@ -1,7 +1,5 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const fs = require("fs");
-const path = require("path");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
 const roomModel = require("../models/room_model");
@@ -20,6 +18,7 @@ router.route("")
   .post(async (req, res) => {
     if (!req.body.reset) {
       res.send("Did not reset.");
+      return;
     }
 
     await hrMemberModel.deleteMany({});
@@ -33,6 +32,7 @@ router.route("")
     await attendanceRecordModel.deleteMany({});
     await slotModel.deleteMany({});
     await requestModel.deleteMany({});
+    await requestModel.resetCount();
     await notificationModel.deleteMany({});
     await authRefreshTokenModel.deleteMany({});
 
@@ -47,12 +47,7 @@ router.route("")
 
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
-
-    let newUserCount;
-    await hrMemberModel.nextCount().then(count => {
-      newUserCount = count;
-    });
-
+    let newUserCount = await hrMemberModel.nextCount();
     const newUser = new hrMemberModel({
       id: "hr-" + newUserCount,
       name: "user",
@@ -64,15 +59,7 @@ router.route("")
     });
     await newUser.save();
 
-    resetConfig();
-
     res.status(418).send("Reset done successfully.");
   });
-
-const resetConfig = async () => {
-  let config = JSON.parse(fs.readFileSync(path.join(path.dirname(__dirname), "config.json")));
-  config.requestCounter = "0";
-  fs.writeFileSync(path.join(path.dirname(__dirname), "config.json"), JSON.stringify(config));
-};
 
 module.exports = router;

@@ -31,4 +31,4 @@ const slotSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model("slot", slotSchema);
+module.exports = mongoose.model("Slot", slotSchema, "Slots");

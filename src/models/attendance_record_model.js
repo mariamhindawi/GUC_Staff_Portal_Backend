@@ -13,4 +13,4 @@ const attendanceRecordSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model("attendance_record", attendanceRecordSchema);
+module.exports = mongoose.model("Attendance Record", attendanceRecordSchema, "Attendance Records");

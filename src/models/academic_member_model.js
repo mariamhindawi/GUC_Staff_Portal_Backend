@@ -82,13 +82,13 @@ const academicMemberSchema = new mongoose.Schema({
 });
 
 academicMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
-  modelName: "academic_member",
+  modelName: "Academic Member",
   field: "idCount",
+  unique: true,
+  startAt: 1,
   incrementBy: 1,
   nextCount: "nextCount",
   resetCount: "resetCount",
-  startAt: 1,
-  unique: true
 });
 
-module.exports = mongoose.model("academic_member", academicMemberSchema);
+module.exports = mongoose.model("Academic Member", academicMemberSchema, "Academic Members");

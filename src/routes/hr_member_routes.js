@@ -74,11 +74,7 @@ router.route("/add-hr-member")
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
 
-    let newUserCount;
-    await hrMemberModel.nextCount().then(count => {
-      newUserCount = count;
-    });
-
+    const newUserCount = await hrMemberModel.nextCount();
     const newUser = new hrMemberModel({
       id: "hr-" + newUserCount,
       name: req.body.name,
@@ -276,11 +272,7 @@ router.route("/add-academic-member")
     const salt = await bcrypt.genSalt(10);
     const newPassword = await bcrypt.hash("123456", salt);
 
-    let newUserCount;
-    await academicMemberModel.nextCount().then(count => {
-      newUserCount = count;
-    });
-
+    const newUserCount = await academicMemberModel.nextCount();
     const newUser = new academicMemberModel({
       id: "ac-" + newUserCount,
       name: req.body.name,
@@ -734,16 +726,12 @@ router.route("/add-department")
         res.status(404).send("Incorrect academic member id");
         return;
       }
-      if (headOfDepartment.role === "Head of Department") {
-        res.status(409).send("Academic member is already the head of another department");
+      if (headOfDepartment.department !== "UNASSIGNED") {
+        res.status(409).send("Academic member is in another department");
         return;
       }
       if (headOfDepartment.role !== "Course Instructor") {
         res.status(409).send("Academic member is not an instructor");
-        return;
-      }
-      if (headOfDepartment.department !== "UNASSIGNED") {
-        res.status(409).send("Academic member is in another department");
         return;
       }
     }
@@ -757,9 +745,9 @@ router.route("/add-department")
     try {
       await newDepartment.save();
       if (headOfDepartment) {
-        newDepartment = await departmentModel.findOne({ name: req.body.name });
+        const addedDepartment = await departmentModel.findOne({ name: req.body.name });
         headOfDepartment.role = "Head of Department";
-        headOfDepartment.department = newDepartment._id;
+        headOfDepartment.department = addedDepartment._id;
         await headOfDepartment.save();
       }
       res.send("Department added successfully");

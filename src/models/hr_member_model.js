@@ -55,13 +55,13 @@ const hrMemberSchema = new mongoose.Schema({
 });
 
 hrMemberSchema.plugin(MongooseAutoIncrementID.plugin, {
-  modelName: "hr_member",
+  modelName: "HR Member",
   field: "idCount",
+  unique: true,
+  startAt: 1,
   incrementBy: 1,
   nextCount: "nextCount",
   resetCount: "resetCount",
-  startAt: 1,
-  unique: true
 });
 
-module.exports = mongoose.model("hr_member", hrMemberSchema);
+module.exports = mongoose.model("HR Member", hrMemberSchema, "HR Members");
