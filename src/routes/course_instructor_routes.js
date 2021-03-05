@@ -261,6 +261,27 @@ router.route("/view-teaching-assignments")
     res.body.send(slots); // all info of slots
   });
 
+router.route("/course-slots/:course")
+  .get(async (req, res) => {
+    if (!req.params.course) {
+      res.send("Not all required fields are entered");
+      return;
+    }
+    let course = await courseModel.findOne({ id: req.params.course });
+
+    if (!course) {
+      res.status(404).send("Invalid Course Id");
+      return;
+    }
+    let slots = await slotModel.find({ course: course._id });
+    for (let i = 0; i < slots.length; i++) {
+      let room = await roomModel.findById(slots[i].room);
+      slots[i].room = room.name;
+      slots[i].course = course.name;
+    }
+    res.send(slots);
+  });
+
 router.route("/assign-academic-member-to-slot")
   .put(async (req, res) => {
     let academicMember = await academicMemberModel.findOne({ id: req.body.id });
@@ -347,26 +368,6 @@ router.route("/delete-academic-member-from-slot")
     catch (error) {
       res.send(error);
     }
-  });
-  router.route("/course-slots/:course")
-  .get(async (req, res) => {
-    if (!req.params.course) {
-      res.send("Not all required fields are entered");
-      return;
-    }
-    let course = await courseModel.findOne({ id: req.params.course });
-
-    if (!course) {
-      res.status(404).send("Invalid Course Id");
-      return;
-    }
-    let slots = await slotModel.find({ course: course._id });
-    for (let i = 0; i < slots.length; i++) {
-      let room = await roomModel.findById(slots[i].room);
-      slots[i].room = room.name;
-      slots[i].course = course.name;
-    }
-    res.send(slots);
   });
 
 module.exports = router;
