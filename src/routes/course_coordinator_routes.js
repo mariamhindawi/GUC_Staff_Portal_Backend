@@ -21,12 +21,14 @@ router.use((req, res, next) => {
 
 router.route("/get-course-coordinator-courses")
   .get(async (req, res) => {
-    let courses = await courseModel.find({ courseCoordinator: req.token.id });
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
     res.send(courses);
   });
 
 router.route("/add-course-slot")
   .post(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (!req.body.day || !req.body.course || !req.body.room || !req.body.slotNumber || !req.body.type) {
       res.status(400).send("Not all required fields are entered");
       return;
@@ -35,7 +37,7 @@ router.route("/add-course-slot")
       res.status(400).send("Wrong datatypes entered");
       return;
     }
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const course = await courseModel.findOne({ id: req.body.course });
     const room = await roomModel.findOne({ name: req.body.room });
 
@@ -83,12 +85,13 @@ router.route("/add-course-slot")
 
 router.route("/update-course-slot/:slotId")
   .put(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     const slot = await slotModel.findOne({ _id: req.params.slotId });
     if (!slot) {
       res.status(404).send("Incorrect slot id");
       return;
     }
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const course = await courseModel.findOne({ id: req.body.course });
     const room = await roomModel.findOne({ name: req.body.room });
 
@@ -144,11 +147,12 @@ router.route("/delete-course-slot/:slotId")
 
 router.route("/slot-linking-requests/:reqId/accept")
   .put(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let request = await slotLinkingModel.findOne({ id: req.params.reqId });
     let slot = await slotModel.findOne({ _id: request.slot });
     let course = await courseModel.findOne({ _id: slot.course });
-    if (req.token.id !== course.courseCoordinator) {
-      res.status(403).send("Invalid credentials");
+    if (authAccessToken.id !== course.courseCoordinator) {
+      res.status(404).send("Invalid credentials");
       return;
     }
     if (request.status === "Accepted" || request.status === "Rejected") {
@@ -180,6 +184,7 @@ router.route("/slot-linking-requests/:reqId/accept")
 
 router.route("/slot-linking-requests/:reqId/reject")
   .put(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (isNaN(req.params.reqId)) {
       res.status(404).send("Invalid request id");
       return;
@@ -187,7 +192,7 @@ router.route("/slot-linking-requests/:reqId/reject")
     let request = await slotLinkingModel.findOne({ id: req.params.reqId });
     let slot = await slotModel.findOne({ _id: request.slot });
     let course = await courseModel.findOne({ _id: slot.course });
-    if (req.token.id !== course.courseCoordinator) {
+    if (authAccessToken.id !== course.courseCoordinator) {
       res.status(403).send("Invalid credentials");
       return;
     }
@@ -213,8 +218,9 @@ router.route("/slot-linking-requests/:reqId/reject")
 
 router.route("/slot-linking-requests")
   .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let slots = await slotModel.find();
-    let courses = await courseModel.find({ courseCoordinator: req.token.id });
+    let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
     let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
     let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
     let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Under review" });

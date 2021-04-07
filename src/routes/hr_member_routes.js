@@ -1086,14 +1086,15 @@ router.route("/get-staff-missing-hours")
 
 router.route("/add-missing-attendance-record")
   .post(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     const user = await hrMemberModel.findOne({ id: req.body.userId })
       || await academicMemberModel.findOne({ id: req.body.userId });
     if (!user) {
       res.status(404).send("Incorrect user id");
       return;
     }
-    if (user.id === req.token.id) {
-      res.status(403).send("Cannot add missing attendance record for yourself");
+    if (user.id === authAccessToken.id) {
+      res.status(422).send("Cannot add missing attendance record for yourself");
       return;
     }
 

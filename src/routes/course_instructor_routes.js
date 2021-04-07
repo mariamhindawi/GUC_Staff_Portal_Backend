@@ -20,7 +20,8 @@ router.use((req, res, next) => {
 
 router.route("/get-my-courses-coverage")
   .get(async (req, res) => {
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const department = await departmentModel.findById(user.department);
     const courses = await courseModel.find({ courseInstructors: user.id });
     const coursesCoverage = [];
@@ -37,6 +38,7 @@ router.route("/get-my-courses-coverage")
 
 router.route("/assign-teaching-assistant")
   .post(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (!req.body.courseId || !req.body.academicId) {
       res.status(400).send("Not all required fields are entered");
       return;
@@ -45,7 +47,7 @@ router.route("/assign-teaching-assistant")
       res.status(400).send("Wrong data types entered");
       return;
     }
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const teachingAssistant = await academicMemberModel.findOne({ id: req.body.academicId });
     const course = await courseModel.findOne({ id: req.body.courseId });
 
@@ -86,7 +88,8 @@ router.route("/assign-teaching-assistant")
 
 router.route("/unassign-teaching-assistant/:academicId/:courseId")
   .put(async (req, res) => {
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const teachingAssistant = await academicMemberModel.findOne({ id: req.params.academicId });
     const course = await courseModel.findOne({ id: req.params.courseId });
 
@@ -98,7 +101,7 @@ router.route("/unassign-teaching-assistant/:academicId/:courseId")
       res.status(404).send("Incorrect course Id");
       return;
     }
-    if (!course.courseInstructors.includes(req.token.id)) {
+    if (!course.courseInstructors.includes(authAccessToken.id)) {
       res.status(403).send("You are not assigned to this course");
       return;
     }
@@ -143,6 +146,7 @@ router.route("/unassign-teaching-assistant/:academicId/:courseId")
 
 router.route("/assign-course-coordinator")
   .post(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (!req.body.courseId || !req.body.academicId) {
       res.status(400).send("Not all required fields are entered");
       return;
@@ -151,7 +155,7 @@ router.route("/assign-course-coordinator")
       res.status(400).send("Wrong data types entered");
       return;
     }
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const teachingAssistant = await academicMemberModel.findOne({ id: req.body.academicId });
     const course = await courseModel.findOne({ id: req.body.courseId });
 
@@ -198,7 +202,8 @@ router.route("/assign-course-coordinator")
 
 router.route("/unassign-course-coordinator/:academicId/:courseId")
   .put(async (req, res) => {
-    const user = await academicMemberModel.findOne({ id: req.token.id });
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     const teachingAssistant = await academicMemberModel.findOne({ id: req.params.academicId });
     const course = await courseModel.findOne({ id: req.params.courseId });
 
