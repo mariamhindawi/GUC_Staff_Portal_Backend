@@ -209,10 +209,6 @@ router.route("/send-replacement-request")
 router.route("/replacement-requests/:id/accept")
   .put(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (isNaN(req.params.id)) {
-      res.status(404).send("Invalid request id");
-      return;
-    }
     let request = await replacementModel.findOne({ id: req.params.id, replacementID: authAccessToken.id });
     if (request && request.type === "replacementRequest" && request.replacementReply === "Waiting for reply" && authAccessToken.id !== request.requestedBy) {
       request.replacementReply = "Accepted";
@@ -378,13 +374,9 @@ router.route("/all-requests/:filter")
 router.route("/cancel-request/:id")
   .delete(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    if (isNaN(req.params.id)) {
-      res.status(403).send("Invalid request ID");
-      return;
-    }
     let request = await annualLeaveModel.findOne({ requestedBy: authAccessToken.id, id: req.params.id });
     if (!request) {
-      res.status(403).send("Request does not exist");
+      res.status(404).send("Request does not exist");
       return;
     }
     if (request.status === "Under review") {

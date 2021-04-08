@@ -1,4 +1,5 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const { getMissingDays, getHours, calculateSalary } = require("../others/helpers");
 const hrMemberModel = require("../models/hr_member_model");
 const academicMemberModel = require("../models/academic_member_model");
