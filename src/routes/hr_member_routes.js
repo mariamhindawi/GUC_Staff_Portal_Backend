@@ -712,7 +712,7 @@ router.route("/get-departments")
 
 router.route("/add-department")
   .post(async (req, res) => {
-    if (req.body.faculty) {
+    if (req.body.faculty && req.body.faculty !== "UNASSIGNED") {
       var faculty = await facultyModel.findOne({ name: req.body.faculty });
       if (!faculty) {
         res.status(404).send("Incorrect faculty name");
