@@ -267,7 +267,7 @@ router.route("/staff-requests/:reqId/accept")
     }
     let request = await requestModel.findOne({ id: req.params.reqId });
     let requester = await academicMemberModel.findOne({ id: request.requestedBy });
-    if (request.status !== "Under review") {
+    if (request.status !== "Pending") {
       res.status(409).send("Already responded");
       return;
     }
@@ -339,7 +339,7 @@ router.route("/staff-requests/:reqId/reject")
     }
     if (request.type === 'slotLinkingRequest')
       request = await slotLinkingModel.findOne({ id: req.params.reqId });
-    if (request.status !== "Under review") {
+    if (request.status !== "Pending") {
       res.status(409).send("Already responded");
       return;
     }
@@ -364,7 +364,7 @@ router.route("/staff-requests")
   .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     let hod = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Under review" }] });
+    let requests = await requestModel.find({ $and: [{ $nor: [{ type: "slotLinkingRequest" }] }, { status: "Pending" }] });
     for (let i = 0; i < requests.length; i++) {
       let request = requests[i];
       let staffMember = await academicMemberModel.findOne({ id: request.requestedBy });

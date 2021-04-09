@@ -59,16 +59,16 @@ Web portal for GUC staff members
 
 #### Functionality: Delete a location (hr member).
     - Route: /hr/delete-room
-    - Request type: DELETE 
-    - Request body: { "name": "C7.202" } 
+    - Request type: DELETE
+    - Request body: { "name": "C7.202" }
     - //The name of the room to be deleted
     - Response: A message indicating if the hr member enterred the data correctly and the room was deleted successfuly.
     - Example for the response: The deleted room: { "name": "C7.202", "capacity": 20, "type": "Tutorail" }
 
-#### Functionality: Add a faculty(hr member). 
+#### Functionality: Add a faculty(hr member).
     - Route: /hr/add-faculty
     - Request type: POST
-    - Request body: { "name": "Engineering" } 
+    - Request body: { "name": "Engineering" }
     - //The name of the faculty
     - Response: A message indicating if the hr member enterred the data correctly and the faculty was updated successfuly.
     - Example for the response: The added faculty: { "name": "Engineering" }
@@ -76,7 +76,7 @@ Web portal for GUC staff members
 #### Functionality: Update a faculty(hr member).
     - Route: /hr/update-faculty
     - Request type: PUT
-    - Request body: { "name": "Engineering", "newName": "ENG" } 
+    - Request body: { "name": "Engineering", "newName": "ENG" }
     - //The name of the faculty to be updated and the new name
     - Response: A message indicating if the hr member enterred the data correctly and the faculty was updated successfuly.
     - Example for the response: The updated faculty: { "name": "ENG" }.
@@ -100,7 +100,7 @@ Web portal for GUC staff members
     - Route: /hr/update-department
     - Request type: PUT
     - Request body: { "name": "Computer Science", "newName": "MET", "headOfDepartment": "ac-2" }
-    - //the name of the department to be updated and the updated info 
+    - //the name of the department to be updated and the updated info
     - Response: A message indicating if the hr member enterred the data correctly and the department was updated successfuly.
     - Example of the response: The updated department: { "name": "MET", "faculty": "ENG" , "headOfDepartment": "ac-2" }.
 
@@ -148,11 +148,11 @@ Web portal for GUC staff members
     - Request body: { "name": "Ali", "email": "mm@gmail.com", "gender": "MALE", "office": "C7.303", "salary": 10000, "role": "Head Of Department", "dayOff": "Monday" }
     - The info for the academic member
     - Response: A message indicating if the hr member enterred the data correctly and the academic member was added successfuly.
-    - Example of the response: The added member: { "id": "ac-1", "name": "Ali", "email": "mm@gmail.com", "gender": "MALE", "office": "C7.303", "salary": 10000, 
+    - Example of the response: The added member: { "id": "ac-1", "name": "Ali", "email": "mm@gmail.com", "gender": "MALE", "office": "C7.303", "salary": 10000,
     - "role": "Head Of Department", "dayOff": "Monday" }
 
 #### Functionality: Update already existing hr members(hr member).
-    - Route: /hr/update-hr-member 
+    - Route: /hr/update-hr-member
     - Request type: PUT
     - Request body: { "id": "hr-2", "name": "Ali Elshamy", "email": "mm1@gmail.com", "password": "121212", "office": "C5.101", "salary": 20000 }
     - //the id of the hr member needs to be updated and the info for update
@@ -160,7 +160,7 @@ Web portal for GUC staff members
     - Example of the response: The updated member: { "id": "hr-2", "name": "Ali Elshamy", "email": "mm1@gmail.com", "password": "121212", "office": "C5.101", "salary": 20000 }
 
 #### Functionality: Update already existing academic members(hr member).
-    - Route: /hr/update-academic-member 
+    - Route: /hr/update-academic-member
     - Request type: PUT
     - Request body: {"id": "ac-1", "name": "Omar", "email": "mm@gmail.com", "gender": "MALE", "office": "C7.303", "salary": 10000, "gender": "MALE", "role": "Head Of Department", "dayOff": "Monday" }
     - //the id of the academic member to be uodated and the other info for update
@@ -168,14 +168,14 @@ Web portal for GUC staff members
     - Example of the response: The updated member: { "id": "hr-2", "name": "Omar", "email": "mm1@gmail.com", "password": "121212", "office": "C5.101", "salary": 20000 }
 
 #### Functionality: Delete already existing hr members(hr member).
-    - Route: /hr/delete-hr-member 
+    - Route: /hr/delete-hr-member
     - Request type: DELETE
     - Request body: { "id": "hr-2" } // the id of the hr member to be deleted
     - Response: A message indicating if the hr member entered the data correctly and the hr member was deleted successfuly.
     - Example of the response: The deleted member: { "id": "hr-2", "name": "Ali", "email": "mm@gmail.com", "gender": "MALE", "office": "C7.303", "salary": 10000 }
 
 #### Functionality: Delete already existing academic members(hr member).
-    - Route: /hr/delete-academic-member 
+    - Route: /hr/delete-academic-member
     - Request type: DELETE
     - Request body: { "id": "ac-1" } // the id of the academic member to be deleted
     - Response: A message indicating if the hr member entered the data correctly and the academic member was deleted successfuly.
@@ -201,7 +201,7 @@ Web portal for GUC staff members
     - Route: /ci/view-teaching-assignments
     - Request type: GET
     - Request body: { "course" : "CSEN704" } // The id of a course he is assigned to.
-    - Response: A message indicating if the course instructor enterred the course correctly and shows the array of slots. 
+    - Response: A message indicating if the course instructor enterred the course correctly and shows the array of slots.
     An array of slots of this specific course with details including the staff member. Example: { "day": "Sunday", "slotNumber": 2, "room": (room._id) "5f223d77l", "course": (course._id) "435263g628h", "staffMember": "ac-4", "type": "Lab"}.
 
 #### Functionality: Assign an academic member to an unassigned slots in course(s) he/she is assigned to(Course Instructor).
@@ -214,19 +214,19 @@ Web portal for GUC staff members
     - Route: /ci//update-academic-member-to-slot
     - Request type: PUT
     - Request body: { "id" : "ac-6" } //The id of the academic he wants to assign the slot to.
-    - Response: A message indicating if the course instructor enterred the data of the academic member correctly. Example of the response: The saved slot after assigning the academic member. 
+    - Response: A message indicating if the course instructor enterred the data of the academic member correctly. Example of the response: The saved slot after assigning the academic member.
     - { "day": "Sunday", "slotNumber": 2, "room": (room._id) "5f223d77l", "course": (course._id) "435263g628h", "staffMember": "ac-4", "type": "Lab"}
 
 #### Functionality: Delete assignment of academic member in course(s) he/she is assigned to(Course Instructor).
     - Route: /ci/delete-academic-member-to-slot
-    - Request type: DELETE 
+    - Request type: DELETE
     - Request body: { "id" : "ac-6" } //The id of the academic he wants to delete the assignment of the slot to.
     - Response:  A message indicating if the course instructor enterred the data of the academic member correctly. Example of the response: The saved slot after deleting the academic member. { "day": "Sunday", "slotNumber": 2, "room": (room._id) "5f223d77l", "course": (course._id) "435263g628h", "staffMember": "UNASSIGNED", "type": "Lab"}
 
 #### Functionality: Add course slot(s) in his/her course(Course Coordinator).
     - Route: /cc/add-course-slot
     - Request type: POST
-    - Request body: { "day": "Saturday", "slotNumber": 4, "course": "CSEN704", "room": "C5.201", "type": "Tutorial" } 
+    - Request body: { "day": "Saturday", "slotNumber": 4, "course": "CSEN704", "room": "C5.201", "type": "Tutorial" }
     - //The needed info for the slot
     - Response: A message indicating if the course coordinator enterred the data of the slot correctly. Example of the response:
     - The saved slot after adding it: { "day": "Saturday", "slotNumber": 4, "course": "CSEN704", "room": "C5.201", "type": "Tutorial", "staffMember": "UNASSIGNED" }
@@ -234,10 +234,10 @@ Web portal for GUC staff members
 #### Functionality: Update course slot(s) in his/her course(Course Coordinator).
     - Route: /cc/update-course-slot
     - Request type: PUT
-    - Request body: { "day": "Saturday", "slotNumber": 4, "room": "C5.201", "updatedDay": "Saturday", "updatedSlotNumber": 2, "updatedRoom": "C5.301", "updatedType": "Lab" } 
+    - Request body: { "day": "Saturday", "slotNumber": 4, "room": "C5.201", "updatedDay": "Saturday", "updatedSlotNumber": 2, "updatedRoom": "C5.301", "updatedType": "Lab" }
      - //The needed info for the slot(day,slotNumber,room-->All required) and the new info that needs to be updated(Its not required to fill all the updated fields. Just fill the info that needs to be updated)
     - Response:  A message indicating if the course coordinator enterred the data of the slot correctly. Example of the response:
-    - The saved slot after updating it: 
+    - The saved slot after updating it:
     - { "day": "Saturday", "slotNumber": 4, "course": "CSEN704", "room": "C5.201", "type": "Tutorial", "staffMember": "UNASSIGNED" }
 
 #### Functionality: Delete course slot(s) in his/her course(Course Coordinator).
@@ -344,13 +344,13 @@ Web portal for GUC staff members
     }
     - Notes: missingRecordType is the record that is missing and is currently null
 
-#### Functionality: View staff with missing days 
+#### Functionality: View staff with missing days
     - Route: /hr/view-staff-missing-days
     - Request type: GET
     - Request body: {"month":12,"year":2020} or {"user":"hr-1"}
     - Response: get array of objects of staffs with their missing days
 
-#### Functionality: View staff with missing hours 
+#### Functionality: View staff with missing hours
     - Route: /hr/view-staff-missing-hours
     - Request type: GET
     - Request body: {"month":12,"year":2020,} or{"user":"hr-1"}
@@ -403,11 +403,11 @@ Web portal for GUC staff members
     - Request type: GET
     - Response:array of objects containing academic members
     - Example of response:{[
-        "name": "Ahmed", 
-        "email": "Ahmed@gmail.com", 
+        "name": "Ahmed",
+        "email": "Ahmed@gmail.com",
         "role": "Teaching Assistant",
         "faculty": "MET",
-        "department": "Physics", 
+        "department": "Physics",
         "office": "C7.201",
         "salary": "2000"
         ]
@@ -419,11 +419,11 @@ Web portal for GUC staff members
     - Body:{"course":"CSEN401"}
     - Response:array of objects containing academic members
     - Example of response:{[
-        "name": "Ahmed", 
-        "email": "Ahmed@gmail.com", 
+        "name": "Ahmed",
+        "email": "Ahmed@gmail.com",
         "role": "Teaching Assistant",
         "faculty": "MET",
-        "department": "Physics", 
+        "department": "Physics",
         "office": "C7.201",
         "salary": "2000"
         ]
@@ -509,7 +509,7 @@ Web portal for GUC staff members
     - Route: /hod/staff-requests
     - Request: GET
     - Parameters:
-    - Body:{ }    
+    - Body:{ }
     - Example of response : [{
         RequestedBy: 'ac-2',
         id: 20,
@@ -544,14 +544,14 @@ Web portal for GUC staff members
 #### Functionality: Coordinator views all slot linking requests from staff in courses linked to him
     - Route: /cc/slot-linking-requests
     - Request:	GET
-    - Parameters:	
+    - Parameters:
     - Body:{ }
     -Response example: [
         {
             id: 18,
             requestedBy: 'ac-3',
             slot: *slot id*,
-            status:'Under review
+            status:'Pending
         }
     ]
 
@@ -583,14 +583,14 @@ Web portal for GUC staff members
 #### Functionality: Academic members sends a replacement request
     - Route: /academic/send-replacement-request
     - Request: POST
-    - Parameters: 
+    - Parameters:
     - Body: {"day":"2020-12-26","replacementID":"ac-2","slot":"3"}
     - Response example: Request sent
 
 #### Functionality: Academic member view replacement requests
     - Route: /academic/replacement-requests
     - Request: GET
-    - Parameters: 
+    - Parameters:
     - Body: { }
     - Response example: [
         {
@@ -652,8 +652,8 @@ Web portal for GUC staff members
 #### Functionality:Academic member sends a leave request
     - Route: /academic/send-leave-request
     - Request: POST
-    - Parameters: 
-    - Body: 
+    - Parameters:
+    - Body:
     - Annual leave:
     - {type:"annualLeave",day:"2020-04-22",reason: ""}
     - Accidental leave:
@@ -676,7 +676,7 @@ Web portal for GUC staff members
             id:3,
             type: annualLeave,
             day:11-02-2020,
-            status: 'Under review
+            status: 'Pending
         },
         {
             id:5,

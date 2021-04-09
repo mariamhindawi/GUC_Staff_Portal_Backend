@@ -223,7 +223,7 @@ router.route("/slot-linking-requests")
     let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
     let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
     let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
-    let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Under review" });
+    let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Pending" });
     let myRequests = allRequests.filter(request => myCourseSlotsids.includes(request.slot));
     for (let i = 0; i < myRequests.length; i++) {
       myRequests[i].slot = await slotModel.findOne({ _id: myRequests[i].slot });

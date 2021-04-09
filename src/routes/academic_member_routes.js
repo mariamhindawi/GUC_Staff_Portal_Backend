@@ -306,7 +306,7 @@ router.route("/send-slot-linking-request")
     const prev = await slotLinkingModel.findOne({
       requestedBy: authAccessToken.id,
       slot: slot._id,
-      status: "Under review"
+      status: "Pending"
     });
     if (prev) {
       res.status(409).send("Request already submitted");
@@ -338,6 +338,7 @@ router.route("/slot-linking-requests")
 
 router.route("/change-day-off-request")
   .post(async (req, res) => {
+    console.log(req.body);
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     const request = new dayOffChangeModel({
       requestedBy: authAccessToken.id,
@@ -364,7 +365,7 @@ router.route("/all-requests/:filter")
     if (req.params.filter === "Rejected")
       requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Rejected" });
     if (req.params.filter === "Pending") {
-      requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Under review" });
+      requests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Pending" });
 
     }
 
@@ -379,7 +380,7 @@ router.route("/cancel-request/:id")
       res.status(404).send("Request does not exist");
       return;
     }
-    if (request.status === "Under review") {
+    if (request.status === "Pending") {
       await requestModel.deleteOne({ requestedBy: authAccessToken.id, id: req.params.id });
       res.send("Your request has been cancelled successfully");
     }
@@ -472,6 +473,7 @@ router.route("/send-leave-request")
       }
     }
     else if (req.body.type === "sickLeave") {
+      console.log(req.body);
       if (date > new Date()) {
         res.status(404).send("Please enter a valid date");
         return;
@@ -518,9 +520,24 @@ router.route("/send-leave-request")
         res.status(404).send("Please enter a compensation date");
         return;
       }
+      if(!req.body.reason){
+        res.status(400).send("Not all fields are entered");
+        return;
+      }
       let dayOff = convertDay(requester.dayOff);
       if ((new Date(req.body.compensationDate)).getDay() !== dayOff) {
         res.status(422).send("Compensation date must be on your day off");
+        return;
+      }
+      if ((new Date(date).getDate()>=11 && !((new Date(req.body.compensationDate).getDate()>=11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
+      ||(new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()=== new Date(date).getMonth()+1)))
+      || (new Date(date).getDate()<11 && !((new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
+      || (new Date(req.body.compensationDate)>=11 && new Date(req.body.compensationDate).getMonth() === new Date(date).getMonth()-1)))){
+        res.status(422).send("Date and compensation date should be in the same month");
+        return;
+      }
+      if(new Date(date).getDay()===5 || new Date(req.body.compensationDate).getDay()===5) {
+        res.status(422).send("Date cannot be on a Friday");
         return;
       }
       request = new compensationLeaveModel({
