@@ -13,6 +13,7 @@ const slotModel = require("../models/slot_model");
 const notificationModel = require("../models/notification_model");
 const { requestModel } = require("../models/request_model");
 const authRefreshTokenModel = require("../models/refresh_token_model");
+const { hr } = require("date-fns/locale");
 
 const router = express.Router();
 
@@ -1198,6 +1199,17 @@ router.route("/delete-attendance-record/:attendanceRecordId")
       return;
     }
     res.send("Attendance record deleted successfully ");
+  });
+
+  router.route("/get-counts-report")
+  .get(async (req, res) => {
+    const academicMembers = await academicMemberModel.countDocuments({});
+    const hrMembers = await hrMemberModel.countDocuments({});
+    const faculties = await facultyModel.countDocuments({});
+    const departments = await departmentModel.countDocuments({});
+    const courses = await courseModel.countDocuments({});
+    res.send({academicMembers, hrMembers, faculties, departments, courses});
+
   });
 
 module.exports = router;
