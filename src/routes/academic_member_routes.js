@@ -149,21 +149,20 @@ router.route("/send-replacement-request")
       res.status(409).send("Insufficient leave balance");
       return;
     }
-    if (!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)) {
-      res.status(400).send("Please enter the date in a valid format (yyyy-mm-dd)");
+    if (!req.body.day) {
+      res.status(404).send("Invalid date");
       return;
     }
-    let parts = req.body.day.split("-");
-    let date = new Date(parts[0], parts[1] - 1, parts[2]);
-    if (date < new Date()) {
+
+    if (req.body.day < new Date()) {
       res.status(422).send("Please enter a future date");
       return;
     }
-    let dayNo = date.getDay();
+    let dayNo = new Date(req.body.day).getDay();
     let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     let day = weekDays[dayNo];
-    if (!req.body.slot || isNaN(req.body.slot)) {
-      res.status(404).send("Please enter a valid slot number");
+    if (!req.body.slot) {
+      res.status(404).send("Invalid slot number");
       return;
     }
     const slot = await slotModel.findOne({ staffMember: authAccessToken.id, day: day, slotNumber: req.body.slot });
@@ -171,18 +170,18 @@ router.route("/send-replacement-request")
       res.status(404).send("Invalid slot");
       return;
     }
-    if (typeof req.body.replacementID !== "string") {
-      res.status(404).send("Please enter a valid replacement ID");
+    let replacement = await academicMemberModel.findOne({ id: req.body.replacementID });
+    if (typeof req.body.replacementID !== "string" || req.body.replacementID ==="" || !replacement) {
+      res.status(404).send("Invalid replacement ID");
       return;
     }
-    let replacement = await academicMemberModel.findOne({ id: req.body.replacementID });
     let course = await courseModel.findOne({ _id: slot.course });
     if (requester.department !== replacement.department || !course.courseInstructors.includes(replacement.id) && !course.teachingAssistants.includes(replacement.id)) {
-      res.status(422).send("Make sure your replacement teaches this course and is in the same department as you");
+      res.status(422).send("Replacement does not teach this course");
       return;
     }
     if ((requester.role == "Teaching Assistant" || requester.role === "Course Coordinator") && (replacement.role === "Course Instructor" || replacement.role === "Head of Department")) {
-      res.status(422).send("You cannot send a replacement request to a course instructor");
+      res.status(422).send("Replacement cannot be a course instructor");
       return;
     }
     const request = new replacementModel({
@@ -199,7 +198,7 @@ router.route("/send-replacement-request")
         message: "You have received a replacement request"
       });
       await notification.save();
-      res.send("Request sent");
+      res.send("Request sent successfully");
     }
     catch (error) {
       res.status(500).send(error);
@@ -273,11 +272,11 @@ router.route("/send-slot-linking-request")
   .post(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     if (typeof req.body.room !== "string") {
-      res.status(404).send("Please enter a valid room name");
+      res.status(404).send("Invalid room name");
       return;
     }
-    if (isNaN(req.body.slot) || typeof req.body.day !== "string") {
-      res.status(404).send("Please enter a valid day and slot number");
+    if (!req.body.day || !req.body.slot) {
+      res.status(404).send("Invalid day and slot number");
       return;
     }
     let room = await roomModel.findOne({ name: req.body.room });
@@ -611,6 +610,27 @@ router.route("/get-academic-department")
     const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
     const department = await departmentModel.findById(academicMember.department);
     res.send(department);
+  });
+
+  router.route("/course-slots/:course")
+  .get(async (req, res) => {
+    if (!req.params.course) {
+      res.send("Not all required fields are entered");
+      return;
+    }
+    let course = await courseModel.findOne({ id: req.params.course });
+
+    if (!course) {
+      res.status(404).send("Invalid Course Id");
+      return;
+    }
+    let slots = await slotModel.find({ course: course._id });
+    for (let i = 0; i < slots.length; i++) {
+      let room = await roomModel.findById(slots[i].room);
+      slots[i].room = room.name;
+      slots[i].course = course.name;
+    }
+    res.send(slots);
   });
 
 Date.prototype.addDays = function (days) {
