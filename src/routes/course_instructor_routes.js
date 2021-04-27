@@ -268,12 +268,19 @@ router.route("/view-teaching-assignments")
 
 router.route("/assign-academic-member-to-slot")
   .put(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     let academicMember = await academicMemberModel.findOne({ id: req.body.id });
     let room = await roomModel.findOne({ name: req.body.room });
     if (!academicMember) {
-      res.status(404).send("Incorrect academic id");
+      res.status(404).send("Invalid academic id");
       return;
     }
+    if (user.role !== "Head of Department" && academicMember.role !== "Teaching Assistant" && academicMember.role !== "Course Coordinator") {
+      res.status(403).send("Cannot assign instructor to slot");
+      return;
+    }
+
     if (academicMember.role !== "Teaching Assistant" && academicMember.role !== "Course Coordinator" && room.type !== "Lecture") {
       res.status(403).send("Cannot assign course instructor to a tutorial or lab");
       return;
@@ -288,12 +295,12 @@ router.route("/assign-academic-member-to-slot")
       return;
     }
     if (!(slot.staffMember === "UNASSIGNED")) {
-      res.status(499).send("Slot is already assigned");
+      res.status(409).send("Slot is already assigned");
       return;
     }
     let otherSlot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, staffMember: academicMember.id });
     if (otherSlot) {
-      res.send("Academic is assigned to another slot in the same time");
+      res.status(409).send("Academic is assigned to another slot in the same time");
       return;
     }
     slot.staffMember = academicMember.id;
@@ -335,12 +342,12 @@ router.route("/update-academic-member-to-slot")
     }
   });
 
-router.route("/delete-academic-member-from-slot")
+router.route("/unassign-academic-member-from-slot")
   .delete(async (req, res) => {
     let room = await roomModel.findOne({ name: req.body.room });
     let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, room: room._id });
     if (!slot) {
-      res.status(400).send("Incorrect slot details");
+      res.status(404).send("Invalid slot");
       return;
     }
     slot.staffMember = "UNASSIGNED";

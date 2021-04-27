@@ -271,6 +271,7 @@ router.route("/replacement-requests")
 router.route("/send-slot-linking-request")
   .post(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
     if (typeof req.body.room !== "string") {
       res.status(404).send("Invalid room name");
       return;
@@ -300,6 +301,14 @@ router.route("/send-slot-linking-request")
     }
     if (slot.staffMember !== "UNASSIGNED") {
       res.status(409).send("Slot is not free");
+      return;
+    }
+    if (user.role !== "Teaching Assistant" && user.role !== "Course Coordinator" && room.type !== "Lecture") {
+      res.status(403).send("Course instructor cannot be assigned to a tutorial or lab");
+      return;
+    }
+    if (academicMember.role !== "Head of Department" && academicMember.role !== "Course Instructor" && room.type === "Lecture") {
+      res.status(403).send("Teaching assistant cannot be assigned to a lecture");
       return;
     }
     const prev = await slotLinkingModel.findOne({
