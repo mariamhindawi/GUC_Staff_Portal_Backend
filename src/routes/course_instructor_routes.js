@@ -253,19 +253,6 @@ router.route("/unassign-course-coordinator/:academicId/:courseId")
     }
   });
 
-router.route("/view-teaching-assignments")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let courseInstructor = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let course = await courseModel.findOne({ id: req.body.course, courseInstructors: courseInstructor.id });
-    if (!course) {
-      res.send("No such course");
-      return;
-    }
-    let slots = await slotModel.find({ course: course._id });
-    res.body.send(slots); // all info of slots
-  });
-
 router.route("/assign-academic-member-to-slot")
   .put(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
@@ -310,35 +297,6 @@ router.route("/assign-academic-member-to-slot")
     }
     catch (error) {
       res.body.send(error);
-    }
-  });
-
-router.route("/update-academic-member-to-slot")
-  .put(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let academicMember = await academicMemberModel.findOne({ id: req.body.id });
-    if (!academicMember) {
-      res.send("No TA with such id");
-      return;
-    }
-    if (!(academicMember.role === "Teaching Assistant" || academicMember.role === "Course Coordinator")) {
-      res.send("academic member is not a TA");
-      return;
-    }
-    let room = await roomModel.findOne({ name: req.body.room });
-    let course = await courseModel.findOne({ id: req.body.course });
-    let slot = await slotModel.findOne({ day: req.body.day, slotNumber: req.body.slotNumber, room: room._id, course: course._id, type: req.body.type });
-    if (!slot) {
-      res.body.send("No such slot");
-      return;
-    }
-    slot.staffMember = academicMember.id;
-    try {
-      await slot.save();
-      res.send("Assigned to slot");
-    }
-    catch (error) {
-      res.send(error);
     }
   });
 

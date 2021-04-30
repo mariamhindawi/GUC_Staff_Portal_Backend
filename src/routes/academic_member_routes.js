@@ -205,6 +205,22 @@ router.route("/send-replacement-request")
     }
   });
 
+  router.route("/replacement-requests")
+  .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let myRequests = await replacementModel.find({ requestedBy: authAccessToken.id, type: "replacementRequest" });
+    let requestedFromMe = await replacementModel.find({ replacementID: authAccessToken.id, type: "replacementRequest", replacementReply: "Waiting for reply" });
+    for (let i = 0; i < myRequests.length; i++) {
+      let slot = await slotModel.findOne({ _id: myRequests[i].slot });
+      myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
+    }
+    for (let i = 0; i < requestedFromMe.length; i++) {
+      let slot = await slotModel.findOne({ _id: requestedFromMe[i].slot });
+      requestedFromMe[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
+    }
+    res.send({ byMe: myRequests, forMe: requestedFromMe });
+  });
+
 router.route("/replacement-requests/:id/accept")
   .put(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
@@ -252,21 +268,16 @@ router.route("/replacement-requests/:id/reject")
     }
   });
 
-router.route("/replacement-requests")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let myRequests = await replacementModel.find({ requestedBy: authAccessToken.id, type: "replacementRequest" });
-    let requestedFromMe = await replacementModel.find({ replacementID: authAccessToken.id, type: "replacementRequest", replacementReply: "Waiting for reply" });
-    for (let i = 0; i < myRequests.length; i++) {
-      let slot = await slotModel.findOne({ _id: myRequests[i].slot });
-      myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
-    }
-    for (let i = 0; i < requestedFromMe.length; i++) {
-      let slot = await slotModel.findOne({ _id: requestedFromMe[i].slot });
-      requestedFromMe[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
-    }
-    res.send({ byMe: myRequests, forMe: requestedFromMe });
-  });
+router.route("/slot-linking-requests")
+.get(async (req, res) => {
+  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+  let myRequests = await slotLinkingModel.find({ requestedBy: authAccessToken.id, type: "slotLinkingRequest" });
+  for (let i = 0; i < myRequests.length; i++) {
+    let slot = await slotModel.findOne({ _id: myRequests[i].slot });
+    myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
+  }
+  res.send(myRequests);
+});
 
 router.route("/send-slot-linking-request")
   .post(async (req, res) => {
@@ -333,16 +344,161 @@ router.route("/send-slot-linking-request")
     }
   });
 
-router.route("/slot-linking-requests")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let myRequests = await slotLinkingModel.find({ requestedBy: authAccessToken.id, type: "slotLinkingRequest" });
-    for (let i = 0; i < myRequests.length; i++) {
-      let slot = await slotModel.findOne({ _id: myRequests[i].slot });
-      myRequests[i].slot = { slotNumber: slot.slotNumber, day: slot.day, course: await courseModel.findOne({ _id: slot.course }) };
+router.route("/send-leave-request")
+.post(async (req, res) => {
+  const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+  let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
+  let request;
+  if (!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)) {
+    res.status(422).send("Please enter the date in a valid format (yyyy-mm-dd)");
+    return;
+  }
+  let parts = req.body.day.split("-");
+  let date = new Date(parts[0], parts[1] - 1, parts[2]);
+  if (typeof req.body.type !== "string") {
+    res.status(404).send("Invalid leave type");
+    return;
+  }
+  const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: authAccessToken.id, type: req.body.type });
+  if (prev) {
+    res.status(409).send("Request already exists");
+    return;
+  }
+  if (req.body.type === "annualLeave") {
+    if (date < new Date()) {
+      res.status(422).send("Please enter a future date");
+      return;
     }
-    res.send(myRequests);
-  });
+    if (requester.annualLeaveBalance < 1) {
+      res.status(422).send("Insufficient leave balance");
+      return;
+    }
+    let dayNo = date.getDay();
+    let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    let day = weekDays[dayNo];
+    let slots = await slotModel.find({ staffMember: authAccessToken.id, day: day });
+    let slotIDs = slots.map(slot => slot._id.toString());
+    let replacementRequests = await replacementModel.find({ requestedBy: authAccessToken.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: "Accepted" });
+    let replacements = [];
+    for (let i = 0; i < slots.length; i++) {
+      replacements.push(null);
+    }
+    for (let i = 0; i < replacementRequests.length; i++) {
+      let index = slotIDs.indexOf(replacementRequests[i].slot);
+      replacements[index] = replacementRequests[i].replacementID;
+    }
+    request = new annualLeaveModel({
+      requestedBy: authAccessToken.id,
+      day: req.body.day,
+      slots: slots,
+      replacementIDs: replacements,
+      reason: req.body.reason
+    });
+  }
+  else if (req.body.type === "accidentalLeave") {
+    if (date > new Date()) {
+      res.status(400).send("Please enter a valid date");
+      return;
+    }
+    if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
+      request = new accidentalLeaveModel({
+        requestedBy: authAccessToken.id,
+        day: req.body.day,
+        reason: req.body.reason
+      });
+    else {
+      res.status(422).send("Insufficient leave/accidental leave balance");
+      return;
+    }
+  }
+  else if (req.body.type === "sickLeave") {
+    console.log(req.body);
+    if (date > new Date()) {
+      res.status(404).send("Please enter a valid date");
+      return;
+    }
+    let parts = req.body.day.split("-");
+    let myDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    if (myDate.addDays(3) >= new Date())
+      request = new sickLeaveModel({
+        requestedBy: authAccessToken.id,
+        day: req.body.day,
+        document: req.body.document,
+        reason: req.body.reason
+      });
+    else {
+      res.status(409).send("Deadline for submitting this request has passed");
+      return;
+    }
+  }
+  else if (req.body.type === "maternityLeave") {
+    let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
+    if (isNaN(req.body.duration) || req.body.duration > 90) {
+      res.status(422).send("Please enter a valid leave duration. Maximum duration is 90 days.");
+      return;
+    }
+    if (requester.gender === "Female")
+      request = new maternityLeaveModel({
+        requestedBy: authAccessToken.id,
+        day: req.body.day,
+        duration: req.body.duration,
+        document: req.body.document,
+        reason: req.body.reason
+      });
+    else {
+      res.status(422).send("You cannot apply for a maternity leave");
+      return;
+    }
+  }
+  else if (req.body.type === "compensationRequest") {
+    if (date > new Date()) {
+      res.status(422).send("Please enter a valid date");
+      return;
+    }
+    if (!req.body.compensationDate) {
+      res.status(404).send("Please enter a compensation date");
+      return;
+    }
+    if(!req.body.reason){
+      res.status(400).send("Not all fields are entered");
+      return;
+    }
+    let dayOff = convertDay(requester.dayOff);
+    if ((new Date(req.body.compensationDate)).getDay() !== dayOff) {
+      res.status(422).send("Compensation date must be on your day off");
+      return;
+    }
+    if ((new Date(date).getDate()>=11 && !((new Date(req.body.compensationDate).getDate()>=11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
+    ||(new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()=== new Date(date).getMonth()+1)))
+    || (new Date(date).getDate()<11 && !((new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
+    || (new Date(req.body.compensationDate)>=11 && new Date(req.body.compensationDate).getMonth() === new Date(date).getMonth()-1)))){
+      res.status(422).send("Date and compensation date should be in the same month");
+      return;
+    }
+    if(new Date(date).getDay()===5 || new Date(req.body.compensationDate).getDay()===5) {
+      res.status(422).send("Date cannot be on a Friday");
+      return;
+    }
+    request = new compensationLeaveModel({
+      day: req.body.day,
+      compensationDay: req.body.compensationDate,
+      requestedBy: authAccessToken.id,
+      reason: req.body.reason
+    });
+  }
+  else {
+    res.status(404).send("Invalid leave request type");
+    return;
+  }
+  try {
+    await request.save();
+    res.status(200).send("Request submitted for review to the HOD");
+  }
+  catch (error) {
+    res.status(500).send(error);
+    console.log(error);
+  }
+});
 
 router.route("/change-day-off-request")
   .post(async (req, res) => {
@@ -413,162 +569,6 @@ router.route("/cancel-request/:id")
     }
   });
 
-router.route("/send-leave-request")
-  .post(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
-    let request;
-    if (!req.body.day || !(/^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$/).test(req.body.day)) {
-      res.status(422).send("Please enter the date in a valid format (yyyy-mm-dd)");
-      return;
-    }
-    let parts = req.body.day.split("-");
-    let date = new Date(parts[0], parts[1] - 1, parts[2]);
-    if (typeof req.body.type !== "string") {
-      res.status(404).send("Invalid leave type");
-      return;
-    }
-    const prev = await annualLeaveModel.findOne({ day: { $lt: date.addDays(1), $gte: date }, requestedBy: authAccessToken.id, type: req.body.type });
-    if (prev) {
-      res.status(409).send("Request already exists");
-      return;
-    }
-    if (req.body.type === "annualLeave") {
-      if (date < new Date()) {
-        res.status(422).send("Please enter a future date");
-        return;
-      }
-      if (requester.annualLeaveBalance < 1) {
-        res.status(422).send("Insufficient leave balance");
-        return;
-      }
-      let dayNo = date.getDay();
-      let weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      let day = weekDays[dayNo];
-      let slots = await slotModel.find({ staffMember: authAccessToken.id, day: day });
-      let slotIDs = slots.map(slot => slot._id.toString());
-      let replacementRequests = await replacementModel.find({ requestedBy: authAccessToken.id, day: { $gte: date, $lt: date.addDays(1) }, replacementReply: "Accepted" });
-      let replacements = [];
-      for (let i = 0; i < slots.length; i++) {
-        replacements.push(null);
-      }
-      for (let i = 0; i < replacementRequests.length; i++) {
-        let index = slotIDs.indexOf(replacementRequests[i].slot);
-        replacements[index] = replacementRequests[i].replacementID;
-      }
-      request = new annualLeaveModel({
-        requestedBy: authAccessToken.id,
-        day: req.body.day,
-        slots: slots,
-        replacementIDs: replacements,
-        reason: req.body.reason
-      });
-    }
-    else if (req.body.type === "accidentalLeave") {
-      if (date > new Date()) {
-        res.status(400).send("Please enter a valid date");
-        return;
-      }
-      if (requester.annualLeaveBalance >= 1 && requester.accidentalLeaveBalance >= 1)
-        request = new accidentalLeaveModel({
-          requestedBy: authAccessToken.id,
-          day: req.body.day,
-          reason: req.body.reason
-        });
-      else {
-        res.status(422).send("Insufficient leave/accidental leave balance");
-        return;
-      }
-    }
-    else if (req.body.type === "sickLeave") {
-      console.log(req.body);
-      if (date > new Date()) {
-        res.status(404).send("Please enter a valid date");
-        return;
-      }
-      let parts = req.body.day.split("-");
-      let myDate = new Date(parts[0], parts[1] - 1, parts[2]);
-      if (myDate.addDays(3) >= new Date())
-        request = new sickLeaveModel({
-          requestedBy: authAccessToken.id,
-          day: req.body.day,
-          document: req.body.document,
-          reason: req.body.reason
-        });
-      else {
-        res.status(409).send("Deadline for submitting this request has passed");
-        return;
-      }
-    }
-    else if (req.body.type === "maternityLeave") {
-      let requester = await academicMemberModel.findOne({ id: authAccessToken.id });
-      if (isNaN(req.body.duration) || req.body.duration > 90) {
-        res.status(422).send("Please enter a valid leave duration. Maximum duration is 90 days.");
-        return;
-      }
-      if (requester.gender === "Female")
-        request = new maternityLeaveModel({
-          requestedBy: authAccessToken.id,
-          day: req.body.day,
-          duration: req.body.duration,
-          document: req.body.document,
-          reason: req.body.reason
-        });
-      else {
-        res.status(422).send("You cannot apply for a maternity leave");
-        return;
-      }
-    }
-    else if (req.body.type === "compensationRequest") {
-      if (date > new Date()) {
-        res.status(422).send("Please enter a valid date");
-        return;
-      }
-      if (!req.body.compensationDate) {
-        res.status(404).send("Please enter a compensation date");
-        return;
-      }
-      if(!req.body.reason){
-        res.status(400).send("Not all fields are entered");
-        return;
-      }
-      let dayOff = convertDay(requester.dayOff);
-      if ((new Date(req.body.compensationDate)).getDay() !== dayOff) {
-        res.status(422).send("Compensation date must be on your day off");
-        return;
-      }
-      if ((new Date(date).getDate()>=11 && !((new Date(req.body.compensationDate).getDate()>=11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
-      ||(new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()=== new Date(date).getMonth()+1)))
-      || (new Date(date).getDate()<11 && !((new Date(req.body.compensationDate).getDate()<11 && new Date(req.body.compensationDate).getMonth()===new Date(date).getMonth())
-      || (new Date(req.body.compensationDate)>=11 && new Date(req.body.compensationDate).getMonth() === new Date(date).getMonth()-1)))){
-        res.status(422).send("Date and compensation date should be in the same month");
-        return;
-      }
-      if(new Date(date).getDay()===5 || new Date(req.body.compensationDate).getDay()===5) {
-        res.status(422).send("Date cannot be on a Friday");
-        return;
-      }
-      request = new compensationLeaveModel({
-        day: req.body.day,
-        compensationDay: req.body.compensationDate,
-        requestedBy: authAccessToken.id,
-        reason: req.body.reason
-      });
-    }
-    else {
-      res.status(404).send("Invalid leave request type");
-      return;
-    }
-    try {
-      await request.save();
-      res.status(200).send("Request submitted for review to the HOD");
-    }
-    catch (error) {
-      res.status(500).send(error);
-      console.log(error);
-    }
-  });
-
 router.route("/schedule")
   .get(async (req, res) => {
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
@@ -613,34 +613,6 @@ router.route("/get-slots/:course")
     res.send(slots);
   });
 
-router.route("/get-academic-department")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    const academicMember = await academicMemberModel.findOne({ id: authAccessToken.id });
-    const department = await departmentModel.findById(academicMember.department);
-    res.send(department);
-  });
-
-  router.route("/course-slots/:course")
-  .get(async (req, res) => {
-    if (!req.params.course) {
-      res.send("Not all required fields are entered");
-      return;
-    }
-    let course = await courseModel.findOne({ id: req.params.course });
-
-    if (!course) {
-      res.status(404).send("Invalid Course Id");
-      return;
-    }
-    let slots = await slotModel.find({ course: course._id });
-    for (let i = 0; i < slots.length; i++) {
-      let room = await roomModel.findById(slots[i].room);
-      slots[i].room = room.name;
-      slots[i].course = course.name;
-    }
-    res.send(slots);
-  });
 
 Date.prototype.addDays = function (days) {
   var date = new Date(this.valueOf());

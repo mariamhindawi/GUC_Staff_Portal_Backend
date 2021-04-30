@@ -142,7 +142,22 @@ router.route("/delete-course-slot/:slotId")
       res.status(404).send("Incorrect slot id");
       return;
     }
-    res.send("Slot deleted successfully ");
+    res.send("Slot deleted successfully");
+  });
+
+  router.route("/slot-linking-requests")
+  .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let slots = await slotModel.find();
+    let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
+    let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
+    let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
+    let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Pending" });
+    let myRequests = allRequests.filter(request => myCourseSlotsids.includes(request.slot));
+    for (let i = 0; i < myRequests.length; i++) {
+      myRequests[i].slot = await slotModel.findOne({ _id: myRequests[i].slot });
+    }
+    res.send(myRequests);
   });
 
 router.route("/slot-linking-requests/:reqId/accept")
@@ -214,21 +229,6 @@ router.route("/slot-linking-requests/:reqId/reject")
     });
     notification.save();
     res.send(request);
-  });
-
-router.route("/slot-linking-requests")
-  .get(async (req, res) => {
-    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
-    let slots = await slotModel.find();
-    let courses = await courseModel.find({ courseCoordinator: authAccessToken.id });
-    let myCourseSlots = slots.filter(slot => courses.map(course => course._id.toString()).includes(slot.course));
-    let myCourseSlotsids = myCourseSlots.map(slot => slot._id.toString());
-    let allRequests = await slotLinkingModel.find({ type: "slotLinkingRequest", status: "Pending" });
-    let myRequests = allRequests.filter(request => myCourseSlotsids.includes(request.slot));
-    for (let i = 0; i < myRequests.length; i++) {
-      myRequests[i].slot = await slotModel.findOne({ _id: myRequests[i].slot });
-    }
-    res.send(myRequests);
   });
 
 module.exports = router;
