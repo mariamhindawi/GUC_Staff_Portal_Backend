@@ -412,7 +412,6 @@ router.route("/send-leave-request")
     }
   }
   else if (req.body.type === "sickLeave") {
-    console.log(req.body);
     if (date > new Date()) {
       res.status(404).send("Please enter a valid date");
       return;
@@ -496,13 +495,11 @@ router.route("/send-leave-request")
   }
   catch (error) {
     res.status(500).send(error);
-    console.log(error);
   }
 });
 
 router.route("/change-day-off-request")
   .post(async (req, res) => {
-    console.log(req.body);
     const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
     const request = new dayOffChangeModel({
       requestedBy: authAccessToken.id,
@@ -613,8 +610,25 @@ router.route("/get-slots/:course")
     res.send(slots);
   });
 
+  router.route("/get-slots-stats")
+  .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    let assignedSlots = await slotModel.find({ staffMember: authAccessToken.id }).countDocuments({});
+    let unassignedSlots = 30-assignedSlots;
+    res.send({assignedSlots, unassignedSlots});
+  });
 
-Date.prototype.addDays = function (days) {
+  router.route("/get-counts-report")
+  .get(async (req, res) => {
+    const authAccessToken = jwt.decode(req.headers["auth-access-token"]);
+    const user = await academicMemberModel.findOne({ id: authAccessToken.id });
+    const courses = await courseModel.find({ $or: [{ courseInstructors: user.id }, { teachingAssistants: user.id }] }).countDocuments({});
+    const pendingRequests = await requestModel.find({ requestedBy: authAccessToken.id, status: "Pending" }).countDocuments({});
+    let recievedRequests = await replacementModel.find({ replacementID: authAccessToken.id, type: "replacementRequest", replacementReply: "Waiting for reply" }).countDocuments({});
+    res.send({courses, pendingRequests, recievedRequests});
+
+  });
+  Date.prototype.addDays = function (days) {
   var date = new Date(this.valueOf());
   date.setDate(date.getDate() + days);
   return date;

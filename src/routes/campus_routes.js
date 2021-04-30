@@ -56,7 +56,6 @@ router.route("/sign-out")
         return;
       }
       catch (error) {
-        console.log(error.message);
         res.status(400).send(error);
         return;
       }

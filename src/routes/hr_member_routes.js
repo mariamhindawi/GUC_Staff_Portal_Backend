@@ -1212,4 +1212,30 @@ router.route("/delete-attendance-record/:attendanceRecordId")
 
   });
 
+  router.route("/get-rooms-stats")
+  .get(async (req, res) => {
+    const rooms = await roomModel.find({});
+    let lectures=0;
+    let tutorials=0;
+    let labs=0;
+    let offices=0;
+
+    for (let i=0; i<rooms.length;i++){
+      if (rooms[i].type==="Lecture"){
+        lectures++;
+      }
+      else if (rooms[i].type==="Tutorial"){
+        tutorials++;
+      }
+      else  if (rooms[i].type==="Lab"){
+        labs++;
+      }
+      else if (rooms[i].type==="Office"){
+        offices++;
+      }
+    }
+    res.send({lectures, tutorials, labs, offices});
+
+  });
+
 module.exports = router;

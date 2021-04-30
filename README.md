@@ -329,6 +329,13 @@ Web portal for GUC staff members
     - Response: An object with number of : academic members, hr members, faculties, courses, departments
     - Example of response: {academicMembers: 10, hrMembers: 13, faculties: 2, departments: 6, courses: 12}
 
+#### Functionality: Get Room statistics (hr member)
+    - Route: /hr/get-rooms-stats
+    - Request type: GET
+    - Response: An object with number of : lectures, tutorials, labs, offices
+    - Example of response: {lecture: 10, tutorials: 13, labs: 2, offices: 6}
+
+
 #### Functionality: Get Notifications (academic member)
     - Route: /academic/get-notifications
     - Request type: GET
@@ -497,7 +504,19 @@ Web portal for GUC staff members
     - Request: GET
     - Parameters: course id
     - Response: A list of slots in course
-    - Example of Example of response: [{Slot 1},{Slot 2}]
+    - Example of response: [{Slot 1},{Slot 2}]
+
+#### Functionality: Get slots stats (academic member)
+    - Route: /academic/get-slots-stats
+    - Request: GET
+    - Response: An object containing the number of unassigned slots and assigned slots
+    - Example of response: [{assignedSlots: 14, unassignedSlots: 16}]
+
+#### Functionality: Get counts report (academic member)
+    - Route: /academic/get-count-report
+    - Request: GET
+    - Response: An object containing the number of assigned courses,pending requests, recieved requests, missing days, missing hours
+    - Example of response: {courses: 3, pendingRequests: 10, recievedRequests: 0, missingDays:13, missingHours: 150}
 
 #### Functionality: View the coverage of each course he is assigned to (course instructor)
     - Route: /ci/get-my-courses-coverage
@@ -535,25 +554,25 @@ Web portal for GUC staff members
     - Request body: { "id" : "ac-6", "room": "5f223d77l", "day": "Monday", "slotNumber": "3" }
     - Example of response: The saved slot after assigning the academic member. { "day": "Monday", "slotNumber": 3, "room": (room._id) "5f223d77l", "course": (course._id) "435263g628h", "staffMember": "ac-4", "type": "Lab"}
 
-#### Functionality: View the coverage of each course in his/her department (course instructor and head of department)
+#### Functionality: View the coverage of each course in his/her department (head of department)
     - Route: hod/get-department-courses-coverage
     - Request type: GET
     - Response: An object containing a list of courses and a list of coverage
     - Example of response: {["CSEN701", "CSEN302"],[50, 80]}
 
-#### Functionality: Assign a course instructor for a course in his department (course instructor and head of department)
+#### Functionality: Assign a course instructor for a course in his department (head of department)
     - Route: /hod/assign-course-instructor
     - Request type: POST
     - Request paramaters:{"academicId":"ac-56","courseId":"CSEN401"}
     - Example of response: "Instructor assigned to course successfully"
 
-#### Functionality: Unassign a course instructor from a course in his department (course instructor and head of department)
+#### Functionality: Unassign a course instructor from a course in his department (head of department)
     - Route: /hod/unassign-course-instructor/:academicId/:courseId
     - Request type: PUT
     - Request paramaters:academicId, courseId
     - Example of response: "Course instructor unassigned from course successfully"
 
-#### Functionality: HOD gets all requests from staff in his department (course instructor and head of department)
+#### Functionality: HOD gets all requests from staff in his department (head of department)
     - Route: /hod/staff-requests
     - Request: GET
     - Response: A list of requests sent to hod from academic members in his/her department
@@ -573,7 +592,7 @@ Web portal for GUC staff members
         document: 'drive.google.com/document'}
     ]
 
-#### Functionality: Accept a request from an academic member in his departmment (course instructor and head of department)
+#### Functionality: Accept a request from an academic member in his departmment (head of department)
     - Route: /hod/staff-requests/:reqId/accept
     - Request: PUT
     - Parameters:	request Id
@@ -588,7 +607,7 @@ Web portal for GUC staff members
         document: 'drive.google.com/document'
     }
 
-#### Functionality: Reject a request from an academic member in his departmment (course instructor and head of department)
+#### Functionality: Reject a request from an academic member in his departmment (head of department)
     - Route: /hod/staff-requests/:reqId/reject
     - Request: PUT
     - Parameters:	request Id
