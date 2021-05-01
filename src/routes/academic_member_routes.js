@@ -583,7 +583,7 @@ router.route("/schedule")
       let room = await roomModel.findById(schedule[i].room);
       schedule[i].room = room.name;
       let course = await courseModel.findById(schedule[i].course);
-      schedule[i].course = course.name;
+      schedule[i].course = course.id;
     }
     res.send(schedule);
   });
