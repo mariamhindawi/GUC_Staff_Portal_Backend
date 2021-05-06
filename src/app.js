@@ -16,7 +16,7 @@ const courseCoordinatorRoutes = require("./routes/course_coordinator_routes");
 
 const app = express();
 const corsOptions = {
-  origin: process.env.FRONTEND_BASE_URL,
+  origin: "https://guc-staff-portal.netlify.app",
   methods: "GET,PUT,POST,DELETE",
   exposedHeaders: "auth-access-token",
   credentials: true,
