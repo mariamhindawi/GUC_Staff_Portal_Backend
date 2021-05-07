@@ -51,7 +51,7 @@ router.route("")
     const newUser = new hrMemberModel({
       id: "hr-" + newUserCount,
       name: "user",
-      email: "user@guc.edu.eg",
+      email: "hr1@guc.edu.eg",
       password: newPassword,
       gender: "Male",
       office: newRoom._id,
