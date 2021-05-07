@@ -1,17 +1,25 @@
 # GUC_Staff_Portal
 Web portal for GUC staff members
 
+DEPLOYED WEBSITE: https://guc-staff-portal.netlify.app/
 
-- File to launch the server: index.js
+To run backend 
+run
+npm install
+npm start
 
+.env file should be added and includes the following:
 
-- Port : "PORT" field in .env file in the root directory
-
+MONGODB_URI = mongo connection string
+AUTH_ACCESS_TOKEN_SECRET = any secret
+AUTH_REFRESH_TOKEN_SECRET = any secret
+AUTH_ACCESS_TOKEN_AGE = 300
+AUTH_REFRESH_TOKEN_AGE = 28800
+MAIL_FORMAT = ^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
 
 - Notes:
     - The current user id is known from the token, not entered in the request body as well as his/her role.
     - Authentication based on the token
-
 
 - Functionalities:
 
