@@ -3,6 +3,11 @@ Web portal for GUC staff members
 
 DEPLOYED WEBSITE: https://guc-staff-portal.netlify.app/
 
+hr username: hr1@guc.edu.eg
+hr password: 123456
+
+Any other user can be easily created by the hr
+
 To run backend 
 run
 npm install
