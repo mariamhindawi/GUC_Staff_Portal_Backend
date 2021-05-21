@@ -2,6 +2,7 @@
 Web portal for GUC staff members
 
 DEPLOYED WEBSITE: https://guc-staff-portal.netlify.app/
+DEMO: https://drive.google.com/file/d/1u-UBLMYU4NcJzWSYnOZSy5H4y29tQz2c/view?usp=sharing
 
 hr username: hr1@guc.edu.eg
 hr password: 123456
